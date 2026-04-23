@@ -1,0 +1,44 @@
+{
+  "name": "gis-ai-lib",
+  "version": "0.1.0",
+  "description": "A high-performance, cross-platform C++ GIS AI algorithm library",
+  "homepage": "https://github.com/your-org/gis_ai_lib",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "gdal",
+      "version>=": "3.6.0"
+    },
+    {
+      "name": "geos",
+      "version>=": "3.11.1"
+    },
+    {
+      "name": "proj",
+      "version>=": "9.2.0"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.12.0"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.14.0"
+    },
+    {
+      "name": "onnxruntime",
+      "version>=": "1.16.0"
+    }
+  ],
+  "features": {
+    "cuda": {
+      "description": "Enable CUDA support for GPU-accelerated inference",
+      "dependencies": [
+        {
+          "name": "onnxruntime",
+          "features": ["cuda"]
+        }
+      ]
+    }
+  }
+}

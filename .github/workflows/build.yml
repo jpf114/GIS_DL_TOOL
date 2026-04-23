@@ -1,0 +1,161 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly build to ensure dependencies remain compatible
+    - cron: '0 0 * * 0'
+
+env:
+  BUILD_TYPE: Release
+  VCPKG_COMMIT: HEAD
+
+jobs:
+  build-windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Ninja
+      uses: ashutoshvarma/setup-ninja@master
+      with:
+        ninja-version: '1.11.1'
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'HEAD'
+
+    - name: Configure CMake
+      run: |
+        cmake --preset=release-windows `
+          -DVCPKG_MANIFEST_FEATURES="cuda"
+      shell: pwsh
+
+    - name: Build
+      run: cmake --build build/release-windows --config Release
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build/release-windows
+      run: ctest -C Release --output-on-failure
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gis-ai-windows
+        path: |
+          build/release-windows/lib/*.dll
+          build/release-windows/lib/*.lib
+
+  build-linux:
+    name: Linux (GCC)
+    runs-on: ubuntu-22.04
+
+    env:
+      CC: gcc-11
+      CXX: g++-11
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          g++-11 \
+          libgdal-dev \
+          libgeos-dev \
+          libproj-dev \
+          libspdlog-dev \
+          libgtest-dev
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'HEAD'
+
+    - name: Configure CMake
+      run: |
+        cmake --preset=release-linux
+
+    - name: Build
+      run: cmake --build build/release-linux -j$(nproc)
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build/release-linux
+      run: ctest --output-on-failure
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gis-ai-linux
+        path: |
+          build/release-linux/lib/*.so
+          build/release-linux/lib/*.a
+
+  build-macos:
+    name: macOS (Clang)
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Ninja
+      uses: ashutoshvarma/setup-ninja@master
+      with:
+        ninja-version: '1.11.1'
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'HEAD'
+
+    - name: Configure CMake
+      run: |
+        cmake --preset=release-macos
+
+    - name: Build
+      run: cmake --build build/release-macos -j$(sysctl -n hw.ncpu)
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build/release-macos
+      run: ctest --output-on-failure
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gis-ai-macos
+        path: |
+          build/release-macos/lib/*.dylib
+          build/release-macos/lib/*.a
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get install -y clang-format-14
+
+    - name: Check code formatting
+      run: |
+        find src include -name "*.h" -o -name "*.cpp" | xargs clang-format-14 --dry-run --Werror
+
+    - name: Install cppcheck
+      run: |
+        sudo apt-get install -y cppcheck
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=warning,performance,portability --error-exitcode=1 \
+          --suppress=missingIncludeSystem \
+          src/ include/

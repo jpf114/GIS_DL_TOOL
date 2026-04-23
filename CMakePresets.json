@@ -1,0 +1,140 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17"
+      }
+    },
+    {
+      "name": "dev-windows",
+      "inherits": "base",
+      "displayName": "Windows Development",
+      "description": "Windows development build with MSVC",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GIS_AI_BUILD_TESTS": "ON",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release-windows",
+      "inherits": "base",
+      "displayName": "Windows Release",
+      "description": "Windows release build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GIS_AI_BUILD_TESTS": "OFF",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "dev-linux",
+      "inherits": "base",
+      "displayName": "Linux Development",
+      "description": "Linux development build with GCC",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "g++",
+        "GIS_AI_BUILD_TESTS": "ON",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release-linux",
+      "inherits": "base",
+      "displayName": "Linux Release",
+      "description": "Linux release build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "g++",
+        "GIS_AI_BUILD_TESTS": "OFF",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "dev-macos",
+      "inherits": "base",
+      "displayName": "macOS Development",
+      "description": "macOS development build with Clang",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "GIS_AI_BUILD_TESTS": "ON",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release-macos",
+      "inherits": "base",
+      "displayName": "macOS Release",
+      "description": "macOS release build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "GIS_AI_BUILD_TESTS": "OFF",
+        "GIS_AI_BUILD_EXAMPLES": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "displayName": "Development Build",
+      "configurePreset": "dev-windows",
+      "description": "Build development configuration"
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "configurePreset": "release-windows",
+      "description": "Build release configuration"
+    },
+    {
+      "name": "test",
+      "displayName": "Run Tests",
+      "configurePreset": "dev-windows",
+      "targets": ["RUN_TESTS"]
+    }
+  ]
+}

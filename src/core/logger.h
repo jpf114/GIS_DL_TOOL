@@ -6,14 +6,11 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include "core/export.h"
 
 namespace gis_ai {
 
-/**
- * Logger utility class wrapping spdlog.
- * Supports DEBUG/INFO/WARN/ERROR levels with console and file output.
- */
-class Logger {
+class GIS_AI_API Logger {
 public:
     static Logger& Instance();
 
@@ -22,7 +19,6 @@ public:
 
     std::shared_ptr<spdlog::logger> GetLogger() const { return logger_; }
 
-    // Convenience methods
     void Debug(const std::string& msg);
     void Info(const std::string& msg);
     void Warn(const std::string& msg);
@@ -37,7 +33,6 @@ private:
     std::shared_ptr<spdlog::logger> logger_;
 };
 
-// Macros for convenient logging
 #define LOG_DEBUG(msg) gis_ai::Logger::Instance().Debug(msg)
 #define LOG_INFO(msg) gis_ai::Logger::Instance().Info(msg)
 #define LOG_WARN(msg) gis_ai::Logger::Instance().Warn(msg)

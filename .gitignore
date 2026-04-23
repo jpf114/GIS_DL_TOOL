@@ -1,0 +1,4 @@
+build/
+test_data/
+vcpkg_installed/
+*.log

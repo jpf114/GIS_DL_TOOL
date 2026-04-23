@@ -4,10 +4,11 @@
 #include <exception>
 #include <string>
 #include <stdexcept>
+#include "core/export.h"
 
 namespace gis_ai {
 
-enum class ErrorCode {
+enum class GIS_AI_API ErrorCode {
     Success = 0,
     IO = 1001,
     ModelLoad = 2001,
@@ -19,7 +20,7 @@ enum class ErrorCode {
     Unknown = 9999
 };
 
-class GisAiException : public std::runtime_error {
+class GIS_AI_API GisAiException : public std::runtime_error {
 public:
     GisAiException(ErrorCode code, const std::string& message,
                    const std::string& context = "");
@@ -32,25 +33,25 @@ private:
     std::string context_;
 };
 
-class GisAiIOException : public GisAiException {
+class GIS_AI_API GisAiIOException : public GisAiException {
 public:
     explicit GisAiIOException(const std::string& msg, const std::string& ctx = "")
         : GisAiException(ErrorCode::IO, msg, ctx) {}
 };
 
-class GisAiModelException : public GisAiException {
+class GIS_AI_API GisAiModelException : public GisAiException {
 public:
     explicit GisAiModelException(const std::string& msg, const std::string& ctx = "")
         : GisAiException(ErrorCode::ModelLoad, msg, ctx) {}
 };
 
-class GisAiAlgorithmException : public GisAiException {
+class GIS_AI_API GisAiAlgorithmException : public GisAiException {
 public:
     explicit GisAiAlgorithmException(const std::string& msg, const std::string& ctx = "")
         : GisAiException(ErrorCode::Algorithm, msg, ctx) {}
 };
 
-class GisAiConfigException : public GisAiException {
+class GIS_AI_API GisAiConfigException : public GisAiException {
 public:
     explicit GisAiConfigException(const std::string& msg, const std::string& ctx = "")
         : GisAiException(ErrorCode::Config, msg, ctx) {}

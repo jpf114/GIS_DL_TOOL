@@ -5,55 +5,32 @@ project(gis_ai_lib
     LANGUAGES CXX
 )
 
-# C++17 standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Options
 option(GIS_AI_BUILD_TESTS "Build unit tests" ON)
 option(GIS_AI_BUILD_EXAMPLES "Build example programs" ON)
 option(GIS_AI_ENABLE_CUDA "Enable CUDA support for GPU inference" OFF)
 option(GIS_AI_BUILD_SHARED "Build shared library" ON)
 option(GIS_AI_BUILD_STATIC "Build static library" ON)
 
-# Output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Find packages
-find_package(GDAL REQUIRED)
-find_package(PROJ REQUIRED)
-# GEOS might not have CMake config, use find_path/find_library as fallback
-find_package(GEOS QUIET)
-if(NOT GEOS_FOUND)
-    find_path(GEOS_INCLUDE_DIR NAMES geos.h)
-    find_library(GEOS_LIBRARY NAMES geos geos_c)
-endif()
-find_package(spdlog CONFIG QUIET)
-if(NOT spdlog_FOUND)
-    find_package(spdlog REQUIRED)
-endif()
-find_package(GTest CONFIG QUIET)
-if(NOT GTest_FOUND)
-    find_package(GTest REQUIRED)
-endif()
-find_package(onnxruntime CONFIG QUIET)
-if(NOT onnxruntime_FOUND)
-    find_package(onnxruntime REQUIRED)
-endif()
+find_package(GDAL CONFIG REQUIRED)
+find_package(PROJ CONFIG REQUIRED)
+find_package(GEOS CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
+find_package(onnxruntime CONFIG REQUIRED)
 
-# Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
-    ${GDAL_INCLUDE_DIRS}
-    ${PROJ_INCLUDE_DIRS}
-    ${GEOS_INCLUDE_DIR}
 )
 
-# Source files
 set(CORE_SOURCES
     src/core/logger.cpp
     src/core/exception.cpp
@@ -99,68 +76,77 @@ set(FUSION_SOURCES
     src/fusion/batch_processor.cpp
 )
 
-# Collect all sources
 set(LIB_SOURCES
     ${CORE_SOURCES}
     ${IO_SOURCES}
     ${GIS_SOURCES}
     ${AI_SOURCES}
     ${FUSION_SOURCES}
+    src/c_api.cpp
 )
 
-# Create library
+set(COMMON_LINK_LIBS
+    GDAL::GDAL
+    PROJ::proj
+    GEOS::geos_c
+    spdlog::spdlog
+    onnxruntime::onnxruntime
+)
+
 if(GIS_AI_BUILD_SHARED)
     add_library(gis_ai_shared SHARED ${LIB_SOURCES})
-    target_link_libraries(gis_ai_shared
-        PRIVATE
-            ${GDAL_LIBRARIES}
-            ${PROJ_LIBRARIES}
-            ${GEOS_LIBRARY}
-            spdlog::spdlog
-            onnxruntime::onnxruntime
-    )
+    target_link_libraries(gis_ai_shared PUBLIC ${COMMON_LINK_LIBS})
+    target_compile_definitions(gis_ai_shared PRIVATE GIS_AI_SHARED_BUILD)
     set_target_properties(gis_ai_shared PROPERTIES
         OUTPUT_NAME "gis_ai"
         VERSION ${PROJECT_VERSION}
         SOVERSION 1
     )
+    if(WIN32)
+        target_compile_definitions(gis_ai_shared PRIVATE GIS_AI_PLATFORM_WINDOWS)
+    elseif(UNIX)
+        target_compile_definitions(gis_ai_shared PRIVATE GIS_AI_PLATFORM_LINUX)
+    endif()
 endif()
 
 if(GIS_AI_BUILD_STATIC)
     add_library(gis_ai_static STATIC ${LIB_SOURCES})
-    target_link_libraries(gis_ai_static
-        PRIVATE
-            ${GDAL_LIBRARIES}
-            ${PROJ_LIBRARIES}
-            ${GEOS_LIBRARY}
-            spdlog::spdlog
-            onnxruntime::onnxruntime
+    target_link_libraries(gis_ai_static PUBLIC ${COMMON_LINK_LIBS})
+    target_compile_definitions(gis_ai_static
+        PRIVATE GIS_AI_STATIC_BUILD
+        PUBLIC GIS_AI_STATIC_BUILD
     )
     set_target_properties(gis_ai_static PROPERTIES
         OUTPUT_NAME "gis_ai"
         PREFIX "lib"
     )
+    if(WIN32)
+        target_compile_definitions(gis_ai_static PRIVATE GIS_AI_PLATFORM_WINDOWS)
+    elseif(UNIX)
+        target_compile_definitions(gis_ai_static PRIVATE GIS_AI_PLATFORM_LINUX)
+    endif()
 endif()
 
-# Default alias
 if(GIS_AI_BUILD_SHARED)
     add_library(gis_ai ALIAS gis_ai_shared)
 else()
     add_library(gis_ai ALIAS gis_ai_static)
 endif()
 
-# Tests
 if(GIS_AI_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-# Examples
 if(GIS_AI_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# Installation
+option(GIS_AI_BUILD_TOOLS "Build utility tools" ON)
+if(GIS_AI_BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+
 install(DIRECTORY include/gis_ai/ DESTINATION include/gis_ai)
 if(GIS_AI_BUILD_SHARED)
     install(TARGETS gis_ai_shared
@@ -175,7 +161,6 @@ if(GIS_AI_BUILD_STATIC)
     )
 endif()
 
-# Print configuration summary
 message(STATUS "")
 message(STATUS "=== GIS AI Library Configuration ===")
 message(STATUS "Version: ${PROJECT_VERSION}")

@@ -26,11 +26,137 @@ bool Config::LoadFromFile(const std::string& path) {
     return LoadFromString(ss.str());
 }
 
-bool Config::LoadFromString(const std::string& /*json_str*/) {
-    // Minimal JSON parsing - a production implementation would use
-    // nlohmann/json or similar. For now, accept that the config
-    // is primarily set via Set() calls.
-    return true;
+bool Config::LoadFromString(const std::string& json_str) {
+    enum class ParseState {
+        Start,
+        InObject,
+        ExpectKey,
+        InKey,
+        ExpectColon,
+        ExpectValue,
+        InStringValue,
+        InNumberValue,
+        InBoolValue,
+        ExpectCommaOrEnd
+    };
+
+    ParseState state = ParseState::Start;
+    std::string current_key;
+    std::string current_value;
+    bool in_escape = false;
+
+    for (size_t i = 0; i < json_str.size(); ++i) {
+        char c = json_str[i];
+
+        switch (state) {
+            case ParseState::Start:
+                if (c == '{') state = ParseState::InObject;
+                break;
+            case ParseState::InObject:
+                if (c == '"') {
+                    state = ParseState::InKey;
+                    current_key.clear();
+                } else if (c == '}') {
+                    return true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    return false;
+                }
+                break;
+            case ParseState::InKey:
+                if (in_escape) {
+                    current_key += c;
+                    in_escape = false;
+                } else if (c == '\\') {
+                    in_escape = true;
+                } else if (c == '"') {
+                    state = ParseState::ExpectColon;
+                    in_escape = false;
+                } else {
+                    current_key += c;
+                }
+                break;
+            case ParseState::ExpectColon:
+                if (c == ':') state = ParseState::ExpectValue;
+                else if (!std::isspace(static_cast<unsigned char>(c))) return false;
+                break;
+            case ParseState::ExpectValue:
+                if (c == '"') {
+                    state = ParseState::InStringValue;
+                    current_value.clear();
+                    in_escape = false;
+                } else if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) {
+                    state = ParseState::InNumberValue;
+                    current_value = c;
+                } else if (c == 't' || c == 'f') {
+                    state = ParseState::InBoolValue;
+                    current_value = c;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    return false;
+                }
+                break;
+            case ParseState::InStringValue:
+                if (in_escape) {
+                    current_value += c;
+                    in_escape = false;
+                } else if (c == '\\') {
+                    in_escape = true;
+                } else if (c == '"') {
+                    values_[current_key] = current_value;
+                    state = ParseState::ExpectCommaOrEnd;
+                } else {
+                    current_value += c;
+                }
+                break;
+            case ParseState::InNumberValue:
+                if (std::isdigit(static_cast<unsigned char>(c)) || c == '.' ||
+                    c == 'e' || c == 'E' || c == '+' || c == '-') {
+                    current_value += c;
+                } else {
+                    if (current_value.find('.') != std::string::npos ||
+                        current_value.find('e') != std::string::npos ||
+                        current_value.find('E') != std::string::npos) {
+                        try {
+                            values_[current_key] = std::stod(current_value);
+                        } catch (...) {
+                            values_[current_key] = 0.0;
+                        }
+                    } else {
+                        try {
+                            values_[current_key] = std::stoi(current_value);
+                        } catch (...) {
+                            try {
+                                values_[current_key] = std::stod(current_value);
+                            } catch (...) {
+                                values_[current_key] = 0;
+                            }
+                        }
+                    }
+                    i--;
+                    state = ParseState::ExpectCommaOrEnd;
+                }
+                break;
+            case ParseState::InBoolValue:
+                if (std::isalpha(static_cast<unsigned char>(c))) {
+                    current_value += c;
+                } else {
+                    values_[current_key] = (current_value == "true");
+                    i--;
+                    state = ParseState::ExpectCommaOrEnd;
+                }
+                break;
+            case ParseState::ExpectCommaOrEnd:
+                if (c == ',') {
+                    state = ParseState::InObject;
+                } else if (c == '}') {
+                    return true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    return false;
+                }
+                break;
+        }
+    }
+
+    return state == ParseState::ExpectCommaOrEnd || state == ParseState::InObject;
 }
 
 void Config::SaveToFile(const std::string& path) const {

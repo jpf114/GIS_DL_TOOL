@@ -5,10 +5,11 @@
 #include <unordered_map>
 #include <variant>
 #include <optional>
+#include "core/export.h"
 
 namespace gis_ai {
 
-class Config {
+class GIS_AI_API Config {
 public:
     using Value = std::variant<std::string, int, double, bool>;
 

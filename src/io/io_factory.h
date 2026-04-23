@@ -3,6 +3,7 @@
 
 #include <string>
 #include <memory>
+#include "core/export.h"
 
 namespace gis_ai {
 
@@ -10,14 +11,14 @@ class RasterIO;
 class VectorIO;
 class PointCloudIO;
 
-enum class IOFormat {
+enum class GIS_AI_API IOFormat {
 	Raster,
 	Vector,
 	PointCloud,
 	Unknown
 };
 
-class IOFactory {
+class GIS_AI_API IOFactory {
 public:
 	static IOFormat DetectFormat(const std::string& path);
 

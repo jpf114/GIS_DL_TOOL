@@ -2,6 +2,7 @@
 #define GIS_AI_PLATFORM_H
 
 #include <string>
+#include "core/export.h"
 
 namespace gis_ai {
 
@@ -13,7 +14,7 @@ namespace gis_ai {
     #define GIS_AI_PATH_SEPARATOR '/'
 #endif
 
-class Platform {
+class GIS_AI_API Platform {
 public:
     static std::string GetPathSeparator();
     static std::string JoinPath(const std::string& a, const std::string& b);

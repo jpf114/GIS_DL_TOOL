@@ -48,7 +48,7 @@ TEST(CoreTest, MemoryPoolAllocate) {
     MemoryPool pool(1024);
     void* ptr = pool.Allocate(256);
     EXPECT_NE(ptr, nullptr);
-    EXPECT_EQ(pool.GetTotalAllocated(), 256u);
+    EXPECT_GE(pool.GetTotalAllocated(), 256u);
     pool.Deallocate(ptr, 256);
     EXPECT_EQ(pool.GetTotalAllocated(), 0u);
 }

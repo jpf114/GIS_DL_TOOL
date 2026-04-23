@@ -7,8 +7,17 @@
 
 namespace gis_ai {
 
+static void EnsureGDALInitialized() {
+    static bool initialized = false;
+    if (!initialized) {
+        GDALAllRegister();
+        initialized = true;
+    }
+}
+
 std::unique_ptr<RasterData> RasterIO::Load(const std::string& path) {
-	GDALDataset* dataset = static_cast<GDALDataset*>(
+    EnsureGDALInitialized();
+    GDALDataset* dataset = static_cast<GDALDataset*>(
 		GDALOpen(path.c_str(), GA_ReadOnly));
 	if (!dataset) {
 		throw GisAiIOException("Failed to open raster file: " + path, "RasterIO::Load");
@@ -48,7 +57,8 @@ std::unique_ptr<RasterData> RasterIO::Load(const std::string& path) {
 	return data;
 }
 
-void RasterIO::Save(const std::string& path, const RasterData& data) {
+void RasterIO::Save(const RasterData& data, const std::string& path) {
+    EnsureGDALInitialized();
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
 	if (!driver) {
 		throw GisAiIOException("GTiff driver not available", "RasterIO::Save");

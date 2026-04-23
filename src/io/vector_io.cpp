@@ -7,6 +7,14 @@
 
 namespace gis_ai {
 
+static void EnsureGDALInitialized() {
+    static bool initialized = false;
+    if (!initialized) {
+        GDALAllRegister();
+        initialized = true;
+    }
+}
+
 FeatureType VectorIO::DetectFeatureType(OGRwkbGeometryType geom_type) {
 	switch (wkbFlatten(geom_type)) {
 		case wkbPoint:
@@ -61,7 +69,8 @@ static std::string DetectDriverName(const std::string& path) {
 }
 
 std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
-	GDALDataset* dataset = static_cast<GDALDataset*>(
+    EnsureGDALInitialized();
+	GDALDataset* dataset = reinterpret_cast<GDALDataset*>(
 		OGROpen(path.c_str(), FALSE, nullptr));
 	if (!dataset) {
 		throw GisAiIOException("Failed to open vector file: " + path, "VectorIO::Load");
@@ -75,10 +84,10 @@ std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
 		throw GisAiIOException("No layers found in: " + path, "VectorIO::Load");
 	}
 
-	OGRSpatialReference* srs = layer->GetSpatialRef();
+	const OGRSpatialReference* srs = layer->GetSpatialRef();
 	if (srs) {
 		char* wkt = nullptr;
-		srs->exportToWkt(&wkt);
+		const_cast<OGRSpatialReference*>(srs)->exportToWkt(&wkt);
 		if (wkt) {
 			data->projection = wkt;
 			CPLFree(wkt);
@@ -130,7 +139,8 @@ std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
 	return data;
 }
 
-void VectorIO::Save(const std::string& path, const VectorData& data) {
+void VectorIO::Save(const VectorData& data, const std::string& path) {
+    EnsureGDALInitialized();
 	std::string driver_name = DetectDriverName(path);
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName(driver_name.c_str());
 	if (!driver) {

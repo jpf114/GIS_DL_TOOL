@@ -5,10 +5,11 @@
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include "core/export.h"
 
 namespace gis_ai {
 
-struct Point {
+struct GIS_AI_API Point {
 	double x = 0.0;
 	double y = 0.0;
 	double z = 0.0;
@@ -16,18 +17,18 @@ struct Point {
 	uint8_t classification = 0;
 };
 
-struct PointCloudData {
+struct GIS_AI_API PointCloudData {
 	std::vector<Point> points;
 	std::string coordinate_system;
 };
 
-class PointCloudIO {
+class GIS_AI_API PointCloudIO {
 public:
 	PointCloudIO() = default;
 	~PointCloudIO() = default;
 
 	std::unique_ptr<PointCloudData> Load(const std::string& path);
-	void Save(const std::string& path, const PointCloudData& data);
+	void Save(const PointCloudData& data, const std::string& path);
 };
 
 } // namespace gis_ai

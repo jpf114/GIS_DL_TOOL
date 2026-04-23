@@ -29,6 +29,28 @@ std::string Platform::JoinPath(const std::string& a, const std::string& b) {
 }
 
 std::string Platform::GetExecutableDir() {
+#ifdef GIS_AI_PLATFORM_WINDOWS
+    char path[MAX_PATH];
+    DWORD len = GetModuleFileNameA(nullptr, path, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        std::string exe_path(path, len);
+        auto pos = exe_path.find_last_of("\\/");
+        if (pos != std::string::npos) {
+            return exe_path.substr(0, pos);
+        }
+    }
+#else
+    char path[4096];
+    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (len > 0) {
+        path[len] = '\0';
+        std::string exe_path(path);
+        auto pos = exe_path.find_last_of('/');
+        if (pos != std::string::npos) {
+            return exe_path.substr(0, pos);
+        }
+    }
+#endif
     try {
         return std::filesystem::current_path().string();
     } catch (...) {

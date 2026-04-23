@@ -4,10 +4,11 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "core/export.h"
 
 namespace gis_ai {
 
-struct RasterData {
+struct GIS_AI_API RasterData {
 	int width = 0;
 	int height = 0;
 	int band_count = 0;
@@ -16,13 +17,13 @@ struct RasterData {
 	std::vector<std::vector<float>> bands;
 };
 
-class RasterIO {
+class GIS_AI_API RasterIO {
 public:
 	RasterIO() = default;
 	~RasterIO() = default;
 
 	std::unique_ptr<RasterData> Load(const std::string& path);
-	void Save(const std::string& path, const RasterData& data);
+	void Save(const RasterData& data, const std::string& path);
 
 private:
 	static constexpr int GEOTRANSFORM_SIZE = 6;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <cstddef>
+#include "core/export.h"
 
 namespace gis_ai {
 
@@ -17,10 +18,15 @@ std::shared_ptr<T> MakeShared(Args&&... args) {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
-class MemoryPool {
+class GIS_AI_API MemoryPool {
 public:
     explicit MemoryPool(size_t block_size = 1024 * 1024);
     ~MemoryPool() = default;
+
+    MemoryPool(const MemoryPool&) = delete;
+    MemoryPool& operator=(const MemoryPool&) = delete;
+    MemoryPool(MemoryPool&&) = default;
+    MemoryPool& operator=(MemoryPool&&) = default;
 
     void* Allocate(size_t size);
     void Deallocate(void* ptr, size_t size);
@@ -33,6 +39,7 @@ private:
     size_t total_allocated_ = 0;
     size_t peak_usage_ = 0;
     std::vector<std::unique_ptr<char[]>> blocks_;
+    std::vector<size_t> block_sizes_;
 };
 
 } // namespace gis_ai

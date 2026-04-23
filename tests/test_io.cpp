@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "core/exception.h"
 #include "io/raster_io.h"
 #include "io/vector_io.h"
 #include "io/pointcloud_io.h"

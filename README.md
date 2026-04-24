@@ -154,6 +154,8 @@ int main() {
 - [API 参考](docs/api_reference.md)
 - [用户手册](docs/user_manual.md)
 - [测试指南](docs/testing.md)
+- [实用化功能路线图](<docs/实用化功能路线图.md>)
+- [下一阶段开发优先级清单](<docs/下一阶段开发优先级清单.md>)
 - [贡献说明](CONTRIBUTING.md)
 
 ## 安装后消费示例

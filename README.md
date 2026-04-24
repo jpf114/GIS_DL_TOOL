@@ -1,17 +1,16 @@
 # GIS AI Algorithm Library
 
-[![Build Status](https://github.com/your-org/gis_ai_lib/actions/workflows/build.yml/badge.svg)](https://github.com/your-org/gis_ai_lib/actions/workflows/build.yml)
+[![Build Status](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A high-performance, cross-platform C++ GIS AI algorithm library with no Python dependency.
+A C++17 GIS algorithm library focused on raster/vector/point-cloud processing and ONNX-based raster segmentation.
 
 ## Features
 
-- **Remote Sensing Image AI Segmentation**: Building, road, water, vegetation detection
-- **LiDAR Point Cloud AI Classification**: Ground, building, vegetation, power line classification  
-- **Traditional GIS Algorithms**: Vector/raster/point cloud operations
-- **Pure C API**: Compatible with C#, Python, Java and other languages
-- **Cross-platform**: Windows (MSVC), Linux (GCC), macOS (Clang)
+- Remote sensing raster segmentation based on ONNX Runtime
+- Traditional GIS algorithms for vector, raster, and point cloud data
+- Pure C API for C, C#, Python, Java, and other language bindings
+- Cross-platform build presets for Windows, Linux, and macOS
 
 ## Technology Stack
 
@@ -30,171 +29,121 @@ A high-performance, cross-platform C++ GIS AI algorithm library with no Python d
 ### Prerequisites
 
 - CMake 3.16 or higher
-- C++17 compatible compiler (MSVC 2019+, GCC 9+, Clang 10+)
-- vcpkg (for dependency management)
-- Ninja build tool (recommended)
+- C++17 compatible compiler
+- vcpkg
 
-### Installation
+### Build
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/gis_ai_lib.git
-cd gis_ai_lib
-
-# Install dependencies via vcpkg
-export VCPKG_ROOT=/path/to/vcpkg  # Set vcpkg root path
-
-# Configure with CMake (Windows Development example)
 cmake --preset=dev-windows
-
-# Build
 cmake --build --preset=dev
-
-# Run tests
-ctest --test-dir build/dev-windows
 ```
 
-### Platform-specific Presets
+### Test
 
-| Platform | Development | Release |
-|----------|-------------|---------|
-| Windows | `dev-windows` | `release-windows` |
-| Linux | `dev-linux` | `release-linux` |
-| macOS | `dev-macos` | `release-macos` |
+Windows debug tests that use PROJ need `PROJ_LIB` to point to the vcpkg PROJ data directory:
+
+```powershell
+$env:PROJ_LIB = (Resolve-Path "build/dev-windows/vcpkg_installed/x64-windows/share/proj").Path
+ctest --test-dir build/dev-windows -C Debug --output-on-failure -E test_ai_integration
+ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_integration
+```
+
+`test_ai_integration` currently runs in `Release` because the ONNX dependency chain still has a Windows `Debug` schema registration issue.
 
 ## Project Structure
 
-```
+```text
 gis_ai_lib/
-├── CMakeLists.txt          # Root build configuration
-├── CMakePresets.json       # CMake presets for all platforms
-├── vcpkg.json              # Dependency manifest
-├── include/
-│   ├── gis_ai/             # Public headers
-│   └── internal/           # Internal headers
-├── src/
-│   ├── core/               # Core utilities (logging, exception, memory)
-│   ├── io/                 # Data I/O (raster, vector, point cloud)
-│   ├── gis/                # Traditional GIS algorithms
-│   ├── ai/                 # AI inference module
-│   └── fusion/             # AI+GIS fusion algorithms
-├── models/                 # ONNX model storage
-├── tests/                  # Unit tests
-├── examples/               # Example programs
-├── scripts/                # Utility scripts
-├── docker/                 # Docker development environment
-└── docs/                   # Documentation
+|-- CMakeLists.txt
+|-- CMakePresets.json
+|-- vcpkg.json
+|-- include/gis_ai/
+|-- src/
+|   |-- core/
+|   |-- io/
+|   |-- gis/
+|   |-- ai/
+|   `-- fusion/
+|-- tests/
+|-- examples/
+|-- scripts/
+|-- docker/
+`-- docs/
 ```
 
 ## Module Overview
 
-### Core Module (`src/core/`)
-- Logging system (spdlog wrapper)
-- Exception handling (GisAiException)
-- Cross-platform abstraction
-- Memory management utilities
-- Configuration management
+### Core
 
-### IO Module (`src/io/`)
-- Raster I/O: TIFF format (single/multi-band)
+- Logging, exception, platform, memory, and config helpers
+
+### IO
+
+- Raster I/O: TIFF
 - Vector I/O: Shapefile, GeoJSON
-- Point Cloud I/O: LAS format
+- Point cloud I/O: point-feature based read/write through GDAL/OGR
 
-### GIS Module (`src/gis/`)
-- **Vector**: Buffer, intersection, clip, simplify, topology check
-- **Raster**: Resample, normalize, clip, threshold, mosaic
-- **Point Cloud**: Filter, downsampling
-- **Coordinate**: Projection transformation (PROJ)
+### GIS
 
-### AI Module (`src/ai/`)
+- Vector: buffer, intersection, clip, simplify, topology check
+- Raster: resample, normalize, clip, threshold, mosaic
+- Point cloud: filter, downsampling
+- Coordinate transform: PROJ-based CRS conversion
+
+### AI
+
 - ONNX Runtime integration
 - Model management
-- Image preprocessing/postprocessing
+- Raster preprocessing and postprocessing
 - Mask to polygon conversion
 
-### Fusion Module (`src/fusion/`)
-- RasterSeg: End-to-end remote sensing segmentation
-- BatchProcessor: Batch inference support
-- Configuration system
+### Fusion
 
-## Usage Example
+- End-to-end raster segmentation
+- Batch file processing
+
+## C API Example
 
 ```cpp
 #include <gis_ai/gis_ai.h>
 
 int main() {
-    // Initialize library
-    GisAi_Init();
-    
-    // Load raster data
-    GisAi_Raster* raster = GisAi_Raster_Load("input.tif");
-    
-    // Perform AI segmentation
-    GisAi_RasterSeg* segmenter = GisAi_RasterSeg_Create("models/mobilesam.onnx");
-    GisAi_Raster* result = GisAi_RasterSeg_Run(segmenter, raster);
-    
-    // Save result
-    GisAi_Raster_Save(result, "output.tif");
-    
-    // Export to vector
-    GisAi_Vector* vector = GisAi_MaskToPolygon(result);
-    GisAi_Vector_Save(vector, "output.shp");
-    
-    // Cleanup
-    GisAi_RasterSeg_Destroy(segmenter);
-    GisAi_Raster_Destroy(raster);
-    GisAi_Raster_Destroy(result);
-    GisAi_Vector_Destroy(vector);
+    if (GisAi_Init(nullptr) != 0) {
+        return 1;
+    }
+
+    GisAiRasterSeg* seg = GisAi_RasterSeg_Create("test_data/models/test_seg_model.onnx");
+    if (!seg) {
+        GisAi_Shutdown();
+        return 1;
+    }
+
+    int ret = GisAi_RasterSeg_Run(
+        seg,
+        "test_data/raster/test_100x100.tif",
+        "test_data/raster/test_seg_output.tif",
+        "test_data/vector/test_seg_output.shp");
+
+    GisAi_RasterSeg_Destroy(seg);
     GisAi_Shutdown();
-    
-    return 0;
+    return ret;
 }
 ```
 
-## Development Roadmap
-
-| Phase | Description | Timeline |
-|-------|-------------|----------|
-| Phase 0 | Project infrastructure | Week 1-2 |
-| Phase 1 | Core infrastructure (core/io) | Week 3-5 |
-| Phase 2 | Traditional GIS algorithms | Week 6-8 |
-| Phase 3 | AI inference module | Week 9-10 |
-| Phase 4 | AI+GIS fusion | Week 11-12 |
-| Phase 5 | Final release | Week 13-14 |
-
-See [docs/PROJECT_PROGRESS.md](docs/PROJECT_PROGRESS.md) for detailed progress tracking.
-
 ## Documentation
 
-- [Project Progress](docs/PROJECT_PROGRESS.md) - Detailed progress tracking
-- [Architecture Design](docs/architecture.md) - Architecture documentation (WIP)
-- [API Reference](docs/api_reference.md) - API documentation (WIP)
+- [Project Progress](docs/PROJECT_PROGRESS.md)
+- [Architecture Design](docs/architecture.md)
+- [API Reference](docs/api_reference.md)
 
-## Contributing
-
-We welcome contributions! Please see our contributing guidelines for details.
-
-### Development Setup
+## Development Setup
 
 ```bash
-# Using Docker for consistent environment
 docker build -t gis_ai_dev -f docker/Dockerfile.dev .
 docker run -it gis_ai_dev bash
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- GDAL - Geospatial Data Abstraction Library
-- GEOS - Geometry Engine, Open Source
-- PROJ - Cartographic Projections and Coordinate Transformations
-- ONNX Runtime - Cross-platform inference engine
-- spdlog - Fast C++ logging library
-- GoogleTest - C++ testing framework
-
----
-
-*This project is under active development. Some features are still in implementation.*
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

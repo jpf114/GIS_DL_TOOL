@@ -39,6 +39,7 @@ public:
     void SetProgressCallback(std::function<void(int, int, const std::string&)> callback);
 
 private:
+    std::string model_path_;
     std::unique_ptr<RasterSeg> raster_seg_;
     int num_threads_;
     std::function<void(int, int, const std::string&)> progress_callback_;

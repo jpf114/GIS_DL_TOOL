@@ -7,6 +7,10 @@
 
 namespace gis_ai {
 
+namespace {
+constexpr int kModelChannels = 3;
+}
+
 std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const PreprocessConfig& config) {
     if (raster.bands.empty()) {
         throw GisAiAlgorithmException("Input raster has no bands", "Preprocess::RasterToTensor");
@@ -14,9 +18,9 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
 
     int target_w = config.target_width;
     int target_h = config.target_height;
-    int channels = std::min(raster.band_count, 3);
+    int source_channels = std::min(raster.band_count, kModelChannels);
 
-    std::vector<float> tensor(static_cast<size_t>(channels) * target_w * target_h, 0.0f);
+    std::vector<float> tensor(static_cast<size_t>(kModelChannels) * target_w * target_h, 0.0f);
 
     float x_scale = static_cast<float>(raster.width) / target_w;
     float y_scale = static_cast<float>(raster.height) / target_h;
@@ -24,7 +28,7 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
     float means[3] = {config.mean_r, config.mean_g, config.mean_b};
     float stds[3] = {config.std_r, config.std_g, config.std_b};
 
-    for (int c = 0; c < channels; ++c) {
+    for (int c = 0; c < source_channels; ++c) {
         const auto& band = raster.bands[c];
         float mean = means[c];
         float std_val = stds[c];
@@ -49,9 +53,9 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
     }
 
     LOG_INFO("RasterToTensor: " + std::to_string(raster.width) + "x" +
-        std::to_string(raster.height) + "x" + std::to_string(channels) +
+        std::to_string(raster.height) + "x" + std::to_string(source_channels) +
         " -> " + std::to_string(target_w) + "x" + std::to_string(target_h) +
-        "x" + std::to_string(channels));
+        "x" + std::to_string(kModelChannels));
     return tensor;
 }
 

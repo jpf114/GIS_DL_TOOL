@@ -51,6 +51,25 @@ TEST_F(PreprocessTest, RasterToTensorWithResize) {
     EXPECT_EQ(tensor.size(), static_cast<size_t>(20 * 20 * 3));
 }
 
+TEST_F(PreprocessTest, RasterToTensorSingleBandPadsToThreeChannels) {
+    auto raster = MakeTestRaster(10, 10, 1);
+    Preprocess preprocess;
+    PreprocessConfig config;
+    config.target_width = 10;
+    config.target_height = 10;
+    config.normalize = false;
+
+    auto tensor = preprocess.RasterToTensor(raster, config);
+    ASSERT_EQ(tensor.size(), static_cast<size_t>(10 * 10 * 3));
+
+    EXPECT_FLOAT_EQ(tensor[0], 0.5f);
+    EXPECT_FLOAT_EQ(tensor[99], 0.5f);
+    EXPECT_FLOAT_EQ(tensor[100], 0.0f);
+    EXPECT_FLOAT_EQ(tensor[199], 0.0f);
+    EXPECT_FLOAT_EQ(tensor[200], 0.0f);
+    EXPECT_FLOAT_EQ(tensor[299], 0.0f);
+}
+
 TEST_F(PreprocessTest, RasterToTensorWithNormalization) {
     auto raster = MakeTestRaster(10, 10, 3);
     Preprocess preprocess;

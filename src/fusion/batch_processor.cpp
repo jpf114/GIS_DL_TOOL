@@ -4,13 +4,17 @@
 
 #include <filesystem>
 #include <algorithm>
+#include <atomic>
+#include <mutex>
+#include <thread>
 
 namespace gis_ai {
 
 BatchProcessor::BatchProcessor(const std::string& model_path, int num_threads)
-    : num_threads_(num_threads) {
+    : model_path_(model_path),
+      num_threads_(std::max(1, num_threads)) {
     raster_seg_ = std::make_unique<RasterSeg>(model_path);
-    LOG_INFO("BatchProcessor initialized with " + std::to_string(num_threads) + " threads");
+    LOG_INFO("BatchProcessor initialized with " + std::to_string(num_threads_) + " threads");
 }
 
 BatchProcessor::~BatchProcessor() = default;
@@ -50,13 +54,15 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
         std::filesystem::create_directories(output_dir);
     }
 
-    std::vector<BatchResult> results;
-    results.reserve(input_files.size());
+    std::vector<BatchResult> results(input_files.size());
 
     int total = static_cast<int>(input_files.size());
-    int completed = 0;
+    std::atomic<size_t> next_index{0};
+    std::atomic<int> completed{0};
+    std::mutex progress_mutex;
 
-    for (const auto& input_path : input_files) {
+    auto process_one = [&](RasterSeg& segmenter, size_t index) {
+        const auto& input_path = input_files[index];
         BatchResult result;
         result.input_path = input_path;
 
@@ -69,23 +75,50 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
                 result.output_shp_path = (std::filesystem::path(output_dir) / (stem + "_seg.shp")).string();
             }
 
-            int ret = raster_seg_->SegmentToFile(input_path, result.output_tif_path,
+            int ret = segmenter.SegmentToFile(input_path, result.output_tif_path,
                 generate_shp ? result.output_shp_path : "");
 
             result.success = (ret == 0);
-            result.inference_time_ms = raster_seg_->GetLastInferenceTimeMs();
+            result.inference_time_ms = segmenter.GetLastInferenceTimeMs();
         } catch (const std::exception& e) {
             result.success = false;
             result.error_message = e.what();
             LOG_ERROR("Batch processing failed for " + input_path + ": " + e.what());
         }
 
-        completed++;
+        results[index] = std::move(result);
+        int finished = completed.fetch_add(1) + 1;
         if (progress_callback_) {
-            progress_callback_(completed, total, input_path);
+            std::lock_guard<std::mutex> lock(progress_mutex);
+            progress_callback_(finished, total, input_path);
+        }
+    };
+
+    const int worker_count = std::min(num_threads_, total);
+    if (worker_count == 1) {
+        for (size_t i = 0; i < input_files.size(); ++i) {
+            process_one(*raster_seg_, i);
+        }
+    } else {
+        std::vector<std::thread> workers;
+        workers.reserve(worker_count);
+
+        for (int worker = 0; worker < worker_count; ++worker) {
+            workers.emplace_back([&, worker]() {
+                RasterSeg segmenter(model_path_);
+                while (true) {
+                    size_t index = next_index.fetch_add(1);
+                    if (index >= input_files.size()) {
+                        break;
+                    }
+                    process_one(segmenter, index);
+                }
+            });
         }
 
-        results.push_back(std::move(result));
+        for (auto& worker : workers) {
+            worker.join();
+        }
     }
 
     int success_count = 0;

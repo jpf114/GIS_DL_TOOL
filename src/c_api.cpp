@@ -49,6 +49,23 @@ constexpr int VERSION_MINOR = 1;
 constexpr int VERSION_PATCH = 0;
 constexpr const char* VERSION_STRING = "0.1.0";
 
+void ValidateInferenceOutput(const gis_ai::InferenceResult& result, const char* context) {
+    if (result.outputs.empty() || result.shapes.empty()) {
+        throw gis_ai::GisAiModelException("Model returned no outputs", context);
+    }
+
+    const auto& output = result.outputs[0];
+    const auto& shape = result.shapes[0];
+    if (shape.size() < 4) {
+        throw gis_ai::GisAiModelException("Model output shape must have at least 4 dimensions", context);
+    }
+
+    const auto expected = static_cast<size_t>(shape[1] * shape[2] * shape[3]);
+    if (expected == 0 || output.size() < expected) {
+        throw gis_ai::GisAiModelException("Model output tensor size does not match its shape", context);
+    }
+}
+
 }
 
 struct GisAiRaster {
@@ -397,6 +414,7 @@ GIS_AI_API GisAiRaster* GisAi_AI_Infer(GisAiModel* model, GisAiRaster* input) {
         auto shape = gis_ai::Preprocess::GetInputShape(config);
 
         auto infer_result = engine.Run(model->name, tensor, shape);
+        ValidateInferenceOutput(infer_result, "GisAi_AI_Infer");
 
         auto& output = infer_result.outputs[0];
         auto& out_shape = infer_result.shapes[0];
@@ -451,6 +469,7 @@ GIS_AI_API int GisAi_RasterSeg_Run(GisAiRasterSeg* seg, const char* input_tif,
         auto shape = gis_ai::Preprocess::GetInputShape(config);
 
         auto infer_result = seg->engine->Run(seg->model_name, tensor, shape);
+        ValidateInferenceOutput(infer_result, "GisAi_RasterSeg_Run");
 
         auto& output = infer_result.outputs[0];
         auto& out_shape = infer_result.shapes[0];

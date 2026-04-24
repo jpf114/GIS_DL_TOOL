@@ -21,7 +21,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
-      "toolchainFile": "D:/Develop/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "GIS_AI_BUILD_TESTS": "ON",
         "GIS_AI_BUILD_EXAMPLES": "ON",
@@ -40,7 +40,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
-      "toolchainFile": "D:/Develop/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "GIS_AI_BUILD_TESTS": "OFF",
         "GIS_AI_BUILD_EXAMPLES": "ON",

@@ -55,3 +55,10 @@ TEST(IOTest, PointCloudLoadNonexistent) {
     PointCloudIO io;
     EXPECT_THROW(io.Load("/nonexistent/file.las"), GisAiIOException);
 }
+
+TEST(IOTest, PointCloudSaveUnsupportedFormat) {
+    PointCloudIO io;
+    PointCloudData data;
+    data.points.push_back({0.0, 0.0, 0.0, 1.0f, 2});
+    EXPECT_THROW(io.Save(data, "test_output.las"), GisAiIOException);
+}

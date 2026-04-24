@@ -4,6 +4,9 @@
 
 #include <ogrsf_frmts.h>
 #include <gdal_priv.h>
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
 
 namespace gis_ai {
 
@@ -13,6 +16,13 @@ static void EnsureGDALInitialized() {
         GDALAllRegister();
         initialized = true;
     }
+}
+
+static std::string GetExtensionLower(const std::string& path) {
+    std::string ext = std::filesystem::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return ext;
 }
 
 std::unique_ptr<PointCloudData> PointCloudIO::Load(const std::string& path) {
@@ -89,12 +99,18 @@ std::unique_ptr<PointCloudData> PointCloudIO::Load(const std::string& path) {
 
 void PointCloudIO::Save(const PointCloudData& data, const std::string& path) {
     EnsureGDALInitialized();
-	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GeoJSON");
+    GDALDriver* driver = nullptr;
+    const std::string ext = GetExtensionLower(path);
+    if (ext == ".geojson" || ext == ".json") {
+        driver = GetGDALDriverManager()->GetDriverByName("GeoJSON");
+    } else if (ext == ".shp") {
+        driver = GetGDALDriverManager()->GetDriverByName("ESRI Shapefile");
+    } else {
+        throw GisAiIOException("Unsupported point cloud output format: " + path, "PointCloudIO::Save");
+    }
+
 	if (!driver) {
-		driver = GetGDALDriverManager()->GetDriverByName("ESRI Shapefile");
-	}
-	if (!driver) {
-		throw GisAiIOException("No suitable driver for point cloud output", "PointCloudIO::Save");
+		throw GisAiIOException("No suitable driver for point cloud output: " + path, "PointCloudIO::Save");
 	}
 
 	OGRSpatialReference* srs = nullptr;

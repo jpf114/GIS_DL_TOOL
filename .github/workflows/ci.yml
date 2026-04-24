@@ -28,9 +28,7 @@ jobs:
 
       - name: Test
         working-directory: build
-        env:
-          PROJ_LIB: ${{ github.workspace }}/build/vcpkg_installed/x64-windows/share/proj
-        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure -E "test_ai_integration"
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
 
   build-linux:
     runs-on: ubuntu-latest

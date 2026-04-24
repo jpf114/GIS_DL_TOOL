@@ -136,6 +136,9 @@ int main() {
 - [Project Progress](docs/PROJECT_PROGRESS.md)
 - [Architecture Design](docs/architecture.md)
 - [API Reference](docs/api_reference.md)
+- [User Manual](docs/user_manual.md)
+- [Testing Guide](docs/testing.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Development Setup
 

@@ -9,6 +9,27 @@
 
 namespace gis_ai {
 
+namespace {
+
+void ValidateSegmentationOutput(const InferenceResult& result, const char* context) {
+    if (result.outputs.empty() || result.shapes.empty()) {
+        throw GisAiModelException("Model returned no outputs", context);
+    }
+
+    const auto& output = result.outputs[0];
+    const auto& shape = result.shapes[0];
+    if (shape.size() < 4) {
+        throw GisAiModelException("Model output shape must have at least 4 dimensions", context);
+    }
+
+    const auto expected = static_cast<size_t>(shape[1] * shape[2] * shape[3]);
+    if (expected == 0 || output.size() < expected) {
+        throw GisAiModelException("Model output tensor size does not match its shape", context);
+    }
+}
+
+}
+
 RasterSeg::RasterSeg(const std::string& model_path) {
     if (!std::filesystem::exists(model_path)) {
         throw GisAiModelException("Model file not found: " + model_path, "RasterSeg::RasterSeg");
@@ -40,6 +61,7 @@ std::unique_ptr<RasterData> RasterSeg::Segment(const RasterData& input) {
 
     auto result = engine_->Run(model_name_, tensor, shape);
     last_inference_time_ms_ = result.inference_time_ms;
+    ValidateSegmentationOutput(result, "RasterSeg::Segment");
 
     auto& output = result.outputs[0];
     auto& out_shape = result.shapes[0];

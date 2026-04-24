@@ -22,4 +22,9 @@
 - `test_data/models/test_seg_model.onnx` 目前还没有仓库内自动生成逻辑
 - 如果缺少 `test_seg_model.onnx`，AI 集成测试会继续跳过或失败前置检查
 
-因此，当前仓库已经具备“部分自动生成夹具”的能力，但 AI 测试模型仍需额外准备。
+如果你本地已经有可用的 ONNX 测试模型，可以通过以下脚本放入标准位置：
+
+- Windows：`powershell -ExecutionPolicy Bypass -File scripts/prepare_test_model.ps1 -SourceModel <模型路径>`
+- Linux/macOS：`bash scripts/prepare_test_model.sh <模型路径>`
+
+因此，当前仓库已经具备“自动生成栅格/矢量夹具 + 规范导入 ONNX 测试模型”的能力。

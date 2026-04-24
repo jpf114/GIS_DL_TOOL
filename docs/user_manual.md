@@ -20,6 +20,7 @@
 - Windows 下的 AI 集成测试当前建议在 `Release` 模式执行。
 - 通过 `Load`、`Create` 和算法接口返回的对象，都必须使用匹配的销毁函数释放。
 - 若运行集成测试，请先按 [测试指南](testing.md) 准备测试夹具目录。
+- 若本地已有测试模型，可通过 `scripts/prepare_test_model.ps1` 或 `scripts/prepare_test_model.sh` 放入标准测试位置。
 
 ## 安装后使用
 

@@ -59,7 +59,7 @@
 ## 待推进事项
 
 1. 在本地或干净环境中真实执行一次 `cmake --preset` 与 `ctest` 验证
-2. 为 `test_seg_model.onnx` 增加仓库内自动生成或标准获取路径
+2. 为 `test_seg_model.onnx` 增加仓库内自动生成路径，当前已补充标准导入路径
 3. 验证 `cmake --install` 与外部 `find_package(gis_ai CONFIG REQUIRED)` 链路
 4. 继续对齐剩余文档与当前仓库状态
 5. 根据验证结果更新发布门禁

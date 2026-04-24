@@ -19,6 +19,20 @@ bash scripts/generate_test_data.sh
 仓库会保留 `test_data` 目录说明文档，但生成后的栅格、矢量和模型夹具仍然属于本地产物，不直接提交。
 当前脚本可自动生成栅格与矢量夹具，但 `test_data/models/test_seg_model.onnx` 仍需单独准备。
 
+如果你本地已经有可用的 ONNX 模型，可通过以下脚本导入到标准测试位置：
+
+### Windows
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/prepare_test_model.ps1 -SourceModel D:\path\to\model.onnx
+```
+
+### Linux 和 macOS
+
+```bash
+bash scripts/prepare_test_model.sh /path/to/model.onnx
+```
+
 ## Windows
 
 ### Debug

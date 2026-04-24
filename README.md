@@ -65,6 +65,7 @@ ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_int
 
 当前仓库只跟踪测试夹具目录约定和说明文档，不直接提交生成后的测试资产。
 当前脚本可以自动生成栅格与矢量夹具，但 `test_seg_model.onnx` 仍需额外准备。
+如果你已经有可用模型，可通过 `scripts/prepare_test_model.ps1` 或 `scripts/prepare_test_model.sh` 放入标准测试位置。
 
 ## 项目结构
 

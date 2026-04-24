@@ -64,6 +64,7 @@ ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_int
 由于 ONNX 依赖链在 Windows `Debug` 模式下仍存在 schema 注册问题，`test_ai_integration` 当前仅在 `Release` 模式下执行。
 
 当前仓库只跟踪测试夹具目录约定和说明文档，不直接提交生成后的测试资产。
+当前脚本可以自动生成栅格与矢量夹具，但 `test_seg_model.onnx` 仍需额外准备。
 
 ## 项目结构
 

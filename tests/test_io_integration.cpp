@@ -16,13 +16,21 @@
 #include "gis/vector_simplify.h"
 #include "gis/coord_transform.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <filesystem>
 
 class IOIntegrationTest : public ::testing::Test {
 protected:
     void SetUp() override {
         gis_ai::Logger::Instance().Initialize("test_io_integration.log");
+    }
+
+    static bool TestDataRootExists() { return std::filesystem::exists("test_data"); }
+    static void SkipIfTestDataMissing() {
+        if (!TestDataRootExists()) {
+            GTEST_SKIP() << "test_data directory not found; run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first";
+        }
     }
 
     static std::string RasterPath() { return "test_data/raster/test_100x100.tif"; }
@@ -31,6 +39,8 @@ protected:
 };
 
 TEST_F(IOIntegrationTest, RasterLoadSave) {
+    SkipIfTestDataMissing();
+
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
 
@@ -53,6 +63,8 @@ TEST_F(IOIntegrationTest, RasterLoadSave) {
 }
 
 TEST_F(IOIntegrationTest, RasterResamplePipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
     ASSERT_NE(data, nullptr);
@@ -70,6 +82,8 @@ TEST_F(IOIntegrationTest, RasterResamplePipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterNormalizePipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
     ASSERT_NE(data, nullptr);
@@ -89,6 +103,8 @@ TEST_F(IOIntegrationTest, RasterNormalizePipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterClipPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
     ASSERT_NE(data, nullptr);
@@ -103,6 +119,8 @@ TEST_F(IOIntegrationTest, RasterClipPipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterThresholdPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
     ASSERT_NE(data, nullptr);
@@ -116,6 +134,8 @@ TEST_F(IOIntegrationTest, RasterThresholdPipeline) {
 }
 
 TEST_F(IOIntegrationTest, VectorLoadShapefile) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
 
@@ -131,6 +151,8 @@ TEST_F(IOIntegrationTest, VectorLoadShapefile) {
 }
 
 TEST_F(IOIntegrationTest, VectorLoadGeoJSON) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(GeoJsonPath());
 
@@ -145,6 +167,8 @@ TEST_F(IOIntegrationTest, VectorLoadGeoJSON) {
 }
 
 TEST_F(IOIntegrationTest, VectorSaveAndReload) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
     ASSERT_NE(data, nullptr);
@@ -157,6 +181,8 @@ TEST_F(IOIntegrationTest, VectorSaveAndReload) {
 }
 
 TEST_F(IOIntegrationTest, VectorBufferPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
     ASSERT_NE(data, nullptr);
@@ -171,6 +197,8 @@ TEST_F(IOIntegrationTest, VectorBufferPipeline) {
 }
 
 TEST_F(IOIntegrationTest, VectorIntersectPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
     ASSERT_NE(data, nullptr);
@@ -192,6 +220,8 @@ TEST_F(IOIntegrationTest, VectorIntersectPipeline) {
 }
 
 TEST_F(IOIntegrationTest, VectorSimplifyPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
     ASSERT_NE(data, nullptr);
@@ -203,6 +233,8 @@ TEST_F(IOIntegrationTest, VectorSimplifyPipeline) {
 }
 
 TEST_F(IOIntegrationTest, CoordTransformPipeline) {
+    SkipIfTestDataMissing();
+
     gis_ai::CoordTransform transform;
     auto result = transform.Transform(116.0, 39.0, 0.0, "EPSG:4326", "EPSG:3857");
 

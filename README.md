@@ -1,47 +1,59 @@
-# GIS AI Algorithm Library
+# GIS AI 算法库
 
 [![Build Status](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A C++17 GIS algorithm library focused on raster/vector/point-cloud processing and ONNX-based raster segmentation.
+这是一个基于 C++17 的 GIS 算法库，聚焦栅格、矢量、点云处理，以及基于 ONNX Runtime 的遥感栅格分割能力。
 
-## Features
+## 功能特性
 
-- Remote sensing raster segmentation based on ONNX Runtime
-- Traditional GIS algorithms for vector, raster, and point cloud data
-- Pure C API for C, C#, Python, Java, and other language bindings
-- Cross-platform build presets for Windows, Linux, and macOS
+- 基于 ONNX Runtime 的遥感影像语义分割
+- 面向矢量、栅格、点云数据的传统 GIS 算法
+- 提供纯 C API，便于 C、C#、Python、Java 等语言绑定
+- 支持 Windows、Linux、macOS 的跨平台构建预设
 
-## Technology Stack
+## 技术栈
 
-| Component | Technology | Version |
-|-----------|------------|---------|
-| Language | C++ | C++17 |
-| Build System | CMake | 3.16+ |
-| Package Manager | vcpkg | latest |
-| GIS Libraries | GDAL/GEOS/PROJ | 3.6+/3.11+/9.2+ |
-| AI Inference | ONNX Runtime | 1.16+ |
-| Logging | spdlog | 1.12+ |
-| Testing | GoogleTest | 1.14+ |
+| 组件 | 技术 | 版本 |
+|------|------|------|
+| 编程语言 | C++ | C++17 |
+| 构建系统 | CMake | 3.16+ |
+| 包管理 | vcpkg | 最新版 |
+| GIS 依赖 | GDAL/GEOS/PROJ | 3.6+/3.11+/9.2+ |
+| AI 推理 | ONNX Runtime | 1.16+ |
+| 日志 | spdlog | 1.12+ |
+| 测试 | GoogleTest | 1.14+ |
 
-## Quick Start
+## 快速开始
 
-### Prerequisites
+### 前置条件
 
-- CMake 3.16 or higher
-- C++17 compatible compiler
+- CMake 3.16 或更高版本
+- 支持 C++17 的编译器
 - vcpkg
 
-### Build
+### 构建
 
 ```bash
 cmake --preset=dev-windows
 cmake --build --preset=dev
 ```
 
-### Test
+### 测试
 
-Windows debug tests that use PROJ need `PROJ_LIB` to point to the vcpkg PROJ data directory:
+在运行集成测试前，请先准备测试夹具目录结构：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/generate_test_data.ps1
+```
+
+Linux/macOS：
+
+```bash
+bash scripts/generate_test_data.sh
+```
+
+Windows 下如果测试使用了 PROJ，需将 `PROJ_LIB` 指向 vcpkg 中的 PROJ 数据目录：
 
 ```powershell
 $env:PROJ_LIB = (Resolve-Path "build/dev-windows/vcpkg_installed/x64-windows/share/proj").Path
@@ -49,9 +61,11 @@ ctest --test-dir build/dev-windows -C Debug --output-on-failure -E test_ai_integ
 ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_integration
 ```
 
-`test_ai_integration` currently runs in `Release` because the ONNX dependency chain still has a Windows `Debug` schema registration issue.
+由于 ONNX 依赖链在 Windows `Debug` 模式下仍存在 schema 注册问题，`test_ai_integration` 当前仅在 `Release` 模式下执行。
 
-## Project Structure
+当前仓库只跟踪测试夹具目录约定和说明文档，不直接提交生成后的测试资产。
+
+## 项目结构
 
 ```text
 gis_ai_lib/
@@ -72,38 +86,38 @@ gis_ai_lib/
 `-- docs/
 ```
 
-## Module Overview
+## 模块说明
 
 ### Core
 
-- Logging, exception, platform, memory, and config helpers
+- 日志、异常、平台兼容、内存、配置相关基础能力
 
 ### IO
 
-- Raster I/O: TIFF
-- Vector I/O: Shapefile, GeoJSON
-- Point cloud I/O: point-feature based read/write through GDAL/OGR
+- 栅格读写：TIFF
+- 矢量读写：Shapefile、GeoJSON
+- 点云读写：基于 GDAL/OGR 的点要素方式读写
 
 ### GIS
 
-- Vector: buffer, intersection, clip, simplify, topology check
-- Raster: resample, normalize, clip, threshold, mosaic
-- Point cloud: filter, downsampling
-- Coordinate transform: PROJ-based CRS conversion
+- 矢量：缓冲区、相交、裁剪、简化、拓扑检查
+- 栅格：重采样、归一化、裁剪、阈值分割、镶嵌
+- 点云：过滤、降采样
+- 坐标转换：基于 PROJ 的 CRS 转换
 
 ### AI
 
-- ONNX Runtime integration
-- Model management
-- Raster preprocessing and postprocessing
-- Mask to polygon conversion
+- ONNX Runtime 集成
+- 模型管理
+- 栅格预处理与后处理
+- 掩膜转多边形
 
 ### Fusion
 
-- End-to-end raster segmentation
-- Batch file processing
+- 端到端栅格分割流程
+- 批量文件处理
 
-## C API Example
+## C API 示例
 
 ```cpp
 #include <gis_ai/gis_ai.h>
@@ -131,22 +145,22 @@ int main() {
 }
 ```
 
-## Documentation
+## 文档索引
 
-- [Project Progress](docs/PROJECT_PROGRESS.md)
-- [Architecture Design](docs/architecture.md)
-- [API Reference](docs/api_reference.md)
-- [User Manual](docs/user_manual.md)
-- [Testing Guide](docs/testing.md)
-- [Contributing](CONTRIBUTING.md)
+- [项目进度](docs/PROJECT_PROGRESS.md)
+- [架构设计](docs/architecture.md)
+- [API 参考](docs/api_reference.md)
+- [用户手册](docs/user_manual.md)
+- [测试指南](docs/testing.md)
+- [贡献说明](CONTRIBUTING.md)
 
-## Development Setup
+## 开发环境
 
 ```bash
 docker build -t gis_ai_dev -f docker/Dockerfile.dev .
 docker run -it gis_ai_dev bash
 ```
 
-## License
+## 许可证
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+本项目采用 MIT License。详见 [LICENSE](LICENSE)。

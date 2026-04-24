@@ -23,8 +23,11 @@ find_package(GDAL CONFIG REQUIRED)
 find_package(PROJ CONFIG REQUIRED)
 find_package(GEOS CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(GTest CONFIG REQUIRED)
 find_package(onnxruntime CONFIG REQUIRED)
+
+if(GIS_AI_BUILD_TESTS)
+    find_package(GTest CONFIG REQUIRED)
+endif()
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include

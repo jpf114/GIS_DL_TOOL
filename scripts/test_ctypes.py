@@ -15,6 +15,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DATA_DIR = os.path.join(BASE_DIR, "test_data")
 
 
+def ensure_test_data_root():
+    if not os.path.isdir(TEST_DATA_DIR):
+        raise RuntimeError(
+            "test_data directory not found. Run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first."
+        )
+
+
 class TestGisAiInit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -35,6 +42,7 @@ class TestGisAiInit(unittest.TestCase):
 class TestGisAiRasterIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
         cls.raster_path = os.path.join(TEST_DATA_DIR, "raster", "test_100x100.tif")
@@ -132,6 +140,7 @@ class TestGisAiRasterIO(unittest.TestCase):
 class TestGisAiVectorIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
         cls.shp_path = os.path.join(TEST_DATA_DIR, "vector", "test_polygons.shp")
@@ -239,6 +248,7 @@ class TestGisAiCoordTransform(unittest.TestCase):
 class TestGisAiAI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
         cls.model_path = os.path.join(TEST_DATA_DIR, "models", "test_seg_model.onnx")

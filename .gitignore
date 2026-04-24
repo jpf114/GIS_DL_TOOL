@@ -1,4 +1,7 @@
 build/
 test_data/
+!test_data/
+test_data/*
+!test_data/README.md
 vcpkg_installed/
 *.log

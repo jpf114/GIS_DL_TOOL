@@ -19,6 +19,13 @@ protected:
         gis_ai::Logger::Instance().Initialize("test_ai_integration.log");
     }
 
+    static bool TestDataRootExists() { return std::filesystem::exists("test_data"); }
+    static void SkipIfTestDataMissing() {
+        if (!TestDataRootExists()) {
+            GTEST_SKIP() << "test_data directory not found; run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first";
+        }
+    }
+
     static std::string ModelPath() { return "test_data/models/test_seg_model.onnx"; }
     static std::string RasterPath() { return "test_data/raster/test_100x100.tif"; }
     static bool ModelExists() { return std::filesystem::exists(ModelPath()); }
@@ -26,6 +33,7 @@ protected:
 };
 
 TEST_F(AIIntegrationTest, ModelManagerLoadUnload) {
+    SkipIfTestDataMissing();
     if (!ModelExists()) GTEST_SKIP() << "ONNX model not found";
 
     gis_ai::ModelManager manager;
@@ -47,6 +55,7 @@ TEST_F(AIIntegrationTest, ModelManagerLoadUnload) {
 }
 
 TEST_F(AIIntegrationTest, InferenceEngineRun) {
+    SkipIfTestDataMissing();
     if (!ModelExists()) GTEST_SKIP() << "ONNX model not found";
 
     gis_ai::ModelManager manager;
@@ -73,6 +82,7 @@ TEST_F(AIIntegrationTest, InferenceEngineRun) {
 }
 
 TEST_F(AIIntegrationTest, PreprocessRasterToTensor) {
+    SkipIfTestDataMissing();
     if (!RasterExists()) GTEST_SKIP() << "Test raster not found";
 
     gis_ai::RasterIO io;
@@ -156,6 +166,7 @@ TEST_F(AIIntegrationTest, MaskToPolygonExecute) {
 }
 
 TEST_F(AIIntegrationTest, EndToEndInference) {
+    SkipIfTestDataMissing();
     if (!ModelExists() || !RasterExists()) GTEST_SKIP() << "Test data not found";
 
     gis_ai::RasterIO rio;
@@ -203,6 +214,7 @@ TEST_F(AIIntegrationTest, EndToEndInference) {
 }
 
 TEST_F(AIIntegrationTest, RasterSegEndToEnd) {
+    SkipIfTestDataMissing();
     if (!ModelExists() || !RasterExists()) GTEST_SKIP() << "Test data not found";
 
     gis_ai::RasterSeg seg(ModelPath());
@@ -220,6 +232,7 @@ TEST_F(AIIntegrationTest, RasterSegEndToEnd) {
 }
 
 TEST_F(AIIntegrationTest, RasterSegSegmentToFile) {
+    SkipIfTestDataMissing();
     if (!ModelExists() || !RasterExists()) GTEST_SKIP() << "Test data not found";
 
     gis_ai::RasterSeg seg(ModelPath());

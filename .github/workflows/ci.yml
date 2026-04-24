@@ -1,4 +1,4 @@
-name: CI Build
+name: 核心持续集成
 
 on:
   push:
@@ -11,6 +11,7 @@ env:
 
 jobs:
   build-windows:
+    name: Windows 核心校验
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +32,7 @@ jobs:
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
 
   build-linux:
+    name: Linux 核心校验
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +58,7 @@ jobs:
         run: ctest --output-on-failure -E "test_ai_integration"
 
   build-macos:
+    name: macOS 核心校验
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

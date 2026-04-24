@@ -24,7 +24,8 @@
       "toolchainFile": "D:/Develop/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     },
     {
@@ -42,7 +43,8 @@
       "toolchainFile": "D:/Develop/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "GIS_AI_BUILD_TESTS": "OFF",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     },
     {
@@ -61,7 +63,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "g++",
         "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     },
     {
@@ -80,7 +83,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_COMPILER": "g++",
         "GIS_AI_BUILD_TESTS": "OFF",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     },
     {
@@ -99,7 +103,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "clang++",
         "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     },
     {
@@ -118,7 +123,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_COMPILER": "clang++",
         "GIS_AI_BUILD_TESTS": "OFF",
-        "GIS_AI_BUILD_EXAMPLES": "ON"
+        "GIS_AI_BUILD_EXAMPLES": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
     }
   ],

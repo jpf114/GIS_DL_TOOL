@@ -1,0 +1,39 @@
+PROJECT_NAME           = "GIS AI Library"
+PROJECT_NUMBER         = "0.1.0"
+PROJECT_BRIEF          = "A high-performance, cross-platform C++ GIS AI algorithm library"
+
+OUTPUT_DIRECTORY       = docs/api
+INPUT                  = include/gis_ai \
+                         src/core \
+                         src/io \
+                         src/gis \
+                         src/ai \
+                         src/fusion
+FILE_PATTERNS          = *.h *.cpp
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+HTML_TIMESTAMP         = YES
+HAVE_DOT               = NO
+CALL_GRAPH             = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+ALPHABETICAL_INDEX     = YES
+COLS_IN_ALPHA_INDEX    = 3
+IGNORE_PREFIX          = GisAi \
+                         GIS_AI_
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = GIS_AI_API= \
+                         __declspec(x)=
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES

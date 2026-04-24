@@ -143,22 +143,79 @@ if(GIS_AI_BUILD_EXAMPLES)
 endif()
 
 option(GIS_AI_BUILD_TOOLS "Build utility tools" ON)
+option(GIS_AI_BUILD_DOCS "Build API documentation with Doxygen" OFF)
 if(GIS_AI_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
 install(DIRECTORY include/gis_ai/ DESTINATION include/gis_ai)
+install(DIRECTORY src/core/ DESTINATION include/gis_ai/internal/core
+    FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY src/io/ DESTINATION include/gis_ai/internal/io
+    FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY src/gis/ DESTINATION include/gis_ai/internal/gis
+    FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY src/ai/ DESTINATION include/gis_ai/internal/ai
+    FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY src/fusion/ DESTINATION include/gis_ai/internal/fusion
+    FILES_MATCHING PATTERN "*.h")
+
 if(GIS_AI_BUILD_SHARED)
     install(TARGETS gis_ai_shared
+        EXPORT gis_aiTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
     )
 endif()
 if(GIS_AI_BUILD_STATIC)
     install(TARGETS gis_ai_static
+        EXPORT gis_aiTargets
         ARCHIVE DESTINATION lib
+        INCLUDES DESTINATION include
     )
+endif()
+
+install(EXPORT gis_aiTargets
+    FILE gis_aiTargets.cmake
+    NAMESPACE gis_ai::
+    DESTINATION lib/cmake/gis_ai
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gis_aiConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gis_aiConfig.cmake
+    INSTALL_DESTINATION lib/cmake/gis_ai
+)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/gis_aiConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/gis_aiConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/gis_aiConfigVersion.cmake
+    DESTINATION lib/cmake/gis_ai
+)
+
+if(GIS_AI_BUILD_DOCS)
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile)
+        set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/docs/Doxyfile)
+        configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+        add_custom_target(docs
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM
+        )
+        message(STATUS "Doxygen found: docs target available")
+    else()
+        message(WARNING "Doxygen not found: docs target not available")
+    endif()
 endif()
 
 message(STATUS "")

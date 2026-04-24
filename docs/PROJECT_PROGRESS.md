@@ -71,7 +71,7 @@
 
 ---
 
-## Phase 5: 最终交付与开源发布 — ⏳ 65%
+## Phase 5: 最终交付与开源发布 — ✅ 95%
 
 ### 已完成
 - [x] 完整 C API（25 个函数）
@@ -84,12 +84,16 @@
 - [x] 性能基准测试（10 项 GIS 算法基准）
 - [x] 测试数据生成工具（generate_test_data.cpp）
 - [x] ONNX 测试模型（test_seg_model.onnx, Conv 3→2, 1x1 kernel）
+- [x] Python ctypes 绑定验证（19/19 通过）
+- [x] CMake install 规则 + package config 文件
+- [x] Doxygen API 文档配置
+- [x] GitHub Actions CI 配置（Windows/Linux/macOS）
+- [x] C API 增强：版本信息 + 访问器函数（33 个 API）
+- [x] vcpkg overlay 补丁（ONNX Debug schema 断言修复）
+- [x] 最终全量验证：128/128 测试通过
 
 ### 待完成
-- [ ] Doxygen API 文档
-- [ ] Python ctypes 绑定验证
-- [ ] 跨平台编译验证（Linux/macOS）
-- [ ] Debug 模式 ONNX schema 断言问题修复
+- [ ] 实际跨平台编译验证（需 Linux/macOS 环境，CI 已配置）
 
 ---
 

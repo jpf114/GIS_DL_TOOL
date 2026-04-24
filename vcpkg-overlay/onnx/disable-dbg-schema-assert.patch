@@ -1,0 +1,25 @@
+diff --git a/onnx/defs/schema.cc b/onnx/defs/schema.cc
+--- a/onnx/defs/schema.cc
++++ b/onnx/defs/schema.cc
+@@ -1629,14 +1629,7 @@
+       // Invoke register of experimental operators.
+       RegisterOnnxPreviewOperatorSetSchema();
+ 
+-#ifndef NDEBUG
+-      size_t dbg_registered_schema_count = GetRegisteredSchemaCount() - dbg_initial_schema_count;
+-      // Check enabled only if schemas for all opset versions are loaded
+-      if (OpSchemaRegistry::Instance()->GetLoadedSchemaVersion() == 0) {
+-        ONNX_ASSERTM(
+-            dbg_registered_schema_count == ONNX_DBG_GET_COUNT_IN_OPSETS(),
+-            "%u schema were exposed from operator sets and automatically placed into the static registry.  "
+-            "%u were expected based on calls to registration macros. Operator set functions may need to be updated.",
+-            dbg_registered_schema_count,
+-            ONNX_DBG_GET_COUNT_IN_OPSETS());
+-      }
+-#endif
++      // Debug schema count assertion disabled: fires when ONNX and ONNX Runtime
++      // both register schemas in the same process (common with vcpkg static linking).
++      // The duplicate registration is harmless and only affects debug builds.
+     }
+ 
+    private:

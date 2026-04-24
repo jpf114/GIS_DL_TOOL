@@ -30,6 +30,7 @@ namespace {
 
 thread_local std::string g_last_error;
 thread_local int g_last_error_code = 0;
+thread_local std::string g_projection_cache;
 
 void SetError(int code, const std::string& msg) {
     g_last_error = msg;
@@ -42,6 +43,11 @@ void ClearError() {
 }
 
 static gis_ai::ModelManager g_model_manager;
+
+constexpr int VERSION_MAJOR = 0;
+constexpr int VERSION_MINOR = 1;
+constexpr int VERSION_PATCH = 0;
+constexpr const char* VERSION_STRING = "0.1.0";
 
 }
 
@@ -97,6 +103,11 @@ GIS_AI_API int GisAi_GetLastErrorCode() {
     return g_last_error_code;
 }
 
+GIS_AI_API int GisAi_GetVersionMajor() { return VERSION_MAJOR; }
+GIS_AI_API int GisAi_GetVersionMinor() { return VERSION_MINOR; }
+GIS_AI_API int GisAi_GetVersionPatch() { return VERSION_PATCH; }
+GIS_AI_API const char* GisAi_GetVersionString() { return VERSION_STRING; }
+
 GIS_AI_API GisAiRaster* GisAi_Raster_Load(const char* path) {
     if (!path) { SetError(-2, "Null path"); return nullptr; }
     try {
@@ -141,6 +152,29 @@ GIS_AI_API int GisAi_Raster_GetBandCount(GisAiRaster* raster) {
     return raster ? raster->data.band_count : 0;
 }
 
+GIS_AI_API int GisAi_Raster_GetGeoTransform(GisAiRaster* raster, double* out_transform) {
+    if (!raster || !out_transform) { SetError(-2, "Null argument"); return -2; }
+    std::memcpy(out_transform, raster->data.geotransform, 6 * sizeof(double));
+    ClearError();
+    return 0;
+}
+
+GIS_AI_API const char* GisAi_Raster_GetProjection(GisAiRaster* raster) {
+    if (!raster) return nullptr;
+    g_projection_cache = raster->data.projection;
+    return g_projection_cache.c_str();
+}
+
+GIS_AI_API int GisAi_Raster_GetBandData(GisAiRaster* raster, int band_index, float* out_buffer, int buffer_size) {
+    if (!raster || !out_buffer) { SetError(-2, "Null argument"); return -2; }
+    if (band_index < 0 || band_index >= raster->data.band_count) { SetError(-4, "Band index out of range"); return -4; }
+    auto& band = raster->data.bands[band_index];
+    int copy_size = std::min(buffer_size, static_cast<int>(band.size()));
+    std::memcpy(out_buffer, band.data(), copy_size * sizeof(float));
+    ClearError();
+    return copy_size;
+}
+
 GIS_AI_API GisAiVector* GisAi_Vector_Load(const char* path) {
     if (!path) { SetError(-2, "Null path"); return nullptr; }
     try {
@@ -173,6 +207,16 @@ GIS_AI_API void GisAi_Vector_Destroy(GisAiVector* vector) {
     delete vector;
 }
 
+GIS_AI_API int GisAi_Vector_GetFeatureCount(GisAiVector* vector) {
+    return vector ? static_cast<int>(vector->data.features.size()) : 0;
+}
+
+GIS_AI_API const char* GisAi_Vector_GetProjection(GisAiVector* vector) {
+    if (!vector) return nullptr;
+    g_projection_cache = vector->data.projection;
+    return g_projection_cache.c_str();
+}
+
 GIS_AI_API GisAiPointCloud* GisAi_PointCloud_Load(const char* path) {
     if (!path) { SetError(-2, "Null path"); return nullptr; }
     try {
@@ -203,6 +247,10 @@ GIS_AI_API int GisAi_PointCloud_Save(GisAiPointCloud* pc, const char* path) {
 
 GIS_AI_API void GisAi_PointCloud_Destroy(GisAiPointCloud* pc) {
     delete pc;
+}
+
+GIS_AI_API int GisAi_PointCloud_GetPointCount(GisAiPointCloud* pc) {
+    return pc ? static_cast<int>(pc->data.points.size()) : 0;
 }
 
 GIS_AI_API GisAiVector* GisAi_Vector_Buffer(GisAiVector* vector, double distance) {

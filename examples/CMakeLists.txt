@@ -4,7 +4,7 @@ add_executable(demo_segmentation
 
 target_link_libraries(demo_segmentation
     PRIVATE
-        gis_ai_static
+        gis_ai
 )
 
 add_executable(demo_gis_ops
@@ -13,7 +13,7 @@ add_executable(demo_gis_ops
 
 target_link_libraries(demo_gis_ops
     PRIVATE
-        gis_ai_static
+        gis_ai
 )
 
 add_executable(demo_config
@@ -22,5 +22,5 @@ add_executable(demo_config
 
 target_link_libraries(demo_config
     PRIVATE
-        gis_ai_static
+        gis_ai
 )

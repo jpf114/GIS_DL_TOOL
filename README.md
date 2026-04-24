@@ -154,6 +154,14 @@ int main() {
 - [测试指南](docs/testing.md)
 - [贡献说明](CONTRIBUTING.md)
 
+## 安装后消费示例
+
+仓库提供了安装包消费示例工程：
+
+- [examples/installed_package/README.md](examples/installed_package/README.md)
+
+该示例用于验证安装后的包是否能够通过 `find_package(gis_ai CONFIG REQUIRED)` 和 `gis_ai::gis_ai` 正常被外部工程引用。
+
 ## 开发环境
 
 ```bash

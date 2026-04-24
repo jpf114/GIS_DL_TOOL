@@ -101,6 +101,7 @@ if(GIS_AI_BUILD_SHARED)
     target_link_libraries(gis_ai_shared PUBLIC ${COMMON_LINK_LIBS})
     target_compile_definitions(gis_ai_shared PRIVATE GIS_AI_SHARED_BUILD)
     set_target_properties(gis_ai_shared PROPERTIES
+        EXPORT_NAME gis_ai
         OUTPUT_NAME "gis_ai"
         VERSION ${PROJECT_VERSION}
         SOVERSION 1
@@ -120,6 +121,7 @@ if(GIS_AI_BUILD_STATIC)
         PUBLIC GIS_AI_STATIC_BUILD
     )
     set_target_properties(gis_ai_static PROPERTIES
+        EXPORT_NAME gis_ai_static
         OUTPUT_NAME "gis_ai"
         PREFIX "lib"
     )
@@ -133,6 +135,7 @@ endif()
 if(GIS_AI_BUILD_SHARED)
     add_library(gis_ai ALIAS gis_ai_shared)
 else()
+    set_target_properties(gis_ai_static PROPERTIES EXPORT_NAME gis_ai)
     add_library(gis_ai ALIAS gis_ai_static)
 endif()
 

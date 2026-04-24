@@ -18,7 +18,7 @@ TEST_DATA_DIR = os.path.join(BASE_DIR, "test_data")
 def ensure_test_data_root():
     if not os.path.isdir(TEST_DATA_DIR):
         raise RuntimeError(
-            "test_data directory not found. Run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first."
+            "未找到 test_data 目录。请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh。"
         )
 
 

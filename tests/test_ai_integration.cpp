@@ -22,7 +22,7 @@ protected:
     static bool TestDataRootExists() { return std::filesystem::exists("test_data"); }
     static void SkipIfTestDataMissing() {
         if (!TestDataRootExists()) {
-            GTEST_SKIP() << "test_data directory not found; run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first";
+            GTEST_SKIP() << "未找到 test_data 目录，请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh";
         }
     }
 

@@ -1,8 +1,8 @@
-# GIS AI C API Reference
+# GIS AI C API 参考
 
-This document lists the currently exported public C API declared in `include/gis_ai/gis_ai.h`.
+本文档整理了当前在 `include/gis_ai/gis_ai.h` 中对外暴露的公共 C API。
 
-## Initialization and Errors
+## 初始化与错误处理
 
 ```c
 int GisAi_Init(const char* config_path);
@@ -11,10 +11,12 @@ const char* GisAi_GetLastError(void);
 int GisAi_GetLastErrorCode(void);
 ```
 
-- `GisAi_Init`: initializes logging and optionally loads a config file.
-- `GisAi_GetLastError`: returns the last thread-local error message.
+- `GisAi_Init`：初始化日志系统，并在传入配置路径时尝试加载配置文件。
+- `GisAi_Shutdown`：执行库级清理。
+- `GisAi_GetLastError`：返回当前线程最近一次错误消息。
+- `GisAi_GetLastErrorCode`：返回当前线程最近一次错误码。
 
-## Version
+## 版本信息
 
 ```c
 int GisAi_GetVersionMajor(void);
@@ -23,7 +25,7 @@ int GisAi_GetVersionPatch(void);
 const char* GisAi_GetVersionString(void);
 ```
 
-## Raster
+## 栅格相关
 
 ```c
 GisAiRaster* GisAi_Raster_Load(const char* path);
@@ -37,7 +39,7 @@ const char* GisAi_Raster_GetProjection(GisAiRaster* raster);
 int GisAi_Raster_GetBandData(GisAiRaster* raster, int band_index, float* out_buffer, int buffer_size);
 ```
 
-## Vector
+## 矢量相关
 
 ```c
 GisAiVector* GisAi_Vector_Load(const char* path);
@@ -51,7 +53,7 @@ GisAiVector* GisAi_Vector_Clip(GisAiVector* target, GisAiVector* clipper);
 GisAiVector* GisAi_Vector_Simplify(GisAiVector* vector, double tolerance);
 ```
 
-## Point Cloud
+## 点云相关
 
 ```c
 GisAiPointCloud* GisAi_PointCloud_Load(const char* path);
@@ -60,7 +62,7 @@ void GisAi_PointCloud_Destroy(GisAiPointCloud* pc);
 int GisAi_PointCloud_GetPointCount(GisAiPointCloud* pc);
 ```
 
-## Raster Algorithms
+## 栅格算法
 
 ```c
 GisAiRaster* GisAi_Raster_Resample(GisAiRaster* raster, int new_width, int new_height, const char* method);
@@ -68,7 +70,7 @@ GisAiRaster* GisAi_Raster_Normalize(GisAiRaster* raster);
 GisAiRaster* GisAi_Raster_Threshold(GisAiRaster* raster, double threshold);
 ```
 
-## Model and Inference
+## 模型与推理
 
 ```c
 GisAiModel* GisAi_Model_Load(const char* model_path);
@@ -76,7 +78,7 @@ void GisAi_Model_Unload(GisAiModel* model);
 GisAiRaster* GisAi_AI_Infer(GisAiModel* model, GisAiRaster* input);
 ```
 
-## Segmentation Pipeline
+## 分割流程
 
 ```c
 GisAiRasterSeg* GisAi_RasterSeg_Create(const char* model_path);
@@ -84,15 +86,15 @@ int GisAi_RasterSeg_Run(GisAiRasterSeg* seg, const char* input_tif, const char* 
 void GisAi_RasterSeg_Destroy(GisAiRasterSeg* seg);
 ```
 
-- `output_shp` may be `NULL` if polygon output is not needed.
+- `output_shp` 允许为 `NULL`，表示只输出栅格结果，不生成矢量结果。
 
-## Coordinate Transform
+## 坐标转换
 
 ```c
 int GisAi_TransformCoordinates(double* x, double* y, const char* from_crs, const char* to_crs);
 ```
 
-## Ownership Rules
+## 所有权规则
 
-- Objects returned by `Load`, `Create`, and algorithm functions must be released by the matching `Destroy` or `Unload`.
-- Strings returned by `GisAi_GetLastError`, `GisAi_Raster_GetProjection`, and `GisAi_Vector_GetProjection` are owned by the library and should not be freed by the caller.
+- 所有通过 `Load`、`Create`、算法函数返回的对象，都必须由调用方使用匹配的 `Destroy` 或 `Unload` 释放。
+- `GisAi_GetLastError`、`GisAi_Raster_GetProjection`、`GisAi_Vector_GetProjection` 返回的字符串由库内部维护，调用方不应手动释放。

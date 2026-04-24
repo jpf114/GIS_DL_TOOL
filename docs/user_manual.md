@@ -1,21 +1,35 @@
-# User Manual
+# 用户手册
 
-## Typical Segmentation Flow
+## 典型分割流程
 
-1. Build the project and generate the shared library or executable tools.
-2. Call `GisAi_Init`.
-3. Create a segmentation object with `GisAi_RasterSeg_Create`.
-4. Run segmentation with `GisAi_RasterSeg_Run`.
-5. Destroy returned objects and call `GisAi_Shutdown`.
+1. 构建项目，生成动态库或可执行工具。
+2. 调用 `GisAi_Init` 初始化库。
+3. 使用 `GisAi_RasterSeg_Create` 创建分割对象。
+4. 调用 `GisAi_RasterSeg_Run` 执行分割。
+5. 释放返回对象，并在结束时调用 `GisAi_Shutdown`。
 
-## Input and Output
+## 输入与输出
 
-- Raster input: GeoTIFF
-- Vector output: Shapefile or GeoJSON
-- Point cloud save output: Shapefile or GeoJSON point features
+- 栅格输入：GeoTIFF
+- 矢量输出：Shapefile 或 GeoJSON
+- 点云保存输出：Shapefile 或 GeoJSON 点要素
 
-## Common Notes
+## 常见说明
 
-- Coordinate transformation depends on PROJ data being available.
-- Windows AI integration is expected to run in `Release`.
-- Objects returned by `Load`, `Create`, and algorithm APIs must be released with the matching destroy function.
+- 坐标转换依赖 PROJ 数据文件可用。
+- Windows 下的 AI 集成测试当前建议在 `Release` 模式执行。
+- 通过 `Load`、`Create` 和算法接口返回的对象，都必须使用匹配的销毁函数释放。
+- 若运行集成测试，请先按 [测试指南](testing.md) 准备测试夹具目录。
+
+## 安装后使用
+
+如果你希望在外部 CMake 工程中使用安装后的库，请参考：
+
+- [../examples/installed_package/README.md](../examples/installed_package/README.md)
+
+外部工程的基本调用方式如下：
+
+```cmake
+find_package(gis_ai CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE gis_ai::gis_ai)
+```

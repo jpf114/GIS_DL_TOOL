@@ -1,0 +1,174 @@
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+if(POLICY CMP0057)
+    cmake_policy(SET CMP0057 NEW)
+endif()
+
+set(_gis_ai_install_bin_dir "${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@")
+
+set(_gis_ai_runtime_executables
+    "${_gis_ai_install_bin_dir}/gis_ai_cli.exe"
+)
+
+if(EXISTS "${_gis_ai_install_bin_dir}/gis-ai-gui.exe")
+    list(APPEND _gis_ai_runtime_executables "${_gis_ai_install_bin_dir}/gis-ai-gui.exe")
+endif()
+
+set(_gis_ai_can_scan_runtime_deps TRUE)
+
+if(WIN32)
+    find_program(_gis_ai_dumpbin_command dumpbin)
+    find_program(_gis_ai_llvm_objdump_command llvm-objdump)
+    find_program(_gis_ai_objdump_command objdump)
+
+    if(_gis_ai_dumpbin_command)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL dumpbin)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND "${_gis_ai_dumpbin_command}")
+    elseif(_gis_ai_llvm_objdump_command)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL objdump)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND "${_gis_ai_llvm_objdump_command}")
+    elseif(_gis_ai_objdump_command)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL objdump)
+        set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND "${_gis_ai_objdump_command}")
+    else()
+        set(_gis_ai_can_scan_runtime_deps FALSE)
+        message(WARNING "未找到 dumpbin/objdump 工具，回退到直接复制最小运行时 DLL 列表。")
+    endif()
+endif()
+
+if(_gis_ai_can_scan_runtime_deps)
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES ${_gis_ai_runtime_executables}
+        RESOLVED_DEPENDENCIES_VAR _gis_ai_resolved_deps
+        UNRESOLVED_DEPENDENCIES_VAR _gis_ai_unresolved_deps
+        DIRECTORIES
+            "@GIS_AI_VCPKG_RELEASE_BIN_DIR@"
+            "@GIS_AI_VCPKG_DEBUG_BIN_DIR@"
+        PRE_EXCLUDE_REGEXES
+            "api-ms-"
+            "ext-ms-"
+            "[Hh][Vv][Ss][Ii][Ff]ile[Tt]rust\\.dll"
+        POST_EXCLUDE_REGEXES
+            ".*/install/bin/.*"
+            ".*/[Ww]indows/.*"
+            ".*/[Ss]ystem32/.*"
+    )
+
+    if(_gis_ai_unresolved_deps)
+        list(JOIN _gis_ai_unresolved_deps "\n  " _gis_ai_unresolved_text)
+        message(WARNING "未解析的运行时依赖（可能需要手动安装）:\n  ${_gis_ai_unresolved_text}")
+    endif()
+
+    set(_gis_ai_filtered_resolved_deps)
+    foreach(_gis_ai_dep IN LISTS _gis_ai_resolved_deps)
+        get_filename_component(_gis_ai_dep_dir "${_gis_ai_dep}" DIRECTORY)
+        file(TO_CMAKE_PATH "${_gis_ai_dep_dir}" _gis_ai_dep_dir_norm)
+        file(TO_CMAKE_PATH "${_gis_ai_install_bin_dir}" _gis_ai_install_bin_dir_norm)
+        if(_gis_ai_dep_dir_norm STREQUAL _gis_ai_install_bin_dir_norm)
+            continue()
+        endif()
+        list(APPEND _gis_ai_filtered_resolved_deps "${_gis_ai_dep}")
+    endforeach()
+
+    list(REMOVE_DUPLICATES _gis_ai_filtered_resolved_deps)
+
+    message(STATUS "已解析的运行时依赖: ${_gis_ai_filtered_resolved_deps}")
+
+    if(NOT _gis_ai_filtered_resolved_deps)
+        set(_gis_ai_can_scan_runtime_deps FALSE)
+        message(WARNING "GET_RUNTIME_DEPENDENCIES 未发现依赖，回退到最小 DLL 列表。")
+    endif()
+endif()
+
+if(_gis_ai_can_scan_runtime_deps)
+    foreach(_gis_ai_dep IN LISTS _gis_ai_filtered_resolved_deps)
+        file(INSTALL
+            DESTINATION "${_gis_ai_install_bin_dir}"
+            TYPE SHARED_LIBRARY
+            FILES "${_gis_ai_dep}"
+        )
+    endforeach()
+else()
+    set(_gis_ai_minimal_dlls
+        abseil_dll.dll
+        aec.dll
+        brotlicommon.dll
+        brotlidec.dll
+        bz2.dll
+        deflate.dll
+        double-conversion.dll
+        fontconfig-1.dll
+        freetype.dll
+        freexl-1.dll
+        gdal.dll
+        geos.dll
+        geos_c.dll
+        geotiff.dll
+        gif.dll
+        harfbuzz.dll
+        harfbuzz-subset.dll
+        harfbuzz-raster.dll
+        harfbuzz-vector.dll
+        hdf5.dll
+        hdf5_hl.dll
+        Iex-3_4.dll
+        iconv-2.dll
+        IlmThread-3_4.dll
+        Imath-3_2.dll
+        jpeg62.dll
+        json-c.dll
+        Lerc.dll
+        libcrypto-3-x64.dll
+        libcurl.dll
+        libexpat.dll
+        liblzma.dll
+        libpng16.dll
+        libpq.dll
+        libprotobuf.dll
+        libssl-3-x64.dll
+        libsharpyuv.dll
+        libwebp.dll
+        libwebpdecoder.dll
+        libwebpdemux.dll
+        libwebpmux.dll
+        libxml2.dll
+        lz4.dll
+        md4c.dll
+        md4c-html.dll
+        minizip.dll
+        netcdf.dll
+        onnxruntime.dll
+        OpenEXR-3_4.dll
+        OpenEXRCore-3_4.dll
+        openjp2.dll
+        pcre2-8.dll
+        proj_9.dll
+        qhull_r.dll
+        spatialite.dll
+        sqlite3.dll
+        szip.dll
+        tinyxml2.dll
+        tiff.dll
+        turbojpeg.dll
+        uriparser.dll
+        zlib1.dll
+        zstd.dll
+        icudt78.dll
+        icuin78.dll
+        icuio78.dll
+        icutu78.dll
+        icuuc78.dll
+    )
+
+    foreach(_gis_ai_dll_name IN LISTS _gis_ai_minimal_dlls)
+        set(_gis_ai_dll_path "@GIS_AI_VCPKG_RELEASE_BIN_DIR@/${_gis_ai_dll_name}")
+        if(EXISTS "${_gis_ai_dll_path}")
+            file(INSTALL
+                DESTINATION "${_gis_ai_install_bin_dir}"
+                TYPE SHARED_LIBRARY
+                FILES "${_gis_ai_dll_path}"
+            )
+        endif()
+    endforeach()
+endif()

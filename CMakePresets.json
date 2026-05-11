@@ -1,145 +1,67 @@
 {
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "base",
-      "hidden": true,
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "cacheVariables": {
-        "CMAKE_CXX_STANDARD": "17"
-      }
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
     },
-    {
-      "name": "dev-windows",
-      "inherits": "base",
-      "displayName": "Windows Development",
-      "description": "Windows development build with MSVC",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    },
-    {
-      "name": "release-windows",
-      "inherits": "base",
-      "displayName": "Windows Release",
-      "description": "Windows release build",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    },
-    {
-      "name": "dev-linux",
-      "inherits": "base",
-      "displayName": "Linux Development",
-      "description": "Linux development build with GCC",
-      "generator": "Ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "g++",
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    },
-    {
-      "name": "release-linux",
-      "inherits": "base",
-      "displayName": "Linux Release",
-      "description": "Linux release build",
-      "generator": "Ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "g++",
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    },
-    {
-      "name": "dev-macos",
-      "inherits": "base",
-      "displayName": "macOS Development",
-      "description": "macOS development build with Clang",
-      "generator": "Ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    },
-    {
-      "name": "release-macos",
-      "inherits": "base",
-      "displayName": "macOS Release",
-      "description": "macOS release build",
-      "generator": "Ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "GIS_AI_BUILD_TESTS": "ON",
-        "GIS_AI_BUILD_EXAMPLES": "ON",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "dev",
-      "displayName": "Development Build",
-      "configurePreset": "dev-windows",
-      "configuration": "Debug"
-    },
-    {
-      "name": "release",
-      "displayName": "Release Build",
-      "configurePreset": "release-windows",
-      "configuration": "Release"
-    }
-  ]
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "toolset": {
+                "value": "host=x64",
+                "strategy": "set"
+            },
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
+                "GIS_AI_BUILD_GUI": "OFF",
+                "GIS_AI_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "description": "Debug 构建配置",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/build/debug"
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "description": "Release 构建配置",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/build/release"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "configuration": "Release"
+        }
+    ]
 }

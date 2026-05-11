@@ -4,6 +4,7 @@
 
 #include "fusion/raster_seg.h"
 #include "fusion/batch_processor.h"
+#include "fusion/large_image_seg.h"
 #include "ai/preprocess.h"
 #include "ai/postprocess.h"
 #include "ai/mask_to_polygon.h"
@@ -98,7 +99,8 @@ TEST_F(FusionDataFlowTest, PreprocessToPostprocessPipeline) {
     PreprocessConfig config;
     config.target_width = 10;
     config.target_height = 10;
-    config.normalize = true;
+    config.normalize_mode = NormalizeMode::ImageNet;
+    config.input_is_uint8 = false;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     EXPECT_EQ(tensor.size(), 300u);
@@ -152,7 +154,7 @@ TEST_F(FusionDataFlowTest, FullPipelineWithoutModel) {
     PreprocessConfig config;
     config.target_width = 10;
     config.target_height = 10;
-    config.normalize = false;
+    config.normalize_mode = NormalizeMode::None;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     auto shape = Preprocess::GetInputShape(config);
@@ -172,4 +174,56 @@ TEST_F(FusionDataFlowTest, FullPipelineWithoutModel) {
     MaskToPolygon m2p;
     auto vector_result = m2p.Execute(mask, 10, 10, raster.geotransform, 0);
     ASSERT_NE(vector_result, nullptr);
+}
+
+class LargeImageSegConfigTest : public ::testing::Test {};
+
+TEST_F(LargeImageSegConfigTest, DefaultConfig) {
+    LargeImageSegConfig config;
+    EXPECT_EQ(config.tile_size, 512);
+    EXPECT_EQ(config.stride, 384);
+    EXPECT_EQ(config.target_channels, 3);
+    EXPECT_FLOAT_EQ(config.mask_threshold, 0.5f);
+    EXPECT_EQ(config.target_class, 1);
+    EXPECT_EQ(config.blend_mode, BlendMode::Gaussian);
+    EXPECT_TRUE(config.skip_nodata);
+    EXPECT_GT(config.min_polygon_area, 0.0);
+    EXPECT_GT(config.simplify_tolerance, 0.0);
+    EXPECT_TRUE(config.fix_topology);
+}
+
+TEST_F(LargeImageSegConfigTest, CustomConfig) {
+    LargeImageSegConfig config;
+    config.tile_size = 256;
+    config.stride = 128;
+    config.blend_mode = BlendMode::Linear;
+    config.skip_nodata = false;
+    config.min_polygon_area = 50.0;
+    config.simplify_tolerance = 0.5;
+
+    EXPECT_EQ(config.tile_size, 256);
+    EXPECT_EQ(config.stride, 128);
+    EXPECT_EQ(config.blend_mode, BlendMode::Linear);
+    EXPECT_FALSE(config.skip_nodata);
+}
+
+class SegmentationStatsTest : public ::testing::Test {};
+
+TEST_F(SegmentationStatsTest, DefaultValues) {
+    SegmentationStats stats;
+    EXPECT_EQ(stats.total_tiles, 0);
+    EXPECT_EQ(stats.skipped_tiles, 0);
+    EXPECT_EQ(stats.inferred_tiles, 0);
+    EXPECT_DOUBLE_EQ(stats.total_inference_time_ms, 0.0);
+    EXPECT_DOUBLE_EQ(stats.total_time_ms, 0.0);
+    EXPECT_EQ(stats.polygon_count, 0);
+    EXPECT_DOUBLE_EQ(stats.total_polygon_area, 0.0);
+}
+
+class BlendWeightsTest : public ::testing::Test {};
+
+TEST_F(BlendWeightsTest, BlendModeEnum) {
+    EXPECT_NE(BlendMode::None, BlendMode::Linear);
+    EXPECT_NE(BlendMode::Linear, BlendMode::Gaussian);
+    EXPECT_NE(BlendMode::None, BlendMode::Gaussian);
 }

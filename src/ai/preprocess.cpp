@@ -7,10 +7,6 @@
 
 namespace gis_ai {
 
-namespace {
-constexpr int kModelChannels = 3;
-}
-
 std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const PreprocessConfig& config) {
     if (raster.bands.empty()) {
         throw GisAiAlgorithmException("Input raster has no bands", "Preprocess::RasterToTensor");
@@ -18,9 +14,10 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
 
     int target_w = config.target_width;
     int target_h = config.target_height;
-    int source_channels = std::min(raster.band_count, kModelChannels);
+    int num_channels = config.target_channels;
+    int source_channels = std::min(raster.band_count, num_channels);
 
-    std::vector<float> tensor(static_cast<size_t>(kModelChannels) * target_w * target_h, 0.0f);
+    std::vector<float> tensor(static_cast<size_t>(num_channels) * target_w * target_h, 0.0f);
 
     float x_scale = static_cast<float>(raster.width) / target_w;
     float y_scale = static_cast<float>(raster.height) / target_h;
@@ -30,8 +27,31 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
 
     for (int c = 0; c < source_channels; ++c) {
         const auto& band = raster.bands[c];
-        float mean = means[c];
-        float std_val = stds[c];
+
+        float band_min = 0.0f;
+        float band_max = 1.0f;
+        if (config.normalize_mode == NormalizeMode::MinMax01 || config.normalize_mode == NormalizeMode::ZScore) {
+            band_min = std::numeric_limits<float>::max();
+            band_max = std::numeric_limits<float>::lowest();
+            float sum = 0.0f;
+            for (float v : band) {
+                if (!std::isnan(v)) {
+                    band_min = std::min(band_min, v);
+                    band_max = std::max(band_max, v);
+                    sum += v;
+                }
+            }
+            if (config.normalize_mode == NormalizeMode::ZScore) {
+                float mean = sum / static_cast<float>(band.size());
+                float sq_sum = 0.0f;
+                for (float v : band) {
+                    if (!std::isnan(v)) sq_sum += (v - mean) * (v - mean);
+                }
+                float stddev = std::sqrt(sq_sum / static_cast<float>(band.size()));
+                means[c] = mean;
+                stds[c] = stddev > 1e-6f ? stddev : 1.0f;
+            }
+        }
 
         for (int y = 0; y < target_h; ++y) {
             for (int x = 0; x < target_w; ++x) {
@@ -42,8 +62,37 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
 
                 if (std::isnan(val)) val = 0.0f;
 
-                if (config.normalize) {
-                    val = (val / 255.0f - mean) / std_val;
+                switch (config.normalize_mode) {
+                    case NormalizeMode::None:
+                        break;
+                    case NormalizeMode::ImageNet:
+                        if (config.input_is_uint8) {
+                            val = val / 255.0f;
+                        }
+                        if (c < 3) {
+                            val = (val - means[c]) / stds[c];
+                        }
+                        break;
+                    case NormalizeMode::MinMax01: {
+                        float range = band_max - band_min;
+                        if (range > 1e-6f) {
+                            val = (val - band_min) / range;
+                        } else {
+                            val = 0.0f;
+                        }
+                        break;
+                    }
+                    case NormalizeMode::ZScore:
+                        val = (val - means[c]) / stds[c];
+                        break;
+                    case NormalizeMode::Custom:
+                        if (config.input_is_uint8) {
+                            val = val / 255.0f;
+                        }
+                        if (c < 3) {
+                            val = (val - means[c]) / stds[c];
+                        }
+                        break;
                 }
 
                 size_t idx = static_cast<size_t>(c) * target_w * target_h + y * target_w + x;
@@ -55,7 +104,7 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
     LOG_INFO("RasterToTensor: " + std::to_string(raster.width) + "x" +
         std::to_string(raster.height) + "x" + std::to_string(source_channels) +
         " -> " + std::to_string(target_w) + "x" + std::to_string(target_h) +
-        "x" + std::to_string(kModelChannels));
+        "x" + std::to_string(num_channels));
     return tensor;
 }
 
@@ -86,7 +135,7 @@ std::vector<float> Preprocess::RasterBandToTensor(const RasterData& raster, int 
 }
 
 std::vector<int64_t> Preprocess::GetInputShape(const PreprocessConfig& config) {
-    return {1, 3, config.target_height, config.target_width};
+    return {1, static_cast<int64_t>(config.target_channels), config.target_height, config.target_width};
 }
 
 } // namespace gis_ai

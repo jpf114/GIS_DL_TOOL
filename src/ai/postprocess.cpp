@@ -64,6 +64,9 @@ RasterData Postprocess::MaskToRaster(const std::vector<uint8_t>& mask, int width
         raster.bands[0][i] = static_cast<float>(mask[i]);
     }
 
+    raster.band_infos.resize(1);
+    raster.band_infos[0].data_type = RasterDataType::Byte;
+
     return raster;
 }
 

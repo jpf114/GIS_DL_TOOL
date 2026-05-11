@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <mutex>
 #include "io/raster_io.h"
 #include "fusion/raster_seg.h"
 #include "core/export.h"
@@ -43,6 +44,7 @@ private:
     std::unique_ptr<RasterSeg> raster_seg_;
     int num_threads_;
     std::function<void(int, int, const std::string&)> progress_callback_;
+    std::mutex callback_mutex_;
 };
 
 } // namespace gis_ai

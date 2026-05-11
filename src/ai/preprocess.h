@@ -7,10 +7,20 @@
 
 namespace gis_ai {
 
+enum class GIS_AI_API NormalizeMode {
+    None,
+    ImageNet,
+    MinMax01,
+    ZScore,
+    Custom
+};
+
 struct GIS_AI_API PreprocessConfig {
     int target_width = 512;
     int target_height = 512;
-    bool normalize = true;
+    int target_channels = 3;
+    NormalizeMode normalize_mode = NormalizeMode::ImageNet;
+    bool input_is_uint8 = true;
     float mean_r = 0.485f;
     float mean_g = 0.456f;
     float mean_b = 0.406f;

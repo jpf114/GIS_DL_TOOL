@@ -33,7 +33,7 @@ TEST_F(PreprocessTest, RasterToTensorBasic) {
     PreprocessConfig config;
     config.target_width = 10;
     config.target_height = 10;
-    config.normalize = false;
+    config.normalize_mode = NormalizeMode::None;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     EXPECT_EQ(tensor.size(), static_cast<size_t>(10 * 10 * 3));
@@ -45,7 +45,7 @@ TEST_F(PreprocessTest, RasterToTensorWithResize) {
     PreprocessConfig config;
     config.target_width = 20;
     config.target_height = 20;
-    config.normalize = false;
+    config.normalize_mode = NormalizeMode::None;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     EXPECT_EQ(tensor.size(), static_cast<size_t>(20 * 20 * 3));
@@ -57,7 +57,7 @@ TEST_F(PreprocessTest, RasterToTensorSingleBandPadsToThreeChannels) {
     PreprocessConfig config;
     config.target_width = 10;
     config.target_height = 10;
-    config.normalize = false;
+    config.normalize_mode = NormalizeMode::None;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     ASSERT_EQ(tensor.size(), static_cast<size_t>(10 * 10 * 3));
@@ -76,16 +76,34 @@ TEST_F(PreprocessTest, RasterToTensorWithNormalization) {
     PreprocessConfig config;
     config.target_width = 10;
     config.target_height = 10;
-    config.normalize = true;
+    config.normalize_mode = NormalizeMode::ImageNet;
+    config.input_is_uint8 = false;
 
     auto tensor = preprocess.RasterToTensor(raster, config);
     EXPECT_EQ(tensor.size(), static_cast<size_t>(10 * 10 * 3));
 
-    bool has_negative = false;
+    bool has_transformed = false;
     for (auto v : tensor) {
-        if (v < -1.0f) { has_negative = true; break; }
+        if (std::abs(v - 0.5f) > 0.01f) { has_transformed = true; break; }
     }
-    EXPECT_TRUE(has_negative);
+    EXPECT_TRUE(has_transformed);
+}
+
+TEST_F(PreprocessTest, RasterToTensorMinMaxNorm) {
+    auto raster = MakeTestRaster(10, 10, 3);
+    Preprocess preprocess;
+    PreprocessConfig config;
+    config.target_width = 10;
+    config.target_height = 10;
+    config.normalize_mode = NormalizeMode::MinMax01;
+
+    auto tensor = preprocess.RasterToTensor(raster, config);
+    EXPECT_EQ(tensor.size(), static_cast<size_t>(10 * 10 * 3));
+
+    for (auto v : tensor) {
+        EXPECT_GE(v, -0.01f);
+        EXPECT_LE(v, 1.01f);
+    }
 }
 
 TEST_F(PreprocessTest, RasterBandToTensor) {

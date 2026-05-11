@@ -59,7 +59,6 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
     int total = static_cast<int>(input_files.size());
     std::atomic<size_t> next_index{0};
     std::atomic<int> completed{0};
-    std::mutex progress_mutex;
 
     auto process_one = [&](RasterSeg& segmenter, size_t index) {
         const auto& input_path = input_files[index];
@@ -88,9 +87,11 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 
         results[index] = std::move(result);
         int finished = completed.fetch_add(1) + 1;
-        if (progress_callback_) {
-            std::lock_guard<std::mutex> lock(progress_mutex);
-            progress_callback_(finished, total, input_path);
+        {
+            std::lock_guard<std::mutex> lock(callback_mutex_);
+            if (progress_callback_) {
+                progress_callback_(finished, total, input_path);
+            }
         }
     };
 
@@ -132,6 +133,7 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 }
 
 void BatchProcessor::SetProgressCallback(std::function<void(int, int, const std::string&)> callback) {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     progress_callback_ = std::move(callback);
 }
 

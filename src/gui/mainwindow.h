@@ -8,12 +8,14 @@ class QLabel;
 class QPushButton;
 class QTabWidget;
 class QProgressBar;
+class QScrollArea;
 class QDragEnterEvent;
 class QDropEvent;
 
 namespace gis_ai::gui {
 
 class NavPanel;
+class ParamWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -34,6 +36,8 @@ private:
     void dropEvent(QDropEvent* event) override;
 
     NavPanel* navPanel_ = nullptr;
+    ParamWidget* paramWidget_ = nullptr;
+    QScrollArea* paramScrollArea_ = nullptr;
     QLabel* functionIconLabel_ = nullptr;
     QLabel* functionTitleLabel_ = nullptr;
     QLabel* functionDescLabel_ = nullptr;

@@ -2,6 +2,7 @@
 #include "style_constants.h"
 #include "nav_panel.h"
 #include "icon_manager.h"
+#include "param_widget.h"
 
 #include <QApplication>
 #include <QDir>
@@ -163,15 +164,8 @@ void MainWindow::setupUi() {
     paramScrollArea->setStyleSheet(
         QStringLiteral("QScrollArea { background: transparent; border: none; }"));
 
-    auto* paramPlaceholder = new QFrame;
-    paramPlaceholder->setObjectName(QStringLiteral("card"));
-    auto* paramPlaceholderLayout = new QVBoxLayout(paramPlaceholder);
-    paramPlaceholderLayout->setContentsMargins(Size::kCardPadding, Size::kCardPadding, Size::kCardPadding, Size::kCardPadding);
-    auto* paramPlaceholderLabel = new QLabel(QStringLiteral("参数面板占位区域"));
-    paramPlaceholderLabel->setObjectName(QStringLiteral("cardDesc"));
-    paramPlaceholderLabel->setAlignment(Qt::AlignCenter);
-    paramPlaceholderLayout->addWidget(paramPlaceholderLabel);
-    paramScrollArea->setWidget(paramPlaceholder);
+    paramWidget_ = new ParamWidget;
+    paramScrollArea->setWidget(paramWidget_);
 
     rightLayout->addWidget(paramScrollArea, 1);
 
@@ -258,6 +252,10 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
     executeButton_->setEnabled(false);
     statusAlgorithmLabel_->setText(QStringLiteral("当前算法：%1").arg(displayName));
 
+    if (paramWidget_) {
+        paramWidget_->clear();
+    }
+
     auto& mgr = IconManager::instance();
     if (mgr.hasPluginIcon(pluginName)) {
         QPixmap iconPixmap = mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6"));
@@ -287,6 +285,44 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     } else {
         functionIconLabel_->setPixmap(defaultBadgePixmap());
     }
+
+    std::vector<ParamSpec> specs;
+
+    if (pluginName == "segment") {
+        specs.push_back(ParamSpec{"input", "输入影像", "待分割的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output", "输出影像", "分割结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
+        specs.push_back(ParamSpec{"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
+        specs.push_back(ParamSpec{"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"average"}, int{0}, int{0}, {"average", "max", "min"}});
+    } else if (pluginName == "inference") {
+        specs.push_back(ParamSpec{"input", "输入影像", "待推理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output", "输出结果", "推理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"crs", "坐标系", "输出结果的坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
+    } else if (pluginName == "preprocess") {
+        specs.push_back(ParamSpec{"input", "输入影像", "待预处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output", "输出影像", "预处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"normalize", "归一化", "是否对影像进行归一化处理", ParamType::Bool, false, bool{false}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"nearest"}, int{0}, int{0}, {"nearest", "bilinear", "cubic"}});
+        specs.push_back(ParamSpec{"extent", "裁剪范围", "影像裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
+    } else if (pluginName == "vector") {
+        specs.push_back(ParamSpec{"input", "输入矢量", "待处理的矢量文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output", "输出矢量", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"crs", "目标坐标系", "矢量转换的目标坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
+    } else if (pluginName == "raster") {
+        specs.push_back(ParamSpec{"input", "输入栅格", "待处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output", "输出栅格", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"crs", "目标坐标系", "栅格转换的目标坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"threshold", "阈值", "栅格阈值处理阈值", ParamType::Double, false, double{0.5}, double{0.0}, double{1.0}, {}});
+    } else if (pluginName == "batch") {
+        specs.push_back(ParamSpec{"input_dir", "输入目录", "批量处理的输入目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"output_dir", "输出目录", "批量处理的输出目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back(ParamSpec{"num_threads", "线程数", "并行处理线程数", ParamType::Int, false, int{1}, int{1}, int{32}, {}});
+    }
+
+    paramWidget_->setParamSpecs(specs);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {

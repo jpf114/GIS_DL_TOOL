@@ -1,0 +1,219 @@
+#include "param_widget.h"
+#include "param_card_widget.h"
+#include "style_constants.h"
+
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialog>
+#include <QDoubleSpinBox>
+#include <QFileDialog>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QLayout>
+#include <QPushButton>
+#include <QSpinBox>
+#include <QVBoxLayout>
+#include <QScrollArea>
+
+#include <array>
+
+namespace gis_ai::gui {
+
+ParamWidget::ParamWidget(QWidget* parent)
+    : QWidget(parent) {
+    mainLayout_ = new QVBoxLayout(this);
+    mainLayout_->setContentsMargins(
+        Size::kCardPadding,
+        Size::kCardPadding,
+        Size::kCardPadding,
+        Size::kCardPadding);
+    mainLayout_->setSpacing(Size::kCardSpacing);
+    mainLayout_->addStretch();
+}
+
+bool ParamWidget::isInputParam(const ParamSpec& spec) const {
+    if (spec.key == "action") return false;
+    if (spec.key == "output" || spec.key.find("output") != std::string::npos) return false;
+    return spec.required;
+}
+
+bool ParamWidget::isOutputParam(const ParamSpec& spec) const {
+    if (spec.key == "output" || spec.key.find("output") != std::string::npos) return true;
+    return false;
+}
+
+void ParamWidget::setParamSpecs(const std::vector<ParamSpec>& specs) {
+    specs_ = specs;
+    buildCards();
+}
+
+void ParamWidget::buildCards() {
+    if (inputCard_) { mainLayout_->removeWidget(inputCard_); delete inputCard_; inputCard_ = nullptr; }
+    if (outputCard_) { mainLayout_->removeWidget(outputCard_); delete outputCard_; outputCard_ = nullptr; }
+    if (advancedCard_) { mainLayout_->removeWidget(advancedCard_); delete advancedCard_; advancedCard_ = nullptr; }
+
+    while (mainLayout_->count() > 0) {
+        QLayoutItem* item = mainLayout_->takeAt(0);
+        if (item->spacerItem()) {
+            delete item;
+        } else {
+            delete item->widget();
+            delete item;
+        }
+    }
+
+    if (specs_.empty()) {
+        auto* emptyLabel = new QLabel(QStringLiteral("当前子功能暂无可配置参数。"));
+        emptyLabel->setWordWrap(true);
+        emptyLabel->setStyleSheet(QStringLiteral("color: %1; font-size: 13px; padding: 24px;").arg(Color::kTextMuted));
+        mainLayout_->addWidget(emptyLabel);
+        mainLayout_->addStretch();
+        return;
+    }
+
+    bool hasInput = false, hasOutput = false, hasAdvanced = false;
+    for (const auto& spec : specs_) {
+        if (spec.key == "action") continue;
+        if (isInputParam(spec)) hasInput = true;
+        else if (isOutputParam(spec)) hasOutput = true;
+        else hasAdvanced = true;
+    }
+
+    if (hasInput) {
+        inputCard_ = new ParamCardWidget(ParamCardWidget::CardType::Input);
+        for (const auto& spec : specs_) {
+            if (spec.key == "action") continue;
+            if (isInputParam(spec)) inputCard_->addParam(spec);
+        }
+        connect(inputCard_, &ParamCardWidget::paramChanged, this, [this](const std::string&) {
+            emit paramsChanged();
+        });
+        mainLayout_->addWidget(inputCard_);
+    }
+
+    if (hasOutput) {
+        outputCard_ = new ParamCardWidget(ParamCardWidget::CardType::Output);
+        for (const auto& spec : specs_) {
+            if (isOutputParam(spec)) outputCard_->addParam(spec);
+        }
+        connect(outputCard_, &ParamCardWidget::paramChanged, this, [this](const std::string&) {
+            emit paramsChanged();
+        });
+        mainLayout_->addWidget(outputCard_);
+    }
+
+    if (hasAdvanced) {
+        advancedCard_ = new ParamCardWidget(ParamCardWidget::CardType::Advanced);
+        for (const auto& spec : specs_) {
+            if (spec.key == "action") continue;
+            if (!isInputParam(spec) && !isOutputParam(spec)) advancedCard_->addParam(spec);
+        }
+        connect(advancedCard_, &ParamCardWidget::paramChanged, this, [this](const std::string&) {
+            emit paramsChanged();
+        });
+        mainLayout_->addWidget(advancedCard_);
+    }
+
+    mainLayout_->addStretch();
+}
+
+std::map<std::string, ParamValue> ParamWidget::getParamValues() const {
+    std::map<std::string, ParamValue> params;
+
+    auto mergeCard = [&](const ParamCardWidget* card) {
+        if (!card) return;
+        auto cardValues = card->collectValues();
+        for (auto it = cardValues.constBegin(); it != cardValues.constEnd(); ++it) {
+            params[it.key()] = it.value();
+        }
+    };
+
+    mergeCard(inputCard_);
+    mergeCard(outputCard_);
+    mergeCard(advancedCard_);
+
+    return params;
+}
+
+void ParamWidget::clear() {
+    specs_.clear();
+    if (inputCard_) { delete inputCard_; inputCard_ = nullptr; }
+    if (outputCard_) { delete outputCard_; outputCard_ = nullptr; }
+    if (advancedCard_) { delete advancedCard_; advancedCard_ = nullptr; }
+
+    QLayoutItem* item = nullptr;
+    while ((item = mainLayout_->takeAt(0)) != nullptr) {
+        delete item->widget();
+        delete item;
+    }
+    mainLayout_->addStretch();
+}
+
+bool ParamWidget::hasParam(const std::string& key) const {
+    for (const auto& spec : specs_) {
+        if (spec.key == key) return true;
+    }
+    return false;
+}
+
+void ParamWidget::setStringValue(const std::string& key, const std::string& value) {
+    auto applyToCard = [&](ParamCardWidget* card) -> bool {
+        if (!card || !card->hasParam(key)) return false;
+        card->setStringValue(key, value);
+        return true;
+    };
+
+    if (applyToCard(inputCard_)) return;
+    if (applyToCard(outputCard_)) return;
+    if (applyToCard(advancedCard_)) return;
+}
+
+bool ParamWidget::setValueFromString(const std::string& key, const std::string& value) {
+    auto applyToCard = [&](ParamCardWidget* card) -> bool {
+        if (!card || !card->hasParam(key)) {
+            return false;
+        }
+        return card->setValueFromString(key, value);
+    };
+
+    if (applyToCard(inputCard_)) return true;
+    if (applyToCard(outputCard_)) return true;
+    if (applyToCard(advancedCard_)) return true;
+    return false;
+}
+
+void ParamWidget::setExtentValue(const std::string& key, const std::array<double, 4>& value) {
+    auto applyToCard = [&](ParamCardWidget* card) -> bool {
+        if (!card || !card->hasParam(key)) return false;
+        card->setExtentValue(key, value);
+        return true;
+    };
+
+    if (applyToCard(inputCard_)) return;
+    if (applyToCard(outputCard_)) return;
+    if (applyToCard(advancedCard_)) return;
+}
+
+std::string ParamWidget::stringValue(const std::string& key) const {
+    auto params = getParamValues();
+    auto it = params.find(key);
+    if (it != params.end()) {
+        if (auto* str = std::get_if<std::string>(&it->second)) {
+            return *str;
+        }
+    }
+    return {};
+}
+
+bool ParamWidget::validate() const {
+    bool valid = true;
+    if (inputCard_ && !inputCard_->validate()) valid = false;
+    if (outputCard_ && !outputCard_->validate()) valid = false;
+    if (advancedCard_ && !advancedCard_->validate()) valid = false;
+    return valid;
+}
+
+}

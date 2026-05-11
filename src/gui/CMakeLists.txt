@@ -5,6 +5,9 @@ add_executable(gis-ai-gui
     mainwindow.cpp
     nav_panel.cpp
     icon_manager.cpp
+    param_card_widget.cpp
+    param_widget.cpp
+    crs_dialog.cpp
 )
 
 target_link_libraries(gis-ai-gui PRIVATE
@@ -13,6 +16,7 @@ target_link_libraries(gis-ai-gui PRIVATE
     Qt6::Gui
     Qt6::Widgets
     Qt6::Svg
+    PROJ::proj
 )
 
 set_target_properties(gis-ai-gui PROPERTIES

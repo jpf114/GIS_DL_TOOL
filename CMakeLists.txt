@@ -79,6 +79,7 @@ set(FUSION_SOURCES
     src/fusion/raster_seg.cpp
     src/fusion/batch_processor.cpp
     src/fusion/large_image_seg.cpp
+    src/fusion/task_config.cpp
 )
 
 set(LIB_SOURCES
@@ -155,6 +156,10 @@ option(GIS_AI_BUILD_TOOLS "Build utility tools" ON)
 option(GIS_AI_BUILD_DOCS "Build API documentation with Doxygen" OFF)
 if(GIS_AI_BUILD_TOOLS)
     add_subdirectory(tools)
+
+    add_executable(gis_ai_cli src/cli/main.cpp)
+    target_link_libraries(gis_ai_cli PRIVATE gis_ai_static ${COMMON_LINK_LIBS})
+    set_target_properties(gis_ai_cli PROPERTIES OUTPUT_NAME "gis_ai_cli")
 endif()
 
 install(DIRECTORY include/gis_ai/ DESTINATION include/gis_ai)

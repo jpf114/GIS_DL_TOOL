@@ -3,12 +3,29 @@
 #include "core/exception.h"
 
 #include <cmath>
-#include <map>
+#include <unordered_map>
 #include <random>
 #include <algorithm>
 #include <numeric>
 
 namespace gis_ai {
+
+struct VoxelKey {
+    int64_t ix, iy, iz;
+
+    bool operator==(const VoxelKey& other) const {
+        return ix == other.ix && iy == other.iy && iz == other.iz;
+    }
+};
+
+struct VoxelKeyHash {
+    size_t operator()(const VoxelKey& k) const {
+        size_t h = static_cast<size_t>(k.ix);
+        h ^= static_cast<size_t>(k.iy) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        h ^= static_cast<size_t>(k.iz) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+    }
+};
 
 std::unique_ptr<PointCloudData> PcDownsample::VoxelGrid(const PointCloudData& input, double voxel_size) {
     if (input.points.empty()) {
@@ -18,21 +35,7 @@ std::unique_ptr<PointCloudData> PcDownsample::VoxelGrid(const PointCloudData& in
         throw GisAiAlgorithmException("Voxel size must be positive", "PcDownsample::VoxelGrid");
     }
 
-    struct VoxelKey {
-        int64_t ix, iy, iz;
-
-        bool operator==(const VoxelKey& other) const {
-            return ix == other.ix && iy == other.iy && iz == other.iz;
-        }
-
-        bool operator<(const VoxelKey& other) const {
-            if (ix != other.ix) return ix < other.ix;
-            if (iy != other.iy) return iy < other.iy;
-            return iz < other.iz;
-        }
-    };
-
-    std::map<VoxelKey, std::vector<size_t>> voxel_map;
+    std::unordered_map<VoxelKey, std::vector<size_t>, VoxelKeyHash> voxel_map;
 
     for (size_t i = 0; i < input.points.size(); ++i) {
         const auto& pt = input.points[i];
@@ -91,7 +94,8 @@ std::unique_ptr<PointCloudData> PcDownsample::RandomDownsample(const PointCloudD
     std::vector<size_t> indices(input.points.size());
     std::iota(indices.begin(), indices.end(), 0);
 
-    std::mt19937 gen(42);
+    std::random_device rd;
+    std::mt19937 gen(rd());
     std::shuffle(indices.begin(), indices.end(), gen);
 
     indices.resize(target_count);

@@ -3,27 +3,76 @@
 #include "core/exception.h"
 
 #include <proj.h>
+#include <mutex>
+#include <unordered_map>
 
 namespace gis_ai {
 
+struct ProjTransformDeleter {
+    void operator()(PJ* p) const { if (p) proj_destroy(p); }
+};
+
+struct ProjContextDeleter {
+    void operator()(PJ_CONTEXT* c) const { if (c) proj_context_destroy(c); }
+};
+
+using ProjTransformPtr = std::unique_ptr<PJ, ProjTransformDeleter>;
+using ProjContextPtr = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>;
+
+class ProjCache {
+public:
+    static ProjCache& Instance() {
+        static ProjCache instance;
+        return instance;
+    }
+
+    PJ* GetTransform(const std::string& src_crs, const std::string& dst_crs) {
+        std::string key = src_crs + " -> " + dst_crs;
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!ctx_) {
+            ctx_ = ProjContextPtr(proj_context_create());
+        }
+
+        auto it = cache_.find(key);
+        if (it != cache_.end()) {
+            return it->second.get();
+        }
+
+        PJ_CONTEXT* ctx = ctx_.get();
+        PJ* transform = proj_create_crs_to_crs(ctx, src_crs.c_str(), dst_crs.c_str(), nullptr);
+        if (!transform) {
+            throw GisAiAlgorithmException("Failed to create coordinate transformation from '" +
+                src_crs + "' to '" + dst_crs + "'", "CoordTransform");
+        }
+
+        PJ* normalized = proj_normalize_for_visualization(ctx, transform);
+        if (normalized) {
+            proj_destroy(transform);
+            transform = normalized;
+        }
+
+        auto ptr = ProjTransformPtr(transform);
+        PJ* raw = ptr.get();
+        cache_[key] = std::move(ptr);
+        return raw;
+    }
+
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_.clear();
+        ctx_.reset();
+    }
+
+private:
+    ProjCache() = default;
+    std::mutex mutex_;
+    ProjContextPtr ctx_;
+    std::unordered_map<std::string, ProjTransformPtr> cache_;
+};
+
 CoordPair CoordTransform::Transform(double x, double y, double z, const std::string& src_crs, const std::string& dst_crs) {
-    PJ_CONTEXT* ctx = proj_context_create();
-    if (!ctx) {
-        throw GisAiAlgorithmException("Failed to create PROJ context", "CoordTransform::Transform");
-    }
-
-    PJ* transform = proj_create_crs_to_crs(ctx, src_crs.c_str(), dst_crs.c_str(), nullptr);
-    if (!transform) {
-        proj_context_destroy(ctx);
-        throw GisAiAlgorithmException("Failed to create coordinate transformation from '" +
-            src_crs + "' to '" + dst_crs + "'", "CoordTransform::Transform");
-    }
-
-    PJ* normalized = proj_normalize_for_visualization(ctx, transform);
-    if (normalized) {
-        proj_destroy(transform);
-        transform = normalized;
-    }
+    PJ* transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
 
     PJ_COORD coord;
     coord.xyz.x = x;
@@ -37,9 +86,6 @@ CoordPair CoordTransform::Transform(double x, double y, double z, const std::str
     result.y = result_coord.xyz.y;
     result.z = result_coord.xyz.z;
 
-    proj_destroy(transform);
-    proj_context_destroy(ctx);
-
     return result;
 }
 
@@ -49,26 +95,10 @@ std::vector<CoordPair> CoordTransform::TransformBatch(const std::vector<CoordPai
         return {};
     }
 
-    PJ_CONTEXT* ctx = proj_context_create();
-    if (!ctx) {
-        throw GisAiAlgorithmException("Failed to create PROJ context", "CoordTransform::TransformBatch");
-    }
-
-    PJ* transform = proj_create_crs_to_crs(ctx, src_crs.c_str(), dst_crs.c_str(), nullptr);
-    if (!transform) {
-        proj_context_destroy(ctx);
-        throw GisAiAlgorithmException("Failed to create coordinate transformation from '" +
-            src_crs + "' to '" + dst_crs + "'", "CoordTransform::TransformBatch");
-    }
-
-    PJ* normalized = proj_normalize_for_visualization(ctx, transform);
-    if (normalized) {
-        proj_destroy(transform);
-        transform = normalized;
-    }
+    PJ* transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
 
     size_t count = coords.size();
-    auto* pj_coords = new PJ_COORD[count];
+    std::vector<PJ_COORD> pj_coords(count);
     for (size_t i = 0; i < count; ++i) {
         pj_coords[i].xyz.x = coords[i].x;
         pj_coords[i].xyz.y = coords[i].y;
@@ -87,10 +117,6 @@ std::vector<CoordPair> CoordTransform::TransformBatch(const std::vector<CoordPai
         results[i].y = pj_coords[i].xyz.y;
         results[i].z = pj_coords[i].xyz.z;
     }
-
-    delete[] pj_coords;
-    proj_destroy(transform);
-    proj_context_destroy(ctx);
 
     if (failed > 0) {
         LOG_WARN("Coordinate transformation had " + std::to_string(failed) + " failures");

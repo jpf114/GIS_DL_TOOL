@@ -8,7 +8,8 @@
 
 namespace gis_ai {
 
-std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::reference_wrapper<const RasterData>>& rasters) {
+std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::reference_wrapper<const RasterData>>& rasters,
+                                                     const MosaicConfig& config) {
     if (rasters.empty()) {
         throw GisAiAlgorithmException("No input rasters provided", "RasterMosaic::Execute");
     }
@@ -19,6 +20,7 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
         result->height = src.height;
         result->band_count = src.band_count;
         result->projection = src.projection;
+        result->band_infos = src.band_infos;
         memcpy(result->geotransform, src.geotransform, sizeof(double) * 6);
         result->bands = src.bands;
         return result;
@@ -77,6 +79,7 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
     result->height = mosaic_height;
     result->band_count = band_count;
     result->projection = rasters[0].get().projection;
+    result->band_infos = rasters[0].get().band_infos;
 
     result->geotransform[0] = global_min_x;
     result->geotransform[1] = ref_pixel_size_x;
@@ -87,8 +90,24 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
 
     size_t total = static_cast<size_t>(mosaic_width) * mosaic_height;
     result->bands.resize(band_count);
+
+    float init_val = std::numeric_limits<float>::quiet_NaN();
+    if (config.strategy == MosaicStrategy::Max) init_val = std::numeric_limits<float>::lowest();
+    else if (config.strategy == MosaicStrategy::Min) init_val = std::numeric_limits<float>::max();
+
     for (int b = 0; b < band_count; ++b) {
-        result->bands[b].resize(total, std::numeric_limits<float>::quiet_NaN());
+        result->bands[b].resize(total, init_val);
+    }
+
+    std::vector<std::vector<float>> sum_acc;
+    std::vector<std::vector<int>> count_acc;
+    if (config.strategy == MosaicStrategy::Mean) {
+        sum_acc.resize(band_count);
+        count_acc.resize(band_count);
+        for (int b = 0; b < band_count; ++b) {
+            sum_acc[b].resize(total, 0.0f);
+            count_acc[b].resize(total, 0);
+        }
     }
 
     for (const auto& raster_ref : rasters) {
@@ -108,9 +127,42 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
                     if (dst_x < 0 || dst_x >= mosaic_width) continue;
 
                     float val = r.bands[b][ry * r.width + rx];
-                    if (!std::isnan(val)) {
-                        result->bands[b][dst_y * mosaic_width + dst_x] = val;
+                    if (std::isnan(val)) continue;
+
+                    size_t idx = static_cast<size_t>(dst_y) * mosaic_width + dst_x;
+
+                    switch (config.strategy) {
+                        case MosaicStrategy::Overwrite:
+                            result->bands[b][idx] = val;
+                            break;
+                        case MosaicStrategy::First:
+                            if (std::isnan(result->bands[b][idx])) {
+                                result->bands[b][idx] = val;
+                            }
+                            break;
+                        case MosaicStrategy::Mean:
+                            sum_acc[b][idx] += val;
+                            count_acc[b][idx]++;
+                            break;
+                        case MosaicStrategy::Max:
+                            result->bands[b][idx] = std::max(result->bands[b][idx], val);
+                            break;
+                        case MosaicStrategy::Min:
+                            result->bands[b][idx] = std::min(result->bands[b][idx], val);
+                            break;
                     }
+                }
+            }
+        }
+    }
+
+    if (config.strategy == MosaicStrategy::Mean) {
+        for (int b = 0; b < band_count; ++b) {
+            for (size_t i = 0; i < total; ++i) {
+                if (count_acc[b][i] > 0) {
+                    result->bands[b][i] = sum_acc[b][i] / static_cast<float>(count_acc[b][i]);
+                } else {
+                    result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
                 }
             }
         }

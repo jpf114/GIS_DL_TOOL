@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <cmath>
+#include <filesystem>
 
 #include "fusion/raster_seg.h"
 #include "fusion/batch_processor.h"
@@ -10,6 +11,8 @@
 #include "ai/mask_to_polygon.h"
 #include "io/raster_io.h"
 #include "io/vector_io.h"
+
+namespace fs = std::filesystem;
 
 using namespace gis_ai;
 
@@ -226,4 +229,141 @@ TEST_F(BlendWeightsTest, BlendModeEnum) {
     EXPECT_NE(BlendMode::None, BlendMode::Linear);
     EXPECT_NE(BlendMode::Linear, BlendMode::Gaussian);
     EXPECT_NE(BlendMode::None, BlendMode::Gaussian);
+}
+
+class LargeImageSegIntegrationTest : public ::testing::Test {
+protected:
+    static std::string FindTestModel() {
+        std::vector<std::string> candidates = {
+            "scripts/test_e2e_data/test_seg_model.onnx",
+            "../scripts/test_e2e_data/test_seg_model.onnx",
+            "../../scripts/test_e2e_data/test_seg_model.onnx",
+        };
+        for (const auto& c : candidates) {
+            if (fs::exists(c)) return c;
+        }
+        return "";
+    }
+
+    static std::string FindTestTiff() {
+        std::vector<std::string> candidates = {
+            "scripts/test_e2e_data/test_input.tif",
+            "../scripts/test_e2e_data/test_input.tif",
+            "../../scripts/test_e2e_data/test_input.tif",
+        };
+        for (const auto& c : candidates) {
+            if (fs::exists(c)) return c;
+        }
+        return "";
+    }
+};
+
+TEST_F(LargeImageSegIntegrationTest, SegmentWithTestModel) {
+    std::string model_path = FindTestModel();
+    std::string tiff_path = FindTestTiff();
+
+    if (model_path.empty() || tiff_path.empty()) {
+        GTEST_SKIP() << "Test model/data not found, skipping integration test";
+    }
+
+    RasterIO rio;
+    auto raster = rio.Load(tiff_path);
+    ASSERT_NE(raster, nullptr);
+
+    LargeImageSegConfig config;
+    config.tile_size = 512;
+    config.stride = 256;
+    config.blend_mode = BlendMode::Gaussian;
+    config.target_class = 1;
+    config.skip_nodata = false;
+
+    LargeImageSeg seg(model_path);
+
+    auto result = seg.Segment(*raster, config);
+    ASSERT_NE(result, nullptr);
+    EXPECT_GT(result->width, 0);
+    EXPECT_GT(result->height, 0);
+    EXPECT_GT(result->band_count, 0);
+    EXPECT_FALSE(result->projection.empty());
+}
+
+TEST_F(LargeImageSegIntegrationTest, SegmentToPolygonWithTestModel) {
+    std::string model_path = FindTestModel();
+    std::string tiff_path = FindTestTiff();
+
+    if (model_path.empty() || tiff_path.empty()) {
+        GTEST_SKIP() << "Test model/data not found, skipping integration test";
+    }
+
+    RasterIO rio;
+    auto raster = rio.Load(tiff_path);
+    ASSERT_NE(raster, nullptr);
+
+    LargeImageSegConfig config;
+    config.tile_size = 512;
+    config.stride = 256;
+    config.blend_mode = BlendMode::Linear;
+    config.target_class = 1;
+    config.skip_nodata = false;
+
+    LargeImageSeg seg(model_path);
+
+    auto result = seg.SegmentToPolygon(*raster, config);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->feature_type, FeatureType::Polygon);
+}
+
+TEST_F(LargeImageSegIntegrationTest, SegmentToFileWithTestModel) {
+    std::string model_path = FindTestModel();
+    std::string tiff_path = FindTestTiff();
+
+    if (model_path.empty() || tiff_path.empty()) {
+        GTEST_SKIP() << "Test model/data not found, skipping integration test";
+    }
+
+    LargeImageSegConfig config;
+    config.tile_size = 512;
+    config.stride = 512;
+    config.blend_mode = BlendMode::None;
+    config.target_class = 1;
+    config.skip_nodata = false;
+
+    LargeImageSeg seg(model_path);
+
+    std::string output_tif = "test_data/largeseg_output.tif";
+    std::string output_shp = "test_data/largeseg_output.shp";
+
+    int result = seg.SegmentToFile(tiff_path, output_tif, output_shp, config);
+    EXPECT_EQ(result, 0);
+
+    auto stats = seg.GetLastStats();
+    EXPECT_GT(stats.total_tiles, 0);
+    EXPECT_GT(stats.inferred_tiles, 0);
+    EXPECT_GT(stats.total_time_ms, 0.0);
+
+    EXPECT_TRUE(fs::exists(output_tif));
+    EXPECT_TRUE(fs::exists(output_shp));
+
+    RasterIO rio;
+    auto loaded_tif = rio.Load(output_tif);
+    ASSERT_NE(loaded_tif, nullptr);
+    EXPECT_GT(loaded_tif->width, 0);
+
+    VectorIO vio;
+    auto loaded_shp = vio.Load(output_shp);
+    ASSERT_NE(loaded_shp, nullptr);
+    EXPECT_EQ(loaded_shp->feature_type, FeatureType::Polygon);
+}
+
+TEST_F(LargeImageSegIntegrationTest, GetStatsBeforeSegment) {
+    std::string model_path = FindTestModel();
+    if (model_path.empty()) {
+        GTEST_SKIP() << "Test model not found, skipping integration test";
+    }
+
+    LargeImageSeg seg(model_path);
+    auto stats = seg.GetLastStats();
+    EXPECT_EQ(stats.total_tiles, 0);
+    EXPECT_EQ(stats.inferred_tiles, 0);
+    EXPECT_DOUBLE_EQ(stats.total_time_ms, 0.0);
 }

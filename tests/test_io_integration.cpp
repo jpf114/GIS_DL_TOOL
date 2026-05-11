@@ -249,7 +249,146 @@ TEST_F(IOIntegrationTest, CoordTransformPipeline) {
 TEST_F(IOIntegrationTest, IOFactoryDetect) {
     EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.tif"), gis_ai::IOFormat::Raster);
     EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.tiff"), gis_ai::IOFormat::Raster);
+    EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.cog"), gis_ai::IOFormat::Raster);
     EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.shp"), gis_ai::IOFormat::Vector);
     EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.geojson"), gis_ai::IOFormat::Vector);
+    EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.gpkg"), gis_ai::IOFormat::Vector);
     EXPECT_EQ(gis_ai::IOFactory::DetectFormat("test.las"), gis_ai::IOFormat::PointCloud);
+}
+
+TEST_F(IOIntegrationTest, GeoPackageSaveAndLoad) {
+    gis_ai::VectorData data;
+    data.feature_type = gis_ai::FeatureType::Polygon;
+    data.projection =
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],"
+        "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]";
+
+    gis_ai::Feature f1;
+    f1.type = gis_ai::FeatureType::Polygon;
+    f1.coordinates = {{116.0, 39.0, 0}, {116.1, 39.0, 0}, {116.1, 39.1, 0}, {116.0, 39.1, 0}, {116.0, 39.0, 0}};
+    f1.attributes["name"] = std::string("poly1");
+    f1.attributes["area"] = 42.5;
+
+    gis_ai::Feature f2;
+    f2.type = gis_ai::FeatureType::Polygon;
+    f2.coordinates = {{117.0, 40.0, 0}, {117.1, 40.0, 0}, {117.1, 40.1, 0}, {117.0, 40.1, 0}, {117.0, 40.0, 0}};
+    f2.attributes["name"] = std::string("poly2");
+    f2.attributes["area"] = 55.3;
+
+    data.features.push_back(f1);
+    data.features.push_back(f2);
+
+    gis_ai::VectorIO io;
+    io.Save(data, "test_data/vector/test_output.gpkg");
+
+    auto loaded = io.Load("test_data/vector/test_output.gpkg");
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(loaded->feature_type, gis_ai::FeatureType::Polygon);
+    EXPECT_EQ(loaded->features.size(), 2u);
+    EXPECT_FALSE(loaded->projection.empty());
+
+    for (const auto& feat : loaded->features) {
+        EXPECT_EQ(feat.type, gis_ai::FeatureType::Polygon);
+        EXPECT_GE(feat.coordinates.size(), 5u);
+    }
+}
+
+TEST_F(IOIntegrationTest, GeoPackageListLayers) {
+    gis_ai::VectorData data;
+    data.feature_type = gis_ai::FeatureType::Point;
+    data.projection =
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],"
+        "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]";
+
+    gis_ai::Feature f;
+    f.type = gis_ai::FeatureType::Point;
+    f.coordinates = {{116.0, 39.0, 0}};
+    data.features.push_back(f);
+
+    gis_ai::VectorIO io;
+    io.Save(data, "test_data/vector/test_layers.gpkg");
+
+    auto layers = io.ListLayers("test_data/vector/test_layers.gpkg");
+    EXPECT_GE(layers.size(), 1u);
+    EXPECT_EQ(layers[0].feature_count, 1);
+}
+
+TEST_F(IOIntegrationTest, GeoPackageLoadByName) {
+    gis_ai::VectorData data;
+    data.feature_type = gis_ai::FeatureType::Point;
+    data.projection =
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],"
+        "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]";
+
+    gis_ai::Feature f;
+    f.type = gis_ai::FeatureType::Point;
+    f.coordinates = {{116.0, 39.0, 0}};
+    data.features.push_back(f);
+
+    gis_ai::VectorIO io;
+    io.Save(data, "test_data/vector/test_loadbyname.gpkg");
+
+    auto layers = io.ListLayers("test_data/vector/test_loadbyname.gpkg");
+    ASSERT_GE(layers.size(), 1u);
+
+    auto loaded = io.Load("test_data/vector/test_loadbyname.gpkg", layers[0].name);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(loaded->features.size(), 1u);
+}
+
+TEST_F(IOIntegrationTest, RasterSaveCOG) {
+    gis_ai::RasterData data;
+    data.width = 256;
+    data.height = 256;
+    data.band_count = 1;
+    data.geotransform[0] = 116.0;
+    data.geotransform[1] = 0.001;
+    data.geotransform[3] = 40.0;
+    data.geotransform[5] = -0.001;
+    data.projection =
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],"
+        "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]";
+
+    data.bands.resize(1);
+    data.bands[0].resize(256 * 256, 100.0f);
+
+    gis_ai::BandInfo bi;
+    bi.data_type = gis_ai::RasterDataType::Float32;
+    bi.nodata_value = -9999.0f;
+    data.band_infos.push_back(bi);
+
+    gis_ai::RasterIO io;
+    io.Save(data, "test_data/raster/test_cog.tif", gis_ai::RasterOutputFormat::COG);
+
+    auto loaded = io.Load("test_data/raster/test_cog.tif");
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(loaded->width, 256);
+    EXPECT_EQ(loaded->height, 256);
+    EXPECT_EQ(loaded->band_count, 1);
+    EXPECT_FALSE(loaded->projection.empty());
+}
+
+TEST_F(IOIntegrationTest, RasterSaveAutoFormat) {
+    gis_ai::RasterData data;
+    data.width = 64;
+    data.height = 64;
+    data.band_count = 1;
+    data.geotransform[0] = 116.0;
+    data.geotransform[1] = 0.001;
+    data.geotransform[3] = 40.0;
+    data.geotransform[5] = -0.001;
+    data.projection =
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],"
+        "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]";
+
+    data.bands.resize(1);
+    data.bands[0].resize(64 * 64, 50.0f);
+
+    gis_ai::RasterIO io;
+
+    io.Save(data, "test_data/raster/test_auto_gtiff.tif", gis_ai::RasterOutputFormat::Auto);
+    auto loaded = io.Load("test_data/raster/test_auto_gtiff.tif");
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(loaded->width, 64);
+    EXPECT_EQ(loaded->height, 64);
 }

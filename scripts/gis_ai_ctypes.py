@@ -45,28 +45,33 @@ class GisAiLibrary:
 
     def _find_library(self) -> str:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        build_dir = os.path.join(base_dir, "build", "dev-windows")
+        build_dir = os.path.join(base_dir, "build")
 
+        search_paths = []
         if platform.system() == "Windows":
+            for preset in ["dev-windows", "release-windows"]:
+                for config in ["Release", "Debug"]:
+                    search_paths.append(os.path.join(build_dir, preset, "bin", config, "gis_ai.dll"))
+                search_paths.append(os.path.join(build_dir, preset, "bin", "gis_ai.dll"))
             for config in ["Release", "Debug"]:
-                dll_path = os.path.join(build_dir, "bin", config, "gis_ai.dll")
-                if os.path.exists(dll_path):
-                    return dll_path
-            dll_path = os.path.join(build_dir, "bin", "gis_ai.dll")
-            if os.path.exists(dll_path):
-                return dll_path
+                search_paths.append(os.path.join(build_dir, "bin", config, "gis_ai.dll"))
         elif platform.system() == "Linux":
-            so_path = os.path.join(build_dir, "lib", "libgis_ai.so")
-            if os.path.exists(so_path):
-                return so_path
+            for preset in ["dev-linux", "release-linux"]:
+                search_paths.append(os.path.join(build_dir, preset, "lib", "libgis_ai.so"))
+            search_paths.append(os.path.join(build_dir, "lib", "libgis_ai.so"))
         elif platform.system() == "Darwin":
-            dylib_path = os.path.join(build_dir, "lib", "libgis_ai.dylib")
-            if os.path.exists(dylib_path):
-                return dylib_path
+            for preset in ["dev-macos", "release-macos"]:
+                search_paths.append(os.path.join(build_dir, preset, "lib", "libgis_ai.dylib"))
+            search_paths.append(os.path.join(build_dir, "lib", "libgis_ai.dylib"))
+
+        for path in search_paths:
+            if os.path.exists(path):
+                return path
 
         raise FileNotFoundError(
-            f"Could not find gis_ai library. Searched in {build_dir}. "
-            "Please provide the library path explicitly."
+            f"Could not find gis_ai library. Searched paths:\n"
+            + "\n".join(f"  {p}" for p in search_paths)
+            + "\nPlease provide the library path explicitly."
         )
 
     def _setup_signatures(self):

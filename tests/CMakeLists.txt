@@ -84,3 +84,24 @@ else()
 endif()
 set_tests_properties(test_ai_integration PROPERTIES TIMEOUT 300)
 gis_ai_configure_test_environment(test_ai_integration)
+
+add_executable(test_cli
+    test_cli.cpp
+)
+
+target_link_libraries(test_cli
+    PRIVATE
+        GTest::gtest
+        GTest::gtest_main
+)
+
+add_test(NAME test_cli COMMAND test_cli WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(test_cli PROPERTIES TIMEOUT 60)
+
+if(GIS_AI_BUILD_GUI)
+    add_test(NAME gui_smoke_test
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/run_gui_smoke_test.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(gui_smoke_test PROPERTIES TIMEOUT 60)
+endif()

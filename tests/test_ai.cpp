@@ -3,9 +3,13 @@
 #include <cmath>
 #include <numeric>
 
+#include "core/logger.h"
+#include "core/exception.h"
 #include "ai/preprocess.h"
 #include "ai/postprocess.h"
 #include "ai/mask_to_polygon.h"
+#include "ai/inference_engine.h"
+#include "ai/model_manager.h"
 #include "io/raster_io.h"
 
 using namespace gis_ai;
@@ -342,4 +346,192 @@ TEST_F(MaskToPolygonTest, ExecuteMultipleHoles) {
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->features.size(), 1u);
     EXPECT_EQ(result->features[0].inner_rings.size(), 2u);
+}
+
+TEST_F(MaskToPolygonTest, SinglePixelMask) {
+    MaskToPolygon m2p;
+    int size = 10;
+    std::vector<uint8_t> mask(size * size, 0);
+    mask[5 * size + 5] = 1;
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->features.size(), 0u);
+}
+
+TEST_F(MaskToPolygonTest, FullMask) {
+    MaskToPolygon m2p;
+    int size = 10;
+    std::vector<uint8_t> mask(size * size, 1);
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_GE(result->features.size(), 1u);
+}
+
+TEST_F(MaskToPolygonTest, AllZeroMask) {
+    MaskToPolygon m2p;
+    int size = 10;
+    std::vector<uint8_t> mask(size * size, 0);
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->features.size(), 0u);
+}
+
+TEST_F(MaskToPolygonTest, LShapeMask) {
+    MaskToPolygon m2p;
+    int size = 10;
+    std::vector<uint8_t> mask(size * size, 0);
+
+    for (int y = 2; y < 8; ++y) {
+        mask[y * size + 2] = 1;
+    }
+    for (int x = 2; x < 6; ++x) {
+        mask[7 * size + x] = 1;
+    }
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_GE(result->features.size(), 1u);
+}
+
+class InferenceEngineTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        gis_ai::Logger::Instance().Initialize("test_inference_engine.log");
+    }
+};
+
+TEST_F(InferenceEngineTest, LoadModelNotFound) {
+    ModelManager manager;
+    EXPECT_THROW(manager.LoadModel("nonexistent_model_xyz.onnx", "bad_model"), GisAiModelException);
+}
+
+TEST_F(InferenceEngineTest, RunWithMissingModel) {
+    ModelManager manager;
+    InferenceEngine engine(manager);
+    std::vector<float> input_data(1 * 3 * 10 * 10, 0.0f);
+    std::vector<int64_t> input_shape = {1, 3, 10, 10};
+    EXPECT_THROW(engine.Run("nonexistent_model", input_data, input_shape), GisAiModelException);
+}
+
+TEST_F(InferenceEngineTest, GetInputNamesEmptyWhenNoModel) {
+    ModelManager manager;
+    auto* info = manager.GetModel("no_such_model");
+    EXPECT_EQ(info, nullptr);
+}
+
+TEST_F(InferenceEngineTest, GetOutputNamesEmptyWhenNoModel) {
+    ModelManager manager;
+    auto names = gis_ai::GetOutputNames(manager, "no_such_model");
+    EXPECT_TRUE(names.empty());
+}
+
+TEST_F(PreprocessTest, NormalizeModeNone) {
+    RasterData r;
+    r.width = 4;
+    r.height = 4;
+    r.band_count = 3;
+    r.geotransform[0] = 0.0; r.geotransform[1] = 1.0; r.geotransform[2] = 0.0;
+    r.geotransform[3] = 0.0; r.geotransform[4] = 0.0; r.geotransform[5] = -1.0;
+    r.projection = "EPSG:4326";
+    r.bands.push_back(std::vector<float>(16, 10.0f));
+    r.bands.push_back(std::vector<float>(16, 20.0f));
+    r.bands.push_back(std::vector<float>(16, 30.0f));
+
+    Preprocess preprocess;
+    PreprocessConfig config;
+    config.target_width = 4;
+    config.target_height = 4;
+    config.normalize_mode = NormalizeMode::None;
+
+    auto tensor = preprocess.RasterToTensor(r, config);
+    ASSERT_EQ(tensor.size(), static_cast<size_t>(4 * 4 * 3));
+
+    for (int i = 0; i < 16; ++i) {
+        EXPECT_FLOAT_EQ(tensor[i], 10.0f);
+    }
+    for (int i = 16; i < 32; ++i) {
+        EXPECT_FLOAT_EQ(tensor[i], 20.0f);
+    }
+    for (int i = 32; i < 48; ++i) {
+        EXPECT_FLOAT_EQ(tensor[i], 30.0f);
+    }
+}
+
+TEST_F(PreprocessTest, NormalizeModeZScore) {
+    RasterData r;
+    r.width = 4;
+    r.height = 4;
+    r.band_count = 1;
+    r.geotransform[0] = 0.0; r.geotransform[1] = 1.0; r.geotransform[2] = 0.0;
+    r.geotransform[3] = 0.0; r.geotransform[4] = 0.0; r.geotransform[5] = -1.0;
+    r.projection = "EPSG:4326";
+
+    std::vector<float> band_data(16);
+    for (int i = 0; i < 16; ++i) {
+        band_data[i] = static_cast<float>(i);
+    }
+    r.bands.push_back(band_data);
+
+    Preprocess preprocess;
+    PreprocessConfig config;
+    config.target_width = 4;
+    config.target_height = 4;
+    config.normalize_mode = NormalizeMode::ZScore;
+
+    auto tensor = preprocess.RasterToTensor(r, config);
+    ASSERT_EQ(tensor.size(), static_cast<size_t>(4 * 4 * 3));
+
+    float sum = 0.0f;
+    for (int i = 0; i < 16; ++i) {
+        sum += tensor[i];
+    }
+    float mean = sum / 16.0f;
+    EXPECT_NEAR(mean, 0.0f, 0.01f);
+
+    float sq_sum = 0.0f;
+    for (int i = 0; i < 16; ++i) {
+        sq_sum += tensor[i] * tensor[i];
+    }
+    float stddev = std::sqrt(sq_sum / 16.0f);
+    EXPECT_NEAR(stddev, 1.0f, 0.1f);
+}
+
+TEST_F(PreprocessTest, NormalizeModeMinMax) {
+    RasterData r;
+    r.width = 4;
+    r.height = 4;
+    r.band_count = 1;
+    r.geotransform[0] = 0.0; r.geotransform[1] = 1.0; r.geotransform[2] = 0.0;
+    r.geotransform[3] = 0.0; r.geotransform[4] = 0.0; r.geotransform[5] = -1.0;
+    r.projection = "EPSG:4326";
+
+    std::vector<float> band_data(16);
+    for (int i = 0; i < 16; ++i) {
+        band_data[i] = static_cast<float>(i) * 10.0f;
+    }
+    r.bands.push_back(band_data);
+
+    Preprocess preprocess;
+    PreprocessConfig config;
+    config.target_width = 4;
+    config.target_height = 4;
+    config.normalize_mode = NormalizeMode::MinMax01;
+
+    auto tensor = preprocess.RasterToTensor(r, config);
+    ASSERT_EQ(tensor.size(), static_cast<size_t>(4 * 4 * 3));
+
+    EXPECT_NEAR(tensor[0], 0.0f, 0.01f);
+    EXPECT_NEAR(tensor[15], 1.0f, 0.01f);
+
+    for (int i = 0; i < 16; ++i) {
+        EXPECT_GE(tensor[i], -0.01f);
+        EXPECT_LE(tensor[i], 1.01f);
+    }
 }

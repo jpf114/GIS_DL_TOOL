@@ -259,6 +259,12 @@ if(GIS_AI_BUILD_TOOLS)
     add_executable(gis_ai_cli src/cli/main.cpp)
     target_link_libraries(gis_ai_cli PRIVATE gis_ai_static ${COMMON_LINK_LIBS})
     set_target_properties(gis_ai_cli PROPERTIES OUTPUT_NAME "gis_ai_cli")
+
+    if(GIS_AI_BUILD_TESTS)
+        set_property(TEST test_cli PROPERTY ENVIRONMENT
+            "GIS_AI_CLI_PATH=$<TARGET_FILE:gis_ai_cli>"
+        )
+    endif()
 endif()
 
 # ── GUI ──

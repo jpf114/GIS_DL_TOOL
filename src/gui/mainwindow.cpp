@@ -1,7 +1,10 @@
 #include "mainwindow.h"
 #include "style_constants.h"
+#include "nav_panel.h"
+#include "icon_manager.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -52,6 +55,16 @@ QIcon executeIcon() {
     return QIcon(pixmap);
 }
 
+std::string pluginDisplayName(const std::string& key) {
+    if (key == "segment")    return "大图分割";
+    if (key == "inference")  return "模型推理";
+    if (key == "preprocess") return "数据预处理";
+    if (key == "vector")     return "矢量处理";
+    if (key == "raster")     return "栅格处理";
+    if (key == "batch")      return "批量处理";
+    return key;
+}
+
 }
 
 MainWindow::MainWindow(QWidget* parent)
@@ -68,6 +81,13 @@ void MainWindow::setupUi() {
     setMinimumSize(Size::kWindowMinWidth, Size::kWindowMinHeight);
     setStyleSheet(globalStyleSheet());
 
+    QDir appDir(QApplication::applicationDirPath());
+    QString iconsBasePath = appDir.absoluteFilePath(QStringLiteral("../resources/icons"));
+    if (!QDir(iconsBasePath).exists()) {
+        iconsBasePath = QDir(QStringLiteral("resources/icons")).absolutePath();
+    }
+    IconManager::instance().setIconsBasePath(iconsBasePath.toStdString());
+
     auto* centralWidget = new QWidget;
     setCentralWidget(centralWidget);
 
@@ -75,59 +95,11 @@ void MainWindow::setupUi() {
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    sidebar_ = new QFrame;
-    sidebar_->setObjectName(QStringLiteral("sidebar"));
-    sidebar_->setStyleSheet(sidebarStyleSheet());
-    sidebar_->setFixedWidth(Size::kSidebarWidth);
-
-    auto* sidebarLayout = new QVBoxLayout(sidebar_);
-    sidebarLayout->setContentsMargins(0, 0, 0, 0);
-    sidebarLayout->setSpacing(0);
-
-    auto* sidebarTopCard = new QFrame;
-    sidebarTopCard->setObjectName(QStringLiteral("sidebarTopCard"));
-    auto* topLayout = new QVBoxLayout(sidebarTopCard);
-    topLayout->setContentsMargins(20, 24, 20, 16);
-    topLayout->setSpacing(6);
-
-    auto* eyebrowLabel = new QLabel(QStringLiteral("GIS AI TOOLKIT"));
-    eyebrowLabel->setObjectName(QStringLiteral("sidebarEyebrow"));
-    topLayout->addWidget(eyebrowLabel);
-
-    auto* titleLabel = new QLabel(QStringLiteral("GIS AI 工具台"));
-    titleLabel->setObjectName(QStringLiteral("sidebarTitle"));
-    topLayout->addWidget(titleLabel);
-
-    auto* descLabel = new QLabel(QStringLiteral("地理空间 AI 算法工作台"));
-    descLabel->setObjectName(QStringLiteral("sidebarDesc"));
-    descLabel->setWordWrap(true);
-    topLayout->addWidget(descLabel);
-
-    sidebarLayout->addWidget(sidebarTopCard);
-
-    auto* sidebarDivider = new QFrame;
-    sidebarDivider->setObjectName(QStringLiteral("sidebarDivider"));
-    sidebarLayout->addWidget(sidebarDivider);
-
-    auto* sidebarScrollArea = new QScrollArea;
-    sidebarScrollArea->setWidgetResizable(true);
-    sidebarScrollArea->setFrameShape(QFrame::NoFrame);
-    sidebarScrollArea->setStyleSheet(
-        QStringLiteral("QScrollArea { background: transparent; border: none; }"));
-
-    auto* navContent = new QWidget;
-    navContent->setStyleSheet(QStringLiteral("background: transparent;"));
-    auto* navLayout = new QVBoxLayout(navContent);
-    navLayout->setContentsMargins(8, 12, 8, 12);
-    navLayout->setSpacing(2);
-
-    auto* sectionLabel = new QLabel(QStringLiteral("主功能"));
-    sectionLabel->setObjectName(QStringLiteral("sidebarSection"));
-    navLayout->addWidget(sectionLabel);
-
-    navLayout->addStretch();
-    sidebarScrollArea->setWidget(navContent);
-    sidebarLayout->addWidget(sidebarScrollArea, 1);
+    navPanel_ = new NavPanel;
+    connect(navPanel_, &NavPanel::pluginSelected,
+            this, &MainWindow::onPluginSelected);
+    connect(navPanel_, &NavPanel::subFunctionSelected,
+            this, &MainWindow::onSubFunctionSelected);
 
     auto* rightPanel = new QWidget;
     rightPanel->setObjectName(QStringLiteral("pagePanel"));
@@ -251,7 +223,7 @@ void MainWindow::setupUi() {
     taskPlaceholderLayout->addWidget(taskPlaceholderLabel);
     tabWidget_->addTab(taskCenterPlaceholder, QStringLiteral("任务中心"));
 
-    mainLayout->addWidget(sidebar_);
+    mainLayout->addWidget(navPanel_);
     mainLayout->addWidget(tabWidget_, 1);
 
     statusAlgorithmLabel_ = new QLabel(QStringLiteral("当前算法：未选择"));
@@ -264,6 +236,57 @@ void MainWindow::setupUi() {
     statusBar()->addPermanentWidget(statusAlgorithmLabel_);
     statusBar()->addPermanentWidget(statusProgressBar_);
     statusBar()->showMessage(QStringLiteral("就绪"));
+}
+
+void MainWindow::onPluginSelected(const std::string& pluginName) {
+    if (pluginName.empty()) {
+        functionTitleLabel_->setText(QStringLiteral("请选择功能"));
+        functionDescLabel_->setText(
+            QStringLiteral("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"));
+        functionMetaLabel_->setText(QStringLiteral("当前状态：等待选择主功能"));
+        functionIconLabel_->setPixmap(defaultBadgePixmap());
+        executeButton_->setEnabled(false);
+        statusAlgorithmLabel_->setText(QStringLiteral("当前算法：未选择"));
+        return;
+    }
+
+    const QString displayName = QString::fromStdString(pluginDisplayName(pluginName));
+    functionTitleLabel_->setText(displayName);
+    functionDescLabel_->setText(
+        QStringLiteral("已选择 %1，请选择子功能进行操作。").arg(displayName));
+    functionMetaLabel_->setText(QStringLiteral("当前状态：已选择主功能"));
+    executeButton_->setEnabled(false);
+    statusAlgorithmLabel_->setText(QStringLiteral("当前算法：%1").arg(displayName));
+
+    auto& mgr = IconManager::instance();
+    if (mgr.hasPluginIcon(pluginName)) {
+        QPixmap iconPixmap = mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6"));
+        functionIconLabel_->setPixmap(iconPixmap);
+    } else {
+        functionIconLabel_->setPixmap(defaultBadgePixmap());
+    }
+}
+
+void MainWindow::onSubFunctionSelected(const std::string& pluginName,
+                                       const std::string& actionKey) {
+    const QString pluginDisplay = QString::fromStdString(pluginDisplayName(pluginName));
+    const QString actionDisplay = QString::fromStdString(actionKey);
+    functionTitleLabel_->setText(
+        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay));
+    functionDescLabel_->setText(
+        QStringLiteral("已选择 %1 的子功能 %2，请配置参数后执行。").arg(pluginDisplay, actionDisplay));
+    functionMetaLabel_->setText(QStringLiteral("当前状态：已选择子功能，可配置参数"));
+    executeButton_->setEnabled(true);
+    statusAlgorithmLabel_->setText(
+        QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay));
+
+    auto& mgr = IconManager::instance();
+    if (mgr.hasPluginIcon(pluginName)) {
+        QPixmap iconPixmap = mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6"));
+        functionIconLabel_->setPixmap(iconPixmap);
+    } else {
+        functionIconLabel_->setPixmap(defaultBadgePixmap());
+    }
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 add_executable(gis-ai-gui
     main.cpp
     mainwindow.cpp
+    nav_panel.cpp
+    icon_manager.cpp
 )
 
 target_link_libraries(gis-ai-gui PRIVATE

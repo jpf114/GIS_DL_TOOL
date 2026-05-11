@@ -13,6 +13,8 @@ class QDropEvent;
 
 namespace gis_ai::gui {
 
+class NavPanel;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -25,10 +27,13 @@ signals:
 private:
     void setupUi();
 
+    void onPluginSelected(const std::string& pluginName);
+    void onSubFunctionSelected(const std::string& pluginName, const std::string& actionKey);
+
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
 
-    QFrame* sidebar_ = nullptr;
+    NavPanel* navPanel_ = nullptr;
     QLabel* functionIconLabel_ = nullptr;
     QLabel* functionTitleLabel_ = nullptr;
     QLabel* functionDescLabel_ = nullptr;

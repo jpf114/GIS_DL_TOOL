@@ -24,6 +24,7 @@ find_package(PROJ CONFIG REQUIRED)
 find_package(GEOS CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(onnxruntime CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 if(GIS_AI_BUILD_TESTS)
     find_package(GTest CONFIG REQUIRED)
@@ -77,6 +78,7 @@ set(AI_SOURCES
 set(FUSION_SOURCES
     src/fusion/raster_seg.cpp
     src/fusion/batch_processor.cpp
+    src/fusion/large_image_seg.cpp
 )
 
 set(LIB_SOURCES
@@ -94,6 +96,7 @@ set(COMMON_LINK_LIBS
     GEOS::geos_c
     spdlog::spdlog
     onnxruntime::onnxruntime
+    nlohmann_json::nlohmann_json
 )
 
 if(GIS_AI_BUILD_SHARED)

@@ -6,6 +6,10 @@
 #include <filesystem>
 #include <onnxruntime_cxx_api.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace gis_ai {
 
 struct ModelInfoInternal {
@@ -25,6 +29,19 @@ struct ModelManager::Impl {
 ModelManager::ModelManager() : impl_(std::make_unique<Impl>()) {}
 
 ModelManager::~ModelManager() = default;
+
+static std::wstring Utf8ToWide(const std::string& utf8_str) {
+#ifdef _WIN32
+    if (utf8_str.empty()) return std::wstring();
+    int len = MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, nullptr, 0);
+    if (len <= 0) return std::wstring();
+    std::wstring wstr(static_cast<size_t>(len) - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, wstr.data(), len);
+    return wstr;
+#else
+    return std::wstring(utf8_str.begin(), utf8_str.end());
+#endif
+}
 
 int ModelManager::LoadModel(const std::string& model_path, const std::string& model_name) {
     if (!std::filesystem::exists(model_path)) {
@@ -47,12 +64,8 @@ int ModelManager::LoadModel(const std::string& model_path, const std::string& mo
 
     try {
         auto& ctx = OrtContext::Instance();
-#ifdef _WIN32
-        std::wstring wpath(model_path.begin(), model_path.end());
+        auto wpath = Utf8ToWide(model_path);
         internal->session = std::make_unique<Ort::Session>(ctx.GetEnv(), wpath.c_str(), ctx.GetSessionOptions());
-#else
-        internal->session = std::make_unique<Ort::Session>(ctx.GetEnv(), model_path.c_str(), ctx.GetSessionOptions());
-#endif
 
         Ort::AllocatorWithDefaultOptions allocator;
 
@@ -137,28 +150,20 @@ Ort::Session* GetSession(ModelManager& manager, const std::string& model_name) {
     return nullptr;
 }
 
-std::vector<const char*> GetInputNames(ModelManager& manager, const std::string& model_name) {
+std::vector<std::string> GetInputNames(ModelManager& manager, const std::string& model_name) {
     auto* mgr_impl = manager.impl_.get();
     auto it = mgr_impl->models.find(model_name);
     if (it != mgr_impl->models.end()) {
-        std::vector<const char*> names;
-        for (const auto& n : it->second->input_names) {
-            names.push_back(n.c_str());
-        }
-        return names;
+        return it->second->input_names;
     }
     return {};
 }
 
-std::vector<const char*> GetOutputNames(ModelManager& manager, const std::string& model_name) {
+std::vector<std::string> GetOutputNames(ModelManager& manager, const std::string& model_name) {
     auto* mgr_impl = manager.impl_.get();
     auto it = mgr_impl->models.find(model_name);
     if (it != mgr_impl->models.end()) {
-        std::vector<const char*> names;
-        for (const auto& n : it->second->output_names) {
-            names.push_back(n.c_str());
-        }
-        return names;
+        return it->second->output_names;
     }
     return {};
 }

@@ -19,6 +19,8 @@ public:
 
     std::shared_ptr<spdlog::logger> GetLogger() const { return logger_; }
 
+    void EnsureInitialized();
+
     void Debug(const std::string& msg);
     void Info(const std::string& msg);
     void Warn(const std::string& msg);

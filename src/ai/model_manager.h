@@ -43,8 +43,8 @@ private:
     std::unique_ptr<Impl> impl_;
 
     friend Ort::Session* GetSession(ModelManager& manager, const std::string& model_name);
-    friend std::vector<const char*> GetInputNames(ModelManager& manager, const std::string& model_name);
-    friend std::vector<const char*> GetOutputNames(ModelManager& manager, const std::string& model_name);
+    friend std::vector<std::string> GetInputNames(ModelManager& manager, const std::string& model_name);
+    friend std::vector<std::string> GetOutputNames(ModelManager& manager, const std::string& model_name);
 };
 
 } // namespace gis_ai

@@ -23,20 +23,30 @@ void Logger::Initialize(const std::string& log_file,
     spdlog::set_default_logger(logger_);
 }
 
+void Logger::EnsureInitialized() {
+    if (!logger_) {
+        Initialize("gis_ai.log", spdlog::level::info);
+    }
+}
+
 void Logger::Debug(const std::string& msg) {
-    if (logger_) logger_->debug(msg);
+    EnsureInitialized();
+    logger_->debug(msg);
 }
 
 void Logger::Info(const std::string& msg) {
-    if (logger_) logger_->info(msg);
+    EnsureInitialized();
+    logger_->info(msg);
 }
 
 void Logger::Warn(const std::string& msg) {
-    if (logger_) logger_->warn(msg);
+    EnsureInitialized();
+    logger_->warn(msg);
 }
 
 void Logger::Error(const std::string& msg) {
-    if (logger_) logger_->error(msg);
+    EnsureInitialized();
+    logger_->error(msg);
 }
 
 } // namespace gis_ai

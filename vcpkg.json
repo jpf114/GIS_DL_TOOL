@@ -4,14 +4,15 @@
   "description": "A high-performance, cross-platform C++ GIS AI algorithm library",
   "homepage": "https://github.com/your-org/gis_ai_lib",
   "license": "MIT",
-  "builtin-baseline": "42f37e46d37baf7b218966434b91116bddf73461",
+  "builtin-baseline": "256acc64012b23a13041d8705805e1f23b43a024",
   "dependencies": [
     "gdal",
     "geos",
     "proj",
     "spdlog",
     "gtest",
-    "onnxruntime"
+    "onnxruntime",
+    "nlohmann-json"
   ],
   "features": {
     "cuda": {

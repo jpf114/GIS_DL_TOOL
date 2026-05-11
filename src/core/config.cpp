@@ -1,10 +1,14 @@
 #include "core/config.h"
 #include "core/platform.h"
 #include "core/exception.h"
+#include <nlohmann/json.hpp>
 #include <fstream>
 #include <sstream>
+#include <mutex>
 
 namespace gis_ai {
+
+static std::mutex g_config_mutex;
 
 Config& Config::Instance() {
     static Config instance;
@@ -21,142 +25,49 @@ bool Config::LoadFromFile(const std::string& path) {
         return false;
     }
 
-    std::stringstream ss;
-    ss << file.rdbuf();
-    return LoadFromString(ss.str());
+    try {
+        nlohmann::json j = nlohmann::json::parse(file);
+        std::lock_guard<std::mutex> lock(g_config_mutex);
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            const auto& key = it.key();
+            const auto& val = it.value();
+            if (val.is_string()) {
+                values_[key] = val.get<std::string>();
+            } else if (val.is_boolean()) {
+                values_[key] = val.get<bool>();
+            } else if (val.is_number_integer()) {
+                values_[key] = val.get<int>();
+            } else if (val.is_number_float()) {
+                values_[key] = val.get<double>();
+            }
+        }
+        return true;
+    } catch (const nlohmann::json::exception&) {
+        return false;
+    }
 }
 
 bool Config::LoadFromString(const std::string& json_str) {
-    enum class ParseState {
-        Start,
-        InObject,
-        ExpectKey,
-        InKey,
-        ExpectColon,
-        ExpectValue,
-        InStringValue,
-        InNumberValue,
-        InBoolValue,
-        ExpectCommaOrEnd
-    };
-
-    ParseState state = ParseState::Start;
-    std::string current_key;
-    std::string current_value;
-    bool in_escape = false;
-
-    for (size_t i = 0; i < json_str.size(); ++i) {
-        char c = json_str[i];
-
-        switch (state) {
-            case ParseState::Start:
-                if (c == '{') state = ParseState::InObject;
-                break;
-            case ParseState::InObject:
-                if (c == '"') {
-                    state = ParseState::InKey;
-                    current_key.clear();
-                } else if (c == '}') {
-                    return true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    return false;
-                }
-                break;
-            case ParseState::InKey:
-                if (in_escape) {
-                    current_key += c;
-                    in_escape = false;
-                } else if (c == '\\') {
-                    in_escape = true;
-                } else if (c == '"') {
-                    state = ParseState::ExpectColon;
-                    in_escape = false;
-                } else {
-                    current_key += c;
-                }
-                break;
-            case ParseState::ExpectColon:
-                if (c == ':') state = ParseState::ExpectValue;
-                else if (!std::isspace(static_cast<unsigned char>(c))) return false;
-                break;
-            case ParseState::ExpectValue:
-                if (c == '"') {
-                    state = ParseState::InStringValue;
-                    current_value.clear();
-                    in_escape = false;
-                } else if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) {
-                    state = ParseState::InNumberValue;
-                    current_value = c;
-                } else if (c == 't' || c == 'f') {
-                    state = ParseState::InBoolValue;
-                    current_value = c;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    return false;
-                }
-                break;
-            case ParseState::InStringValue:
-                if (in_escape) {
-                    current_value += c;
-                    in_escape = false;
-                } else if (c == '\\') {
-                    in_escape = true;
-                } else if (c == '"') {
-                    values_[current_key] = current_value;
-                    state = ParseState::ExpectCommaOrEnd;
-                } else {
-                    current_value += c;
-                }
-                break;
-            case ParseState::InNumberValue:
-                if (std::isdigit(static_cast<unsigned char>(c)) || c == '.' ||
-                    c == 'e' || c == 'E' || c == '+' || c == '-') {
-                    current_value += c;
-                } else {
-                    if (current_value.find('.') != std::string::npos ||
-                        current_value.find('e') != std::string::npos ||
-                        current_value.find('E') != std::string::npos) {
-                        try {
-                            values_[current_key] = std::stod(current_value);
-                        } catch (...) {
-                            values_[current_key] = 0.0;
-                        }
-                    } else {
-                        try {
-                            values_[current_key] = std::stoi(current_value);
-                        } catch (...) {
-                            try {
-                                values_[current_key] = std::stod(current_value);
-                            } catch (...) {
-                                values_[current_key] = 0;
-                            }
-                        }
-                    }
-                    i--;
-                    state = ParseState::ExpectCommaOrEnd;
-                }
-                break;
-            case ParseState::InBoolValue:
-                if (std::isalpha(static_cast<unsigned char>(c))) {
-                    current_value += c;
-                } else {
-                    values_[current_key] = (current_value == "true");
-                    i--;
-                    state = ParseState::ExpectCommaOrEnd;
-                }
-                break;
-            case ParseState::ExpectCommaOrEnd:
-                if (c == ',') {
-                    state = ParseState::InObject;
-                } else if (c == '}') {
-                    return true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    return false;
-                }
-                break;
+    try {
+        nlohmann::json j = nlohmann::json::parse(json_str);
+        std::lock_guard<std::mutex> lock(g_config_mutex);
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            const auto& key = it.key();
+            const auto& val = it.value();
+            if (val.is_string()) {
+                values_[key] = val.get<std::string>();
+            } else if (val.is_boolean()) {
+                values_[key] = val.get<bool>();
+            } else if (val.is_number_integer()) {
+                values_[key] = val.get<int>();
+            } else if (val.is_number_float()) {
+                values_[key] = val.get<double>();
+            }
         }
+        return true;
+    } catch (const nlohmann::json::exception&) {
+        return false;
     }
-
-    return state == ParseState::ExpectCommaOrEnd || state == ParseState::InObject;
 }
 
 void Config::SaveToFile(const std::string& path) const {
@@ -165,27 +76,21 @@ void Config::SaveToFile(const std::string& path) const {
         throw GisAiConfigException("Cannot open config file for writing: " + path);
     }
 
-    file << "{\n";
-    bool first = true;
-    for (const auto& [key, value] : values_) {
-        if (!first) file << ",\n";
-        first = false;
-        file << "  \"" << key << "\": ";
-        std::visit([&file](const auto& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, std::string>) {
-                file << "\"" << v << "\"";
-            } else if constexpr (std::is_same_v<T, bool>) {
-                file << (v ? "true" : "false");
-            } else {
-                file << v;
-            }
-        }, value);
+    nlohmann::json j;
+    {
+        std::lock_guard<std::mutex> lock(g_config_mutex);
+        for (const auto& [key, value] : values_) {
+            std::visit([&j, &key](const auto& v) {
+                j[key] = v;
+            }, value);
+        }
     }
-    file << "\n}\n";
+
+    file << j.dump(2) << "\n";
 }
 
 std::optional<Config::Value> Config::Get(const std::string& key) const {
+    std::lock_guard<std::mutex> lock(g_config_mutex);
     auto it = values_.find(key);
     if (it != values_.end()) {
         return it->second;
@@ -226,18 +131,22 @@ bool Config::GetBool(const std::string& key, bool default_val) const {
 }
 
 void Config::Set(const std::string& key, const Value& value) {
+    std::lock_guard<std::mutex> lock(g_config_mutex);
     values_[key] = value;
 }
 
 bool Config::Has(const std::string& key) const {
+    std::lock_guard<std::mutex> lock(g_config_mutex);
     return values_.find(key) != values_.end();
 }
 
 void Config::Remove(const std::string& key) {
+    std::lock_guard<std::mutex> lock(g_config_mutex);
     values_.erase(key);
 }
 
 void Config::Clear() {
+    std::lock_guard<std::mutex> lock(g_config_mutex);
     values_.clear();
 }
 

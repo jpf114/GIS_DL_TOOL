@@ -14,6 +14,7 @@ public:
     Ort::Env& GetEnv() { return *env_; }
     Ort::SessionOptions& GetSessionOptions() { return *session_options_; }
 
+    OrtLoggingLevel GetLogLevel() const { return log_level_; }
     void SetLogLevel(OrtLoggingLevel level);
 
 private:
@@ -21,6 +22,7 @@ private:
 
     std::unique_ptr<Ort::Env> env_;
     std::unique_ptr<Ort::SessionOptions> session_options_;
+    OrtLoggingLevel log_level_ = ORT_LOGGING_LEVEL_WARNING;
 };
 
 } // namespace gis_ai

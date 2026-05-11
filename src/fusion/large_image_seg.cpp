@@ -417,6 +417,8 @@ std::unique_ptr<VectorData> LargeImageSeg::FilterSmallPolygons(std::unique_ptr<V
 }
 
 std::unique_ptr<VectorData> LargeImageSeg::SimplifyAndFix(std::unique_ptr<VectorData> polygons, double tolerance, bool fix_topology) const {
+    if (!polygons || polygons->features.empty()) return polygons;
+
     if (tolerance > 0.0 && polygons->feature_type == FeatureType::Polygon) {
         VectorSimplify simplifier;
         polygons = simplifier.Execute(*polygons, tolerance);

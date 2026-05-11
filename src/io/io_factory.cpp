@@ -11,10 +11,10 @@ namespace gis_ai {
 IOFormat IOFactory::DetectFormat(const std::string& path) {
     std::string ext = GetExtensionLower(path);
 
-    if (ext == ".tif" || ext == ".tiff") {
+    if (ext == ".tif" || ext == ".tiff" || ext == ".cog" || ext == ".tif.cog") {
         return IOFormat::Raster;
     }
-    if (ext == ".shp" || ext == ".geojson" || ext == ".json") {
+    if (ext == ".shp" || ext == ".geojson" || ext == ".json" || ext == ".gpkg") {
         return IOFormat::Vector;
     }
     if (ext == ".las" || ext == ".laz") {

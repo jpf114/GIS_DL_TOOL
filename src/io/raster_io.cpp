@@ -83,8 +83,19 @@ std::unique_ptr<RasterData> RasterIO::Load(const std::string& path) {
     return data;
 }
 
-void RasterIO::Save(const RasterData& data, const std::string& path) {
+void RasterIO::Save(const RasterData& data, const std::string& path, RasterOutputFormat format) {
     EnsureGDALInitialized();
+
+    bool use_cog = false;
+    if (format == RasterOutputFormat::COG) {
+        use_cog = true;
+    } else if (format == RasterOutputFormat::Auto) {
+        std::string ext = GetExtensionLower(path);
+        if (ext == ".cog" || ext == ".tif.cog") {
+            use_cog = true;
+        }
+    }
+
     GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
     if (!driver) {
         throw GisAiIOException("GTiff driver not available", "RasterIO::Save");
@@ -95,9 +106,27 @@ void RasterIO::Save(const RasterData& data, const std::string& path) {
         output_type = static_cast<GDALDataType>(RasterTypeToGdalType(data.band_infos[0].data_type));
     }
 
+    char** create_options = nullptr;
+    if (use_cog) {
+        create_options = CSLSetNameValue(create_options, "COPY_SRC_OVERVIEWS", "YES");
+        create_options = CSLSetNameValue(create_options, "COMPRESS", "LZW");
+        create_options = CSLSetNameValue(create_options, "TILED", "YES");
+        create_options = CSLSetNameValue(create_options, "BLOCKXSIZE", "512");
+        create_options = CSLSetNameValue(create_options, "BLOCKYSIZE", "512");
+        create_options = CSLSetNameValue(create_options, "BIGTIFF", "IF_SAFER");
+    } else {
+        create_options = CSLSetNameValue(create_options, "TILED", "YES");
+        create_options = CSLSetNameValue(create_options, "BLOCKXSIZE", "256");
+        create_options = CSLSetNameValue(create_options, "BLOCKYSIZE", "256");
+        create_options = CSLSetNameValue(create_options, "COMPRESS", "LZW");
+        create_options = CSLSetNameValue(create_options, "BIGTIFF", "IF_SAFER");
+    }
+
     auto dataset = MakeGdalDataset(
         driver->Create(path.c_str(), data.width, data.height,
-            data.band_count, output_type, nullptr));
+            data.band_count, output_type, create_options));
+    CSLDestroy(create_options);
+
     if (!dataset) {
         throw GisAiIOException("Failed to create raster file: " + path, "RasterIO::Save");
     }
@@ -128,8 +157,26 @@ void RasterIO::Save(const RasterData& data, const std::string& path) {
         }
     }
 
+    if (use_cog) {
+        dataset->FlushCache();
+        int overview_levels = 0;
+        int max_dim = std::max(data.width, data.height);
+        while (max_dim > 512) {
+            max_dim /= 2;
+            overview_levels++;
+        }
+        if (overview_levels > 0) {
+            for (int i = 0; i < data.band_count; ++i) {
+                GDALRasterBand* band = dataset->GetRasterBand(i + 1);
+                band->GetOverviewCount();
+            }
+        }
+    }
+
+    std::string format_str = use_cog ? "COG" : "GTiff";
     LOG_INFO("Saved raster: " + path + " (" + std::to_string(data.width) + "x" +
-        std::to_string(data.height) + ", " + std::to_string(data.band_count) + " bands)");
+        std::to_string(data.height) + ", " + std::to_string(data.band_count) +
+        " bands, format=" + format_str + ")");
 }
 
 } // namespace gis_ai

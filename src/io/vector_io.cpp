@@ -8,7 +8,7 @@
 
 namespace gis_ai {
 
-FeatureType VectorIO::DetectFeatureType(OGRwkbGeometryType geom_type) {
+static FeatureType DetectFeatureType(OGRwkbGeometryType geom_type) {
     switch (wkbFlatten(geom_type)) {
         case wkbPoint:
         case wkbMultiPoint:
@@ -33,16 +33,14 @@ static void ExtractCoordinates(OGRGeometry* geom, Feature& feature) {
     } else if (flat_type == wkbLineString) {
         OGRLineString* ls = geom->toLineString();
         for (int i = 0; i < ls->getNumPoints(); ++i) {
-            feature.coordinates.push_back(
-                {ls->getX(i), ls->getY(i), ls->getZ(i)});
+            feature.coordinates.push_back({ls->getX(i), ls->getY(i), ls->getZ(i)});
         }
     } else if (flat_type == wkbPolygon) {
         OGRPolygon* poly = geom->toPolygon();
         OGRLinearRing* ring = poly->getExteriorRing();
         if (ring) {
             for (int i = 0; i < ring->getNumPoints(); ++i) {
-                feature.coordinates.push_back(
-                    {ring->getX(i), ring->getY(i), ring->getZ(i)});
+                feature.coordinates.push_back({ring->getX(i), ring->getY(i), ring->getZ(i)});
             }
         }
     } else if (flat_type == wkbMultiPoint || flat_type == wkbMultiLineString ||
@@ -56,26 +54,13 @@ static void ExtractCoordinates(OGRGeometry* geom, Feature& feature) {
 
 static std::string DetectDriverName(const std::string& path) {
     std::string ext = GetExtensionLower(path);
-    if (ext == ".shp") {
-        return "ESRI Shapefile";
-    }
+    if (ext == ".shp") return "ESRI Shapefile";
+    if (ext == ".gpkg") return "GPKG";
     return "GeoJSON";
 }
 
-std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
-    EnsureGDALInitialized();
-    auto dataset = MakeGdalDataset(
-        reinterpret_cast<GDALDataset*>(OGROpen(path.c_str(), FALSE, nullptr)));
-    if (!dataset) {
-        throw GisAiIOException("Failed to open vector file: " + path, "VectorIO::Load");
-    }
-
+static std::unique_ptr<VectorData> LoadLayerFromDataset(GDALDataset* dataset, OGRLayer* layer) {
     auto data = std::make_unique<VectorData>();
-
-    OGRLayer* layer = dataset->GetLayer(0);
-    if (!layer) {
-        throw GisAiIOException("No layers found in: " + path, "VectorIO::Load");
-    }
 
     const OGRSpatialReference* srs = layer->GetSpatialRef();
     if (srs) {
@@ -103,7 +88,6 @@ std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
         for (int i = 0; i < feat_def->GetFieldCount(); ++i) {
             OGRFieldDefn* field_def = feat_def->GetFieldDefn(i);
             std::string name = field_def->GetNameRef();
-
             if (!ogr_feat->IsFieldSet(i)) continue;
 
             switch (field_def->GetType()) {
@@ -126,8 +110,77 @@ std::unique_ptr<VectorData> VectorIO::Load(const std::string& path) {
         OGRFeature::DestroyFeature(ogr_feat);
     }
 
-    LOG_INFO("Loaded vector: " + path + " (" + std::to_string(data->features.size()) +
-        " features)");
+    return data;
+}
+
+std::vector<LayerInfo> VectorIO::ListLayers(const std::string& path) {
+    EnsureGDALInitialized();
+    auto dataset = MakeGdalDataset(
+        reinterpret_cast<GDALDataset*>(OGROpen(path.c_str(), FALSE, nullptr)));
+    if (!dataset) {
+        throw GisAiIOException("Failed to open vector file: " + path, "VectorIO::ListLayers");
+    }
+
+    std::vector<LayerInfo> layers;
+    int layer_count = dataset->GetLayerCount();
+    for (int i = 0; i < layer_count; ++i) {
+        OGRLayer* layer = dataset->GetLayer(i);
+        if (!layer) continue;
+
+        LayerInfo info;
+        info.name = layer->GetName();
+        info.feature_count = static_cast<int>(layer->GetFeatureCount(FALSE));
+        info.feature_type = DetectFeatureType(layer->GetLayerDefn()->GetGeomType());
+        layers.push_back(info);
+    }
+
+    return layers;
+}
+
+std::unique_ptr<VectorData> VectorIO::Load(const std::string& path, const std::string& layer_name) {
+    EnsureGDALInitialized();
+    auto dataset = MakeGdalDataset(
+        reinterpret_cast<GDALDataset*>(OGROpen(path.c_str(), FALSE, nullptr)));
+    if (!dataset) {
+        throw GisAiIOException("Failed to open vector file: " + path, "VectorIO::Load");
+    }
+
+    OGRLayer* layer = nullptr;
+    if (!layer_name.empty()) {
+        layer = dataset->GetLayerByName(layer_name.c_str());
+        if (!layer) {
+            throw GisAiIOException("Layer '" + layer_name + "' not found in: " + path, "VectorIO::Load");
+        }
+    } else {
+        layer = dataset->GetLayer(0);
+    }
+
+    if (!layer) {
+        throw GisAiIOException("No layers found in: " + path, "VectorIO::Load");
+    }
+
+    auto data = LoadLayerFromDataset(dataset.get(), layer);
+    LOG_INFO("Loaded vector: " + path + " (" + std::to_string(data->features.size()) + " features)");
+    return data;
+}
+
+std::unique_ptr<VectorData> VectorIO::LoadLayer(const std::string& path, int layer_index) {
+    EnsureGDALInitialized();
+    auto dataset = MakeGdalDataset(
+        reinterpret_cast<GDALDataset*>(OGROpen(path.c_str(), FALSE, nullptr)));
+    if (!dataset) {
+        throw GisAiIOException("Failed to open vector file: " + path, "VectorIO::LoadLayer");
+    }
+
+    OGRLayer* layer = dataset->GetLayer(layer_index);
+    if (!layer) {
+        throw GisAiIOException("Layer index " + std::to_string(layer_index) + " not found in: " + path,
+            "VectorIO::LoadLayer");
+    }
+
+    auto data = LoadLayerFromDataset(dataset.get(), layer);
+    LOG_INFO("Loaded vector layer " + std::to_string(layer_index) + " from: " + path +
+        " (" + std::to_string(data->features.size()) + " features)");
     return data;
 }
 
@@ -146,24 +199,23 @@ void VectorIO::Save(const VectorData& data, const std::string& path) {
 
     OGRwkbGeometryType geom_type = wkbUnknown;
     switch (data.feature_type) {
-        case FeatureType::Point:
-            geom_type = wkbPoint;
-            break;
-        case FeatureType::LineString:
-            geom_type = wkbLineString;
-            break;
-        case FeatureType::Polygon:
-            geom_type = wkbPolygon;
-            break;
+        case FeatureType::Point:     geom_type = wkbPoint25D; break;
+        case FeatureType::LineString: geom_type = wkbLineString25D; break;
+        case FeatureType::Polygon:   geom_type = wkbPolygon25D; break;
     }
 
+    char** options = nullptr;
+
     auto dataset = MakeGdalDataset(
-        driver->Create(path.c_str(), 0, 0, 0, GDT_Unknown, nullptr));
+        driver->Create(path.c_str(), 0, 0, 0, GDT_Unknown, options));
+    CSLDestroy(options);
+
     if (!dataset) {
         throw GisAiIOException("Failed to create vector file: " + path, "VectorIO::Save");
     }
 
-    OGRLayer* layer = dataset->CreateLayer("features", srs.get(), geom_type, nullptr);
+    std::string layer_name = (driver_name == "GPKG") ? "features" : "features";
+    OGRLayer* layer = dataset->CreateLayer(layer_name.c_str(), srs.get(), geom_type, nullptr);
     if (!layer) {
         throw GisAiIOException("Failed to create layer in: " + path, "VectorIO::Save");
     }
@@ -224,7 +276,6 @@ void VectorIO::Save(const VectorData& data, const std::string& path) {
         for (const auto& [key, val] : feature.attributes) {
             int idx = ogr_feat->GetFieldIndex(key.c_str());
             if (idx < 0) continue;
-
             if (std::holds_alternative<int>(val)) {
                 ogr_feat->SetField(idx, std::get<int>(val));
             } else if (std::holds_alternative<double>(val)) {
@@ -241,8 +292,7 @@ void VectorIO::Save(const VectorData& data, const std::string& path) {
         OGRFeature::DestroyFeature(ogr_feat);
     }
 
-    LOG_INFO("Saved vector: " + path + " (" + std::to_string(data.features.size()) +
-        " features)");
+    LOG_INFO("Saved vector: " + path + " (" + std::to_string(data.features.size()) + " features)");
 }
 
 } // namespace gis_ai

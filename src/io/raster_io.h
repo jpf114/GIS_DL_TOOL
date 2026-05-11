@@ -20,6 +20,12 @@ enum class GIS_AI_API RasterDataType {
     Unknown
 };
 
+enum class GIS_AI_API RasterOutputFormat {
+    GTiff,
+    COG,
+    Auto
+};
+
 struct GIS_AI_API BandInfo {
     RasterDataType data_type = RasterDataType::Float32;
     std::optional<float> nodata_value;
@@ -41,7 +47,9 @@ public:
     ~RasterIO() = default;
 
     std::unique_ptr<RasterData> Load(const std::string& path);
-    void Save(const RasterData& data, const std::string& path);
+
+    void Save(const RasterData& data, const std::string& path,
+              RasterOutputFormat format = RasterOutputFormat::Auto);
 
 private:
     static constexpr int GEOTRANSFORM_SIZE = 6;

@@ -291,6 +291,17 @@ install(DIRECTORY
     DESTINATION "${CMAKE_INSTALL_DATADIR}/gdal"
 )
 
+install(DIRECTORY
+    "${CMAKE_SOURCE_DIR}/resources/icons/"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/icons"
+)
+
+if(GIS_AI_BUILD_TOOLS)
+    install(TARGETS gis_ai_cli
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
+
 if(GIS_AI_BUILD_SHARED)
     install(TARGETS gis_ai_shared
         EXPORT gis_aiTargets

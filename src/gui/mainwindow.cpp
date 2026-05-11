@@ -3,6 +3,10 @@
 #include "nav_panel.h"
 #include "icon_manager.h"
 #include "param_widget.h"
+#include "task_center_page.h"
+#include "task_manager.h"
+#include "settings_manager.h"
+#include "gdal_config.h"
 
 #include <QApplication>
 #include <QDir>
@@ -88,6 +92,8 @@ void MainWindow::setupUi() {
         iconsBasePath = QDir(QStringLiteral("resources/icons")).absolutePath();
     }
     IconManager::instance().setIconsBasePath(iconsBasePath.toStdString());
+
+    TaskManager::instance().initializeGroup(QStringLiteral("default"));
 
     auto* centralWidget = new QWidget;
     setCentralWidget(centralWidget);
@@ -188,6 +194,7 @@ void MainWindow::setupUi() {
     executeButton_->setIcon(executeIcon());
     executeButton_->setIconSize(QSize(16, 16));
     executeButton_->setEnabled(false);
+    connect(executeButton_, &QPushButton::clicked, this, &MainWindow::onExecuteClicked);
     execHeaderLayout->addWidget(executeButton_);
 
     executionLayout->addLayout(execHeaderLayout);
@@ -207,15 +214,41 @@ void MainWindow::setupUi() {
     tabWidget_->setTabPosition(QTabWidget::North);
     tabWidget_->addTab(rightPanel, QStringLiteral("功能配置"));
 
-    auto* taskCenterPlaceholder = new QFrame;
-    taskCenterPlaceholder->setObjectName(QStringLiteral("card"));
-    auto* taskPlaceholderLayout = new QVBoxLayout(taskCenterPlaceholder);
-    taskPlaceholderLayout->setContentsMargins(Size::kCardPadding, Size::kCardPadding, Size::kCardPadding, Size::kCardPadding);
-    auto* taskPlaceholderLabel = new QLabel(QStringLiteral("任务中心占位区域"));
-    taskPlaceholderLabel->setObjectName(QStringLiteral("cardDesc"));
-    taskPlaceholderLabel->setAlignment(Qt::AlignCenter);
-    taskPlaceholderLayout->addWidget(taskPlaceholderLabel);
-    tabWidget_->addTab(taskCenterPlaceholder, QStringLiteral("任务中心"));
+    taskCenterPage_ = new TaskCenterPage;
+    taskCenterPage_->setCurrentGroup(QStringLiteral("default"));
+    tabWidget_->addTab(taskCenterPage_, QStringLiteral("任务中心"));
+
+    connect(taskCenterPage_, &TaskCenterPage::clearHistoryRequested, this, [this]() {
+        TaskManager::instance().clearHistory(QStringLiteral("default"));
+        taskCenterPage_->refreshAll();
+    });
+
+    connect(taskCenterPage_, &TaskCenterPage::deleteTasksRequested, this, [this](const QStringList& ids) {
+        TaskManager::instance().deleteTasks(QStringLiteral("default"), ids);
+        taskCenterPage_->removeTaskRows(ids);
+    });
+
+    connect(taskCenterPage_, &TaskCenterPage::clearLogsRequested, this, [this](const QString& taskId) {
+        TaskManager::instance().appendLog(QStringLiteral("default"), taskId, QStringLiteral("日志已清空"));
+        taskCenterPage_->clearLogDisplay();
+    });
+
+    connect(&TaskManager::instance(), &TaskManager::taskSubmitted, this,
+            [this](const QString& group, const QString& id) {
+        if (group != QStringLiteral("default")) return;
+        auto rec = TaskManager::instance().findTask(group, id);
+        taskCenterPage_->addTaskRow(id, rec.actionDisplayName,
+            static_cast<int>(rec.status),
+            rec.startTime.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
+    });
+
+    connect(&TaskManager::instance(), &TaskManager::taskFinished, this,
+            [this](const QString& group, const QString& id) {
+        if (group != QStringLiteral("default")) return;
+        auto rec = TaskManager::instance().findTask(group, id);
+        taskCenterPage_->updateTaskRow(id, static_cast<int>(rec.status),
+            rec.endTime.toString(Qt::ISODate), rec.durationMs);
+    });
 
     mainLayout->addWidget(navPanel_);
     mainLayout->addWidget(tabWidget_, 1);
@@ -233,6 +266,9 @@ void MainWindow::setupUi() {
 }
 
 void MainWindow::onPluginSelected(const std::string& pluginName) {
+    currentPluginName_.clear();
+    currentActionKey_.clear();
+
     if (pluginName.empty()) {
         functionTitleLabel_->setText(QStringLiteral("请选择功能"));
         functionDescLabel_->setText(
@@ -244,6 +280,7 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
         return;
     }
 
+    currentPluginName_ = pluginName;
     const QString displayName = QString::fromStdString(pluginDisplayName(pluginName));
     functionTitleLabel_->setText(displayName);
     functionDescLabel_->setText(
@@ -267,6 +304,9 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
 
 void MainWindow::onSubFunctionSelected(const std::string& pluginName,
                                        const std::string& actionKey) {
+    currentPluginName_ = pluginName;
+    currentActionKey_ = actionKey;
+
     const QString pluginDisplay = QString::fromStdString(pluginDisplayName(pluginName));
     const QString actionDisplay = QString::fromStdString(actionKey);
     functionTitleLabel_->setText(
@@ -323,6 +363,38 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     }
 
     paramWidget_->setParamSpecs(specs);
+}
+
+void MainWindow::onExecuteClicked() {
+    if (currentPluginName_.empty() || currentActionKey_.empty()) return;
+
+    if (!paramWidget_->validate()) {
+        resultSummaryLabel_->setText(QStringLiteral("参数验证失败，请检查必填参数。"));
+        return;
+    }
+
+    auto params = paramWidget_->getParamValues();
+
+    QString pluginDisp = QString::fromStdString(pluginDisplayName(currentPluginName_));
+    QString actionDisp = QString::fromStdString(currentActionKey_);
+
+    QString taskId = TaskManager::instance().submitTask(
+        QStringLiteral("default"),
+        QString::fromStdString(currentPluginName_),
+        QString::fromStdString(currentActionKey_),
+        params,
+        pluginDisp,
+        actionDisp);
+
+    if (taskId.isEmpty()) {
+        resultSummaryLabel_->setText(QStringLiteral("任务提交失败。"));
+        return;
+    }
+
+    resultSummaryLabel_->setText(
+        QStringLiteral("任务 %1 已提交，执行逻辑将在后续版本中实现。").arg(taskId));
+
+    tabWidget_->setCurrentIndex(1);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {

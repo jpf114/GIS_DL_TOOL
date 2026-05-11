@@ -263,7 +263,8 @@ endif()
 
 # ── GUI ──
 if(GIS_AI_BUILD_GUI)
-    find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
+    find_package(Qt6 COMPONENTS Core Gui Widgets Svg Sql REQUIRED)
+    find_package(SQLite3 REQUIRED)
     add_subdirectory(src/gui)
 endif()
 

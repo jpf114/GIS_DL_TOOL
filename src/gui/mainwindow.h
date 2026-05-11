@@ -16,6 +16,7 @@ namespace gis_ai::gui {
 
 class NavPanel;
 class ParamWidget;
+class TaskCenterPage;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -31,12 +32,14 @@ private:
 
     void onPluginSelected(const std::string& pluginName);
     void onSubFunctionSelected(const std::string& pluginName, const std::string& actionKey);
+    void onExecuteClicked();
 
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
 
     NavPanel* navPanel_ = nullptr;
     ParamWidget* paramWidget_ = nullptr;
+    TaskCenterPage* taskCenterPage_ = nullptr;
     QScrollArea* paramScrollArea_ = nullptr;
     QLabel* functionIconLabel_ = nullptr;
     QLabel* functionTitleLabel_ = nullptr;
@@ -48,6 +51,9 @@ private:
     QProgressBar* statusProgressBar_ = nullptr;
 
     QTabWidget* tabWidget_ = nullptr;
+
+    std::string currentPluginName_;
+    std::string currentActionKey_;
 };
 
 }

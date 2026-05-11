@@ -8,7 +8,18 @@ add_executable(gis-ai-gui
     param_card_widget.cpp
     param_widget.cpp
     crs_dialog.cpp
+    gdal_config.cpp
+    settings_manager.cpp
+    qt_progress_reporter.cpp
+    execute_worker.cpp
+    progress_dialog.cpp
+    task_database.cpp
+    task_manager.cpp
+    task_center_page.cpp
 )
+
+find_package(Qt6 COMPONENTS Sql REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 target_link_libraries(gis-ai-gui PRIVATE
     gis_ai_static
@@ -16,6 +27,8 @@ target_link_libraries(gis-ai-gui PRIVATE
     Qt6::Gui
     Qt6::Widgets
     Qt6::Svg
+    Qt6::Sql
+    SQLite3::SQLite3
     PROJ::proj
 )
 

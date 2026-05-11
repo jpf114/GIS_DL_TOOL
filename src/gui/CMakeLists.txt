@@ -16,6 +16,7 @@ add_executable(gis-ai-gui
     task_database.cpp
     task_manager.cpp
     task_center_page.cpp
+    gui_data_support.cpp
 )
 
 find_package(Qt6 COMPONENTS Sql REQUIRED)

@@ -2,6 +2,9 @@
 
 #include <QMainWindow>
 #include <QString>
+#include <map>
+#include <string>
+#include "param_card_widget.h"
 
 class QFrame;
 class QLabel;
@@ -12,6 +15,8 @@ class QScrollArea;
 class QDragEnterEvent;
 class QDropEvent;
 class QThread;
+class QCheckBox;
+class QLineEdit;
 
 namespace gis_ai::gui {
 
@@ -47,6 +52,11 @@ private:
 
     void syncDerivedParams();
     void updateExecuteButtonState();
+    QString validateParams() const;
+    void updateBatchCount();
+
+    QString buildSuggestedOutputPath(const QString& inputPath,
+                                     const QString& ext) const;
 
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
@@ -66,6 +76,11 @@ private:
 
     QTabWidget* tabWidget_ = nullptr;
 
+    QCheckBox* batchCheckBox_ = nullptr;
+    QLineEdit* batchDirEdit_ = nullptr;
+    QLineEdit* batchFilterEdit_ = nullptr;
+    QLabel* batchCountLabel_ = nullptr;
+
     QThread* workerThread_ = nullptr;
     ExecuteWorker* currentWorker_ = nullptr;
     QtProgressReporter* currentReporter_ = nullptr;
@@ -74,6 +89,8 @@ private:
     std::string currentPluginName_;
     std::string currentActionKey_;
     QString currentTaskId_;
+
+    std::map<std::string, QString> lastAutoOutputPath_;
 };
 
 }

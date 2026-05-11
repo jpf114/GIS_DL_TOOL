@@ -7,6 +7,33 @@
 
 namespace gis_ai::gui {
 
+namespace {
+
+QString findDataDir(const QString& relativePath) {
+    QDir appDir(QApplication::applicationDirPath());
+
+    QDir dir = appDir;
+    for (int i = 0; i < 6; ++i) {
+        QString candidate = dir.absoluteFilePath(relativePath);
+        if (QDir(candidate).exists()) {
+            return candidate;
+        }
+        if (!dir.cdUp()) break;
+    }
+
+    QDir buildDir = appDir;
+    if (buildDir.cdUp()) {
+        QString candidate = buildDir.absoluteFilePath(relativePath);
+        if (QDir(candidate).exists()) {
+            return candidate;
+        }
+    }
+
+    return {};
+}
+
+}
+
 void configureGdalRuntime() {
     GDALAllRegister();
 
@@ -15,10 +42,9 @@ void configureGdalRuntime() {
         gdalDataDir = QString::fromUtf8(qgetenv("GDAL_DATA"));
     }
     if (gdalDataDir.isEmpty()) {
-        QDir appDir(QApplication::applicationDirPath());
-        gdalDataDir = appDir.filePath(QStringLiteral("../share/gdal"));
+        gdalDataDir = findDataDir(QStringLiteral("share/gdal"));
     }
-    if (QDir(gdalDataDir).exists()) {
+    if (!gdalDataDir.isEmpty() && QDir(gdalDataDir).exists()) {
         CPLSetConfigOption("GDAL_DATA", gdalDataDir.toUtf8().constData());
     }
 
@@ -30,10 +56,9 @@ void configureGdalRuntime() {
         projDataDir = QString::fromUtf8(qgetenv("PROJ_LIB"));
     }
     if (projDataDir.isEmpty()) {
-        QDir appDir(QApplication::applicationDirPath());
-        projDataDir = appDir.filePath(QStringLiteral("../share/proj"));
+        projDataDir = findDataDir(QStringLiteral("share/proj"));
     }
-    if (QDir(projDataDir).exists()) {
+    if (!projDataDir.isEmpty() && QDir(projDataDir).exists()) {
         CPLSetConfigOption("PROJ_DATA", projDataDir.toUtf8().constData());
     }
 

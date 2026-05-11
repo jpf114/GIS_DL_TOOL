@@ -81,34 +81,32 @@ struct NavEntry {
 std::vector<NavEntry> buildEntries() {
     return {
         {"segment", QStringLiteral("大图分割"), {
-            {"segment", "tile_split",    "切片分割"},
-            {"segment", "tile_merge",    "切片合并"},
-            {"segment", "overlap_split", "重叠分割"},
+            {"segment", "segment_full",   "完整分割"},
+            {"segment", "segment_raster", "仅输出栅格"},
+            {"segment", "segment_vector", "仅输出矢量"},
         }},
         {"inference", QStringLiteral("模型推理"), {
-            {"inference", "single_infer", "单图推理"},
-            {"inference", "batch_infer",  "批量推理"},
-            {"inference", "model_info",   "模型信息"},
+            {"inference", "inference_single", "单图推理"},
+            {"inference", "inference_batch",  "批量推理"},
         }},
         {"preprocess", QStringLiteral("数据预处理"), {
-            {"preprocess", "normalize", "归一化"},
-            {"preprocess", "resample",  "重采样"},
-            {"preprocess", "clip",      "裁剪"},
+            {"preprocess", "preprocess_resample",  "重采样"},
+            {"preprocess", "preprocess_normalize", "归一化"},
+            {"preprocess", "preprocess_clip",      "裁剪"},
         }},
         {"vector", QStringLiteral("矢量处理"), {
-            {"vector", "mask_to_polygon", "掩膜转矢量"},
-            {"vector", "vector_clip",     "矢量裁剪"},
-            {"vector", "vector_buffer",   "矢量缓冲"},
+            {"vector", "vector_simplify", "简化"},
+            {"vector", "vector_buffer",   "缓冲区"},
+            {"vector", "vector_clip",     "裁剪"},
         }},
         {"raster", QStringLiteral("栅格处理"), {
-            {"raster", "raster_clip",      "栅格裁剪"},
-            {"raster", "raster_mosaic",    "栅格镶嵌"},
-            {"raster", "raster_threshold", "栅格阈值"},
+            {"raster", "raster_mosaic",    "镶嵌"},
+            {"raster", "raster_threshold", "阈值分割"},
+            {"raster", "raster_resample",  "重采样"},
         }},
         {"batch", QStringLiteral("批量处理"), {
             {"batch", "batch_segment",   "批量分割"},
             {"batch", "batch_inference", "批量推理"},
-            {"batch", "task_queue",      "任务队列"},
         }},
     };
 }

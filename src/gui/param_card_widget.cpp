@@ -282,21 +282,70 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
     browseBtn->setIconSize(QSize(14, 14));
     entry.browseButton = browseBtn;
 
-    bool isOutput = (spec.key == "output" || spec.key.find("output") != std::string::npos);
     bool isDir = (spec.type == ParamType::DirPath);
+    bool isOutput = spec.key.find("output") != std::string::npos;
 
-    connect(browseBtn, &QPushButton::clicked, this, [lineEdit, isOutput, isDir]() {
+    auto keyContains = [&spec](const std::vector<std::string>& keywords) -> bool {
+        for (const auto& kw : keywords) {
+            if (spec.key.find(kw) != std::string::npos) return true;
+        }
+        return false;
+    };
+
+    static const QString kRasterInputFilter =
+        QStringLiteral("栅格文件 (*.tif *.tiff *.img *.vrt *.png *.jpg *.jpeg *.bmp);;GeoTIFF (*.tif *.tiff);;所有文件 (*)");
+    static const QString kRasterOutputFilter =
+        QStringLiteral("GeoTIFF (*.tif *.tiff);;Cloud Optimized GeoTIFF (*.cog);;所有文件 (*)");
+    static const QString kVectorInputFilter =
+        QStringLiteral("矢量文件 (*.gpkg *.shp *.geojson *.json *.kml);;GeoPackage (*.gpkg);;Shapefile (*.shp);;GeoJSON (*.geojson *.json);;所有文件 (*)");
+    static const QString kVectorOutputFilter =
+        QStringLiteral("GeoPackage (*.gpkg);;GeoJSON (*.geojson *.json);;Shapefile (*.shp);;所有文件 (*)");
+    static const QString kModelFilter =
+        QStringLiteral("ONNX 模型 (*.onnx);;所有文件 (*)");
+    static const QString kAllFilter =
+        QStringLiteral("所有文件 (*)");
+
+    QString filter;
+    QString defaultSuffix;
+
+    if (isDir) {
+        filter.clear();
+    } else if (keyContains({"model"})) {
+        filter = kModelFilter;
+        if (isOutput) defaultSuffix = QStringLiteral("onnx");
+    } else if (keyContains({"output_tif", "output_raster"})) {
+        filter = kRasterOutputFilter;
+        defaultSuffix = QStringLiteral("tif");
+    } else if (keyContains({"raster", "input_raster", "input_tif"})) {
+        filter = kRasterInputFilter;
+    } else if (keyContains({"output_shp", "output_vector"})) {
+        filter = kVectorOutputFilter;
+        defaultSuffix = QStringLiteral("shp");
+    } else if (keyContains({"vector", "shp"})) {
+        filter = kVectorInputFilter;
+    } else if (isOutput) {
+        filter = kRasterOutputFilter;
+        defaultSuffix = QStringLiteral("tif");
+    } else {
+        filter = kAllFilter;
+    }
+
+    connect(browseBtn, &QPushButton::clicked, this,
+            [lineEdit, isDir, isOutput, filter, defaultSuffix]() {
         QString filePath;
         if (isDir) {
             filePath = QFileDialog::getExistingDirectory(nullptr, QStringLiteral("选择目录"));
         } else if (isOutput) {
-            filePath = QFileDialog::getSaveFileName(
-                nullptr, QStringLiteral("保存文件"), QString(),
-                QStringLiteral("所有文件 (*);;GeoTIFF (*.tif *.tiff);;Shapefile (*.shp)"));
+            QFileDialog dlg(nullptr, QStringLiteral("保存文件"), QString(), filter);
+            dlg.setAcceptMode(QFileDialog::AcceptSave);
+            if (!defaultSuffix.isEmpty()) {
+                dlg.setDefaultSuffix(defaultSuffix);
+            }
+            if (dlg.exec() == QDialog::Accepted && !dlg.selectedFiles().isEmpty()) {
+                filePath = dlg.selectedFiles().constFirst();
+            }
         } else {
-            filePath = QFileDialog::getOpenFileName(
-                nullptr, QStringLiteral("选择文件"), QString(),
-                QStringLiteral("所有文件 (*);;GeoTIFF (*.tif *.tiff);;Shapefile (*.shp);;JPEG (*.jpg *.jpeg);;PNG (*.png)"));
+            filePath = QFileDialog::getOpenFileName(nullptr, QStringLiteral("选择文件"), QString(), filter);
         }
         if (!filePath.isEmpty()) {
             lineEdit->setText(filePath);

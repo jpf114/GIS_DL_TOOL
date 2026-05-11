@@ -3,6 +3,7 @@
 #include "nav_panel.h"
 #include "icon_manager.h"
 #include "param_widget.h"
+#include "param_card_widget.h"
 #include "task_center_page.h"
 #include "task_manager.h"
 #include "settings_manager.h"
@@ -30,6 +31,8 @@
 #include <QTabWidget>
 #include <QThread>
 #include <QVBoxLayout>
+#include <QCheckBox>
+#include <QLineEdit>
 
 namespace gis_ai::gui {
 
@@ -84,6 +87,16 @@ QString deriveOutputPath(const QString& inputPath, const QString& suffix) {
     return baseDir + QStringLiteral("/") + baseName + suffix;
 }
 
+QString suffixForAction(const std::string& pluginName, const std::string& actionKey) {
+    if (pluginName == "segment") return QStringLiteral("_segment");
+    if (pluginName == "inference") return QStringLiteral("_inference");
+    if (pluginName == "preprocess") return QStringLiteral("_preprocess");
+    if (pluginName == "vector") return QStringLiteral("_vector");
+    if (pluginName == "raster") return QStringLiteral("_raster");
+    if (pluginName == "batch") return QStringLiteral("_batch");
+    return QStringLiteral("_result");
+}
+
 }
 
 MainWindow::MainWindow(QWidget* parent)
@@ -106,9 +119,27 @@ void MainWindow::setupUi() {
     setStyleSheet(globalStyleSheet());
 
     QDir appDir(QApplication::applicationDirPath());
-    QString iconsBasePath = appDir.absoluteFilePath(QStringLiteral("../resources/icons"));
-    if (!QDir(iconsBasePath).exists()) {
-        iconsBasePath = QDir(QStringLiteral("resources/icons")).absolutePath();
+    QString iconsBasePath;
+    QDir searchDir = appDir;
+    for (int i = 0; i < 6; ++i) {
+        QString candidate = searchDir.absoluteFilePath(QStringLiteral("share/icons"));
+        if (QDir(candidate).exists()) {
+            iconsBasePath = candidate;
+            break;
+        }
+        if (!searchDir.cdUp()) break;
+    }
+    if (iconsBasePath.isEmpty()) {
+        QDir devDir = appDir;
+        if (devDir.cdUp()) {
+            QString candidate = devDir.absoluteFilePath(QStringLiteral("resources/icons"));
+            if (QDir(candidate).exists()) {
+                iconsBasePath = candidate;
+            }
+        }
+    }
+    if (iconsBasePath.isEmpty()) {
+        iconsBasePath = appDir.absoluteFilePath(QStringLiteral("../resources/icons"));
     }
     IconManager::instance().setIconsBasePath(iconsBasePath.toStdString());
 
@@ -216,10 +247,57 @@ void MainWindow::setupUi() {
     executeButton_->setIcon(executeIcon());
     executeButton_->setIconSize(QSize(16, 16));
     executeButton_->setEnabled(false);
+    executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
     connect(executeButton_, &QPushButton::clicked, this, &MainWindow::onExecuteClicked);
     execHeaderLayout->addWidget(executeButton_);
 
     executionLayout->addLayout(execHeaderLayout);
+
+    auto* batchLayout = new QHBoxLayout;
+    batchLayout->setSpacing(8);
+
+    batchCheckBox_ = new QCheckBox(QStringLiteral("批量处理"));
+    batchCheckBox_->setToolTip(QStringLiteral("启用后可对目录下匹配文件批量执行"));
+    batchLayout->addWidget(batchCheckBox_);
+
+    batchDirEdit_ = new QLineEdit;
+    batchDirEdit_->setPlaceholderText(QStringLiteral("批量输入目录"));
+    batchDirEdit_->setEnabled(false);
+    batchLayout->addWidget(batchDirEdit_, 1);
+
+    batchFilterEdit_ = new QLineEdit;
+    batchFilterEdit_->setPlaceholderText(QStringLiteral("*.tif"));
+    batchFilterEdit_->setText(QStringLiteral("*.tif"));
+    batchFilterEdit_->setMaximumWidth(100);
+    batchFilterEdit_->setEnabled(false);
+    batchLayout->addWidget(batchFilterEdit_);
+
+    batchCountLabel_ = new QLabel;
+    batchCountLabel_->setObjectName(QStringLiteral("paramDesc"));
+    batchCountLabel_->setMinimumWidth(60);
+    batchLayout->addWidget(batchCountLabel_);
+
+    executionLayout->addLayout(batchLayout);
+
+    connect(batchCheckBox_, &QCheckBox::toggled, this, [this](bool checked) {
+        batchDirEdit_->setEnabled(checked);
+        batchFilterEdit_->setEnabled(checked);
+        if (!checked) {
+            batchCountLabel_->clear();
+        } else {
+            updateBatchCount();
+        }
+        updateExecuteButtonState();
+    });
+
+    connect(batchDirEdit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        updateBatchCount();
+        updateExecuteButtonState();
+    });
+
+    connect(batchFilterEdit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        updateBatchCount();
+    });
 
     resultSummaryLabel_ = new QLabel;
     resultSummaryLabel_->setWordWrap(true);
@@ -293,6 +371,7 @@ void MainWindow::setupUi() {
 void MainWindow::onPluginSelected(const std::string& pluginName) {
     currentPluginName_.clear();
     currentActionKey_.clear();
+    lastAutoOutputPath_.clear();
 
     if (pluginName.empty()) {
         functionTitleLabel_->setText(QStringLiteral("请选择功能"));
@@ -301,6 +380,7 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
         functionMetaLabel_->setText(QStringLiteral("当前状态：等待选择主功能"));
         functionIconLabel_->setPixmap(defaultBadgePixmap());
         executeButton_->setEnabled(false);
+        executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
         statusAlgorithmLabel_->setText(QStringLiteral("当前算法：未选择"));
         if (paramWidget_) {
             paramWidget_->clear();
@@ -315,6 +395,7 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
         QStringLiteral("已选择 %1，请选择子功能进行操作。").arg(displayName));
     functionMetaLabel_->setText(QStringLiteral("当前状态：已选择主功能"));
     executeButton_->setEnabled(false);
+    executeButton_->setToolTip(QStringLiteral("请先选择子功能"));
     statusAlgorithmLabel_->setText(QStringLiteral("当前算法：%1").arg(displayName));
 
     if (paramWidget_) {
@@ -334,6 +415,7 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
                                        const std::string& actionKey) {
     currentPluginName_ = pluginName;
     currentActionKey_ = actionKey;
+    lastAutoOutputPath_.clear();
 
     auto uiConfig = getActionUiConfig(pluginName, actionKey);
     const QString pluginDisplay = QString::fromStdString(pluginDisplayName(pluginName));
@@ -370,43 +452,173 @@ void MainWindow::onParamsChanged() {
 void MainWindow::syncDerivedParams() {
     if (currentPluginName_.empty() || currentActionKey_.empty()) return;
 
-    if (paramWidget_->hasParam("input_raster")) {
-        auto inputPath = paramWidget_->stringValue("input_raster");
-        if (!inputPath.empty()) {
-            QString qInput = QString::fromStdString(inputPath);
-            if (paramWidget_->hasParam("output_tif")) {
-                auto currentOutput = paramWidget_->stringValue("output_tif");
-                if (currentOutput.empty()) {
-                    paramWidget_->setStringValue("output_tif",
-                        deriveOutputPath(qInput, QStringLiteral("_result.tif")).toStdString());
-                }
-            }
-            if (paramWidget_->hasParam("output_path")) {
-                auto currentOutput = paramWidget_->stringValue("output_path");
-                if (currentOutput.empty()) {
-                    paramWidget_->setStringValue("output_path",
-                        deriveOutputPath(qInput, QStringLiteral("_result.tif")).toStdString());
-                }
-            }
-            if (paramWidget_->hasParam("output_shp")) {
-                auto currentOutput = paramWidget_->stringValue("output_shp");
-                if (currentOutput.empty()) {
-                    paramWidget_->setStringValue("output_shp",
-                        deriveOutputPath(qInput, QStringLiteral("_result.shp")).toStdString());
-                }
+    auto trySetOutput = [&](const std::string& outputKey, const QString& ext) {
+        if (!paramWidget_->hasParam(outputKey)) return;
+
+        auto currentOutput = paramWidget_->stringValue(outputKey);
+        auto autoIt = lastAutoOutputPath_.find(outputKey);
+
+        if (!currentOutput.empty()) {
+            if (autoIt != lastAutoOutputPath_.end() && currentOutput == autoIt->second.toStdString()) {
+            } else {
+                return;
             }
         }
+
+        QString inputPath;
+        if (paramWidget_->hasParam("input_raster")) {
+            inputPath = QString::fromStdString(paramWidget_->stringValue("input_raster"));
+        } else if (paramWidget_->hasParam("input_vector")) {
+            inputPath = QString::fromStdString(paramWidget_->stringValue("input_vector"));
+        }
+
+        if (inputPath.isEmpty()) return;
+
+        QString suggested = buildSuggestedOutputPath(inputPath, ext);
+        if (!suggested.isEmpty()) {
+            paramWidget_->setStringValue(outputKey, suggested.toStdString());
+            lastAutoOutputPath_[outputKey] = suggested;
+        }
+    };
+
+    trySetOutput("output_tif", QStringLiteral(".tif"));
+    trySetOutput("output_path", QStringLiteral(".tif"));
+    trySetOutput("output_shp", QStringLiteral(".shp"));
+}
+
+QString MainWindow::buildSuggestedOutputPath(const QString& inputPath,
+                                              const QString& ext) const {
+    if (inputPath.isEmpty()) return {};
+
+    QFileInfo fi(inputPath);
+    QString baseDir = fi.absolutePath();
+    QString baseName = fi.completeBaseName();
+
+    QString funcSuffix = suffixForAction(currentPluginName_, currentActionKey_);
+
+    QString actionPart;
+    if (!currentActionKey_.empty()) {
+        std::string ak = currentActionKey_;
+        auto sep = ak.find('_');
+        if (sep != std::string::npos) {
+            actionPart = QStringLiteral("_") + QString::fromStdString(ak.substr(sep + 1));
+        }
     }
+
+    return baseDir + QStringLiteral("/") + baseName + funcSuffix + actionPart + ext;
 }
 
 void MainWindow::updateExecuteButtonState() {
     if (currentPluginName_.empty() || currentActionKey_.empty()) {
         executeButton_->setEnabled(false);
+        executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
         return;
     }
 
     bool hasWorker = workerThread_ && workerThread_->isRunning();
-    executeButton_->setEnabled(!hasWorker);
+    if (hasWorker) {
+        executeButton_->setEnabled(false);
+        executeButton_->setToolTip(QStringLiteral("任务正在执行中"));
+        return;
+    }
+
+    QString error = validateParams();
+    if (!error.isEmpty()) {
+        executeButton_->setEnabled(false);
+        executeButton_->setToolTip(error);
+        return;
+    }
+
+    executeButton_->setEnabled(true);
+    executeButton_->setToolTip(QStringLiteral("参数就绪，点击执行"));
+}
+
+QString MainWindow::validateParams() const {
+    if (!paramWidget_) return QStringLiteral("参数面板未初始化");
+
+    auto specs = buildEffectiveParamSpecs(currentPluginName_, currentActionKey_);
+    auto values = paramWidget_->getParamValues();
+
+    for (const auto& spec : specs) {
+        if (!spec.required) continue;
+
+        auto it = values.find(spec.key);
+        if (it == values.end()) {
+            return QStringLiteral("缺少必填参数: %1").arg(QString::fromStdString(spec.displayName));
+        }
+
+        if (spec.type == ParamType::FilePath || spec.type == ParamType::DirPath) {
+            auto* str = std::get_if<std::string>(&it->second);
+            if (!str || str->empty()) {
+                return QStringLiteral("必填参数不能为空: %1").arg(QString::fromStdString(spec.displayName));
+            }
+
+            bool isOutput = spec.key.find("output") != std::string::npos;
+            if (!isOutput) {
+                QFileInfo fi(QString::fromStdString(*str));
+                if (!fi.exists()) {
+                    return QStringLiteral("文件不存在: %1").arg(QString::fromStdString(spec.displayName));
+                }
+            } else {
+                QFileInfo fi(QString::fromStdString(*str));
+                QFileInfo parentDir(fi.absolutePath());
+                if (!parentDir.exists() || !parentDir.isDir()) {
+                    return QStringLiteral("输出目录不存在: %1").arg(QString::fromStdString(spec.displayName));
+                }
+            }
+        }
+
+        if (spec.type == ParamType::FilePath && spec.key.find("model") != std::string::npos) {
+            auto* str = std::get_if<std::string>(&it->second);
+            if (str && !str->empty()) {
+                QFileInfo fi(QString::fromStdString(*str));
+                if (!fi.exists()) {
+                    return QStringLiteral("模型文件不存在: %1").arg(QString::fromStdString(spec.displayName));
+                }
+            }
+        }
+    }
+
+    if (batchCheckBox_ && batchCheckBox_->isChecked()) {
+        QString batchDir = batchDirEdit_->text().trimmed();
+        if (batchDir.isEmpty()) {
+            return QStringLiteral("批量处理模式需要指定输入目录");
+        }
+        QFileInfo fi(batchDir);
+        if (!fi.exists() || !fi.isDir()) {
+            return QStringLiteral("批量输入目录不存在");
+        }
+    }
+
+    return {};
+}
+
+void MainWindow::updateBatchCount() {
+    if (!batchCheckBox_ || !batchCheckBox_->isChecked()) {
+        batchCountLabel_->clear();
+        return;
+    }
+
+    QString dirPath = batchDirEdit_->text().trimmed();
+    if (dirPath.isEmpty()) {
+        batchCountLabel_->setText(QStringLiteral("0 个文件"));
+        return;
+    }
+
+    QDir dir(dirPath);
+    if (!dir.exists()) {
+        batchCountLabel_->setText(QStringLiteral("目录不存在"));
+        return;
+    }
+
+    QString pattern = batchFilterEdit_->text().trimmed();
+    if (pattern.isEmpty()) pattern = QStringLiteral("*.tif");
+
+    QStringList nameFilters;
+    nameFilters << pattern;
+
+    QStringList files = dir.entryList(nameFilters, QDir::Files);
+    batchCountLabel_->setText(QStringLiteral("%1 个文件").arg(files.size()));
 }
 
 void MainWindow::onExecuteClicked() {

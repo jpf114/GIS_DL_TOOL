@@ -20,6 +20,7 @@
 #include "ai/preprocess.h"
 #include "ai/postprocess.h"
 #include "ai/mask_to_polygon.h"
+#include "fusion/large_image_seg.h"
 
 #include <string>
 #include <cstring>
@@ -518,6 +519,55 @@ GIS_AI_API int GisAi_TransformCoordinates(double* x, double* y, const char* from
         SetError(-3, e.what());
         return -3;
     }
+}
+
+} // extern "C"
+
+struct GisAiLargeImageSeg {
+    std::unique_ptr<gis_ai::LargeImageSeg> seg;
+};
+
+extern "C" {
+
+GIS_AI_API GisAiLargeImageSeg* GisAi_LargeImageSeg_Create(const char* model_path) {
+    if (!model_path) { SetError(-2, "Null model_path"); return nullptr; }
+    try {
+        auto* wrapper = new GisAiLargeImageSeg();
+        wrapper->seg = std::make_unique<gis_ai::LargeImageSeg>(model_path);
+        ClearError();
+        return wrapper;
+    } catch (const std::exception& e) {
+        SetError(-3, e.what());
+        return nullptr;
+    }
+}
+
+GIS_AI_API int GisAi_LargeImageSeg_Run(GisAiLargeImageSeg* seg, const char* input_tif,
+                                         const char* output_tif, const char* output_shp,
+                                         int tile_size, int stride, int blend_mode) {
+    if (!seg || !input_tif || !output_tif) { SetError(-2, "Null argument"); return -2; }
+    try {
+        gis_ai::LargeImageSegConfig config;
+        config.tile_size = (tile_size > 0) ? tile_size : 512;
+        config.stride = (stride > 0) ? stride : 384;
+        switch (blend_mode) {
+            case 0: config.blend_mode = gis_ai::BlendMode::None; break;
+            case 1: config.blend_mode = gis_ai::BlendMode::Linear; break;
+            default: config.blend_mode = gis_ai::BlendMode::Gaussian; break;
+        }
+
+        int ret = seg->seg->SegmentToFile(input_tif, output_tif,
+            output_shp ? output_shp : "", config);
+        ClearError();
+        return ret;
+    } catch (const std::exception& e) {
+        SetError(-3, e.what());
+        return -3;
+    }
+}
+
+GIS_AI_API void GisAi_LargeImageSeg_Destroy(GisAiLargeImageSeg* seg) {
+    delete seg;
 }
 
 } // extern "C"

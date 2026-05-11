@@ -12,6 +12,7 @@ typedef struct GisAiVector GisAiVector;
 typedef struct GisAiPointCloud GisAiPointCloud;
 typedef struct GisAiModel GisAiModel;
 typedef struct GisAiRasterSeg GisAiRasterSeg;
+typedef struct GisAiLargeImageSeg GisAiLargeImageSeg;
 
 GIS_AI_API int GisAi_Init(const char* config_path);
 GIS_AI_API void GisAi_Shutdown();
@@ -63,6 +64,12 @@ GIS_AI_API int GisAi_RasterSeg_Run(GisAiRasterSeg* seg, const char* input_tif,
 GIS_AI_API void GisAi_RasterSeg_Destroy(GisAiRasterSeg* seg);
 
 GIS_AI_API int GisAi_TransformCoordinates(double* x, double* y, const char* from_crs, const char* to_crs);
+
+GIS_AI_API GisAiLargeImageSeg* GisAi_LargeImageSeg_Create(const char* model_path);
+GIS_AI_API int GisAi_LargeImageSeg_Run(GisAiLargeImageSeg* seg, const char* input_tif,
+                                         const char* output_tif, const char* output_shp,
+                                         int tile_size, int stride, int blend_mode);
+GIS_AI_API void GisAi_LargeImageSeg_Destroy(GisAiLargeImageSeg* seg);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,543 @@
+#include "gui_data_support.h"
+#include "qt_progress_reporter.h"
+
+#include "fusion/large_image_seg.h"
+#include "io/raster_io.h"
+#include "io/vector_io.h"
+#include "gis/raster_resample.h"
+#include "gis/raster_normalize.h"
+#include "gis/raster_clip.h"
+#include "gis/raster_mosaic.h"
+#include "gis/raster_threshold.h"
+#include "gis/vector_simplify.h"
+#include "gis/vector_buffer.h"
+#include "gis/vector_clip.h"
+#include "core/logger.h"
+
+#include <filesystem>
+#include <array>
+
+namespace gis_ai::gui {
+
+namespace {
+
+std::string getStringParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
+    auto it = params.find(key);
+    if (it == params.end()) return {};
+    if (auto* v = std::get_if<std::string>(&it->second)) return *v;
+    return {};
+}
+
+int getIntParam(const std::map<std::string, ParamValue>& params, const std::string& key, int def = 0) {
+    auto it = params.find(key);
+    if (it == params.end()) return def;
+    if (auto* v = std::get_if<int>(&it->second)) return *v;
+    return def;
+}
+
+double getDoubleParam(const std::map<std::string, ParamValue>& params, const std::string& key, double def = 0.0) {
+    auto it = params.find(key);
+    if (it == params.end()) return def;
+    if (auto* v = std::get_if<double>(&it->second)) return *v;
+    return def;
+}
+
+bool getBoolParam(const std::map<std::string, ParamValue>& params, const std::string& key, bool def = false) {
+    auto it = params.find(key);
+    if (it == params.end()) return def;
+    if (auto* v = std::get_if<bool>(&it->second)) return *v;
+    return def;
+}
+
+std::array<double, 4> getExtentParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
+    auto it = params.find(key);
+    if (it == params.end()) return {0, 0, 0, 0};
+    if (auto* v = std::get_if<std::array<double, 4>>(&it->second)) return *v;
+    return {0, 0, 0, 0};
+}
+
+BlendMode parseBlendMode(const std::string& s) {
+    if (s == "Linear") return BlendMode::Linear;
+    if (s == "Gaussian") return BlendMode::Gaussian;
+    return BlendMode::None;
+}
+
+LargeImageSegConfig buildSegConfig(const std::map<std::string, ParamValue>& params) {
+    LargeImageSegConfig config;
+    config.tile_size = getIntParam(params, "tile_size", 512);
+    config.stride = getIntParam(params, "stride", 256);
+    config.target_class = static_cast<uint8_t>(getIntParam(params, "target_class", 1));
+    config.skip_nodata = getBoolParam(params, "skip_nodata", true);
+    config.blend_mode = parseBlendMode(getStringParam(params, "blend_mode"));
+    return config;
+}
+
+}
+
+std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
+    std::vector<ParamSpec> specs;
+
+    if (pluginName == "segment") {
+        specs.push_back({"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"input_raster", "输入影像", "待分割的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_tif", "输出栅格", "分割结果栅格输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_shp", "输出矢量", "分割结果矢量输出路径", ParamType::FilePath, false, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
+        specs.push_back({"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
+        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian"}, int{0}, int{0}, {"None", "Linear", "Gaussian"}});
+        specs.push_back({"target_class", "目标类别", "分割目标类别编号", ParamType::Int, false, int{1}, int{0}, int{255}, {}});
+        specs.push_back({"skip_nodata", "跳过无数据", "是否跳过无数据区域", ParamType::Bool, false, bool{true}, int{0}, int{0}, {}});
+    } else if (pluginName == "inference") {
+        specs.push_back({"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"input_raster", "输入影像", "待推理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_path", "输出路径", "推理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"target_class", "目标类别", "推理目标类别编号", ParamType::Int, false, int{1}, int{0}, int{255}, {}});
+    } else if (pluginName == "preprocess") {
+        specs.push_back({"input_raster", "输入影像", "待预处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_path", "输出路径", "预处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"Nearest"}, int{0}, int{0}, {"Nearest", "Bilinear", "Cubic"}});
+        specs.push_back({"normalize_mode", "归一化方式", "影像归一化处理方式", ParamType::Enum, false, std::string{"None"}, int{0}, int{0}, {"MinMax", "ZScore", "None"}});
+        specs.push_back({"clip_extent", "裁剪范围", "影像裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
+    } else if (pluginName == "vector") {
+        specs.push_back({"input_vector", "输入矢量", "待处理的矢量文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_path", "输出路径", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"simplify_tolerance", "简化容差", "矢量简化的容差值", ParamType::Double, false, double{1.0}, double{0.0}, double{1000.0}, {}});
+        specs.push_back({"buffer_distance", "缓冲距离", "矢量缓冲区距离", ParamType::Double, false, double{10.0}, double{0.0}, double{100000.0}, {}});
+        specs.push_back({"clip_extent", "裁剪范围", "矢量裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
+    } else if (pluginName == "raster") {
+        specs.push_back({"input_raster", "输入栅格", "待处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_path", "输出路径", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"mosaic_strategy", "镶嵌策略", "栅格镶嵌合并策略", ParamType::Enum, false, std::string{"First"}, int{0}, int{0}, {"First", "Overwrite", "Mean", "Max", "Min"}});
+        specs.push_back({"threshold_value", "阈值", "栅格阈值分割的阈值", ParamType::Double, false, double{128.0}, double{0.0}, double{65535.0}, {}});
+        specs.push_back({"resample_method", "重采样方式", "栅格重采样方法", ParamType::Enum, false, std::string{"Nearest"}, int{0}, int{0}, {"Nearest", "Bilinear", "Cubic"}});
+    } else if (pluginName == "batch") {
+        specs.push_back({"input_dir", "输入目录", "批量处理的输入目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"output_dir", "输出目录", "批量处理的输出目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
+        specs.push_back({"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
+        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian"}, int{0}, int{0}, {"None", "Linear", "Gaussian"}});
+    }
+
+    return specs;
+}
+
+ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::string& actionKey) {
+    ActionUiConfig cfg;
+
+    if (pluginName == "segment") {
+        if (actionKey == "segment_full") {
+            cfg.displayName = QStringLiteral("完整分割");
+            cfg.description = QStringLiteral("对大图进行分割，同时输出栅格和矢量结果");
+            cfg.visibleKeys = {"model_path", "input_raster", "output_tif", "output_shp", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
+            cfg.requiredKeys = {"model_path", "input_raster", "output_tif"};
+        } else if (actionKey == "segment_raster") {
+            cfg.displayName = QStringLiteral("仅输出栅格");
+            cfg.description = QStringLiteral("对大图进行分割，仅输出栅格结果");
+            cfg.visibleKeys = {"model_path", "input_raster", "output_tif", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
+            cfg.requiredKeys = {"model_path", "input_raster", "output_tif"};
+        } else if (actionKey == "segment_vector") {
+            cfg.displayName = QStringLiteral("仅输出矢量");
+            cfg.description = QStringLiteral("对大图进行分割，仅输出矢量结果");
+            cfg.visibleKeys = {"model_path", "input_raster", "output_shp", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
+            cfg.requiredKeys = {"model_path", "input_raster", "output_shp"};
+        }
+    } else if (pluginName == "inference") {
+        if (actionKey == "inference_single") {
+            cfg.displayName = QStringLiteral("单图推理");
+            cfg.description = QStringLiteral("对单张影像进行模型推理");
+            cfg.visibleKeys = {"model_path", "input_raster", "output_path", "target_class"};
+            cfg.requiredKeys = {"model_path", "input_raster", "output_path"};
+        } else if (actionKey == "inference_batch") {
+            cfg.displayName = QStringLiteral("批量推理");
+            cfg.description = QStringLiteral("对目录下所有影像进行批量推理");
+            cfg.visibleKeys = {"model_path", "input_raster", "output_path", "target_class"};
+            cfg.requiredKeys = {"model_path", "input_raster", "output_path"};
+        }
+    } else if (pluginName == "preprocess") {
+        if (actionKey == "preprocess_resample") {
+            cfg.displayName = QStringLiteral("重采样");
+            cfg.description = QStringLiteral("对栅格影像进行重采样处理");
+            cfg.visibleKeys = {"input_raster", "output_path", "resample_method"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        } else if (actionKey == "preprocess_normalize") {
+            cfg.displayName = QStringLiteral("归一化");
+            cfg.description = QStringLiteral("对栅格影像进行归一化处理");
+            cfg.visibleKeys = {"input_raster", "output_path", "normalize_mode"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        } else if (actionKey == "preprocess_clip") {
+            cfg.displayName = QStringLiteral("裁剪");
+            cfg.description = QStringLiteral("按范围裁剪栅格影像");
+            cfg.visibleKeys = {"input_raster", "output_path", "clip_extent"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        }
+    } else if (pluginName == "vector") {
+        if (actionKey == "vector_simplify") {
+            cfg.displayName = QStringLiteral("简化");
+            cfg.description = QStringLiteral("简化矢量要素，减少顶点数量");
+            cfg.visibleKeys = {"input_vector", "output_path", "simplify_tolerance"};
+            cfg.requiredKeys = {"input_vector", "output_path"};
+        } else if (actionKey == "vector_buffer") {
+            cfg.displayName = QStringLiteral("缓冲区");
+            cfg.description = QStringLiteral("为矢量要素创建缓冲区");
+            cfg.visibleKeys = {"input_vector", "output_path", "buffer_distance"};
+            cfg.requiredKeys = {"input_vector", "output_path"};
+        } else if (actionKey == "vector_clip") {
+            cfg.displayName = QStringLiteral("裁剪");
+            cfg.description = QStringLiteral("按范围裁剪矢量数据");
+            cfg.visibleKeys = {"input_vector", "output_path", "clip_extent"};
+            cfg.requiredKeys = {"input_vector", "output_path"};
+        }
+    } else if (pluginName == "raster") {
+        if (actionKey == "raster_mosaic") {
+            cfg.displayName = QStringLiteral("镶嵌");
+            cfg.description = QStringLiteral("将多个栅格影像镶嵌合并");
+            cfg.visibleKeys = {"input_raster", "output_path", "mosaic_strategy"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        } else if (actionKey == "raster_threshold") {
+            cfg.displayName = QStringLiteral("阈值分割");
+            cfg.description = QStringLiteral("对栅格影像进行阈值分割");
+            cfg.visibleKeys = {"input_raster", "output_path", "threshold_value"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        } else if (actionKey == "raster_resample") {
+            cfg.displayName = QStringLiteral("重采样");
+            cfg.description = QStringLiteral("对栅格影像进行重采样处理");
+            cfg.visibleKeys = {"input_raster", "output_path", "resample_method"};
+            cfg.requiredKeys = {"input_raster", "output_path"};
+        }
+    } else if (pluginName == "batch") {
+        if (actionKey == "batch_segment") {
+            cfg.displayName = QStringLiteral("批量分割");
+            cfg.description = QStringLiteral("对目录下所有影像进行批量分割");
+            cfg.visibleKeys = {"input_dir", "model_path", "output_dir", "tile_size", "stride", "blend_mode"};
+            cfg.requiredKeys = {"input_dir", "model_path", "output_dir"};
+        } else if (actionKey == "batch_inference") {
+            cfg.displayName = QStringLiteral("批量推理");
+            cfg.description = QStringLiteral("对目录下所有影像进行批量推理");
+            cfg.visibleKeys = {"input_dir", "model_path", "output_dir", "tile_size", "stride", "blend_mode"};
+            cfg.requiredKeys = {"input_dir", "model_path", "output_dir"};
+        }
+    }
+
+    return cfg;
+}
+
+std::vector<ParamSpec> buildEffectiveParamSpecs(const std::string& pluginName, const std::string& actionKey) {
+    auto allSpecs = getParamSpecsForPlugin(pluginName);
+    auto uiConfig = getActionUiConfig(pluginName, actionKey);
+
+    std::vector<ParamSpec> result;
+    for (const auto& spec : allSpecs) {
+        if (uiConfig.visibleKeys.count(spec.key)) {
+            ParamSpec effective = spec;
+            effective.required = uiConfig.requiredKeys.count(spec.key) > 0;
+            result.push_back(effective);
+        }
+    }
+    return result;
+}
+
+bool executeAction(const std::string& pluginName, const std::string& actionKey,
+                   const std::map<std::string, ParamValue>& params,
+                   QtProgressReporter& reporter) {
+    reporter.onProgress(0.0);
+    reporter.onMessage("开始执行: " + pluginName + "/" + actionKey);
+
+    try {
+        if (pluginName == "segment") {
+            auto model_path = getStringParam(params, "model_path");
+            auto input_raster = getStringParam(params, "input_raster");
+            auto output_tif = getStringParam(params, "output_tif");
+            auto output_shp = getStringParam(params, "output_shp");
+            auto config = buildSegConfig(params);
+
+            LargeImageSeg seg(model_path);
+            seg.SetProgressCallback([&reporter](int current, int total, const std::string& msg) {
+                if (total > 0) {
+                    reporter.onProgress(static_cast<double>(current) / total);
+                }
+                reporter.onMessage(msg);
+            });
+
+            if (actionKey == "segment_full") {
+                reporter.onMessage("完整分割: " + input_raster);
+                int ret = seg.SegmentToFile(input_raster, output_tif, output_shp, config);
+                reporter.onProgress(1.0);
+                return ret == 0;
+            } else if (actionKey == "segment_raster") {
+                reporter.onMessage("仅输出栅格: " + input_raster);
+                int ret = seg.SegmentToFile(input_raster, output_tif, "", config);
+                reporter.onProgress(1.0);
+                return ret == 0;
+            } else if (actionKey == "segment_vector") {
+                reporter.onMessage("仅输出矢量: " + input_raster);
+                RasterIO rio;
+                auto raster_data = rio.Load(input_raster);
+                auto vector_data = seg.SegmentToPolygon(*raster_data, config);
+                VectorIO vio;
+                vio.Save(*vector_data, output_shp);
+                reporter.onProgress(1.0);
+                return true;
+            }
+        } else if (pluginName == "inference") {
+            auto model_path = getStringParam(params, "model_path");
+            auto input_raster = getStringParam(params, "input_raster");
+            auto output_path = getStringParam(params, "output_path");
+            auto target_class = getIntParam(params, "target_class", 1);
+
+            LargeImageSegConfig config;
+            config.target_class = static_cast<uint8_t>(target_class);
+
+            LargeImageSeg seg(model_path);
+            seg.SetProgressCallback([&reporter](int current, int total, const std::string& msg) {
+                if (total > 0) {
+                    reporter.onProgress(static_cast<double>(current) / total);
+                }
+                reporter.onMessage(msg);
+            });
+
+            if (actionKey == "inference_single") {
+                reporter.onMessage("单图推理: " + input_raster);
+                int ret = seg.SegmentToFile(input_raster, output_path, "", config);
+                reporter.onProgress(1.0);
+                return ret == 0;
+            } else if (actionKey == "inference_batch") {
+                reporter.onMessage("批量推理: " + input_raster);
+                int ret = seg.SegmentToFile(input_raster, output_path, "", config);
+                reporter.onProgress(1.0);
+                return ret == 0;
+            }
+        } else if (pluginName == "preprocess") {
+            auto input_raster = getStringParam(params, "input_raster");
+            auto output_path = getStringParam(params, "output_path");
+
+            RasterIO rio;
+            reporter.onMessage("加载影像: " + input_raster);
+            reporter.onProgress(0.1);
+            auto raster_data = rio.Load(input_raster);
+
+            if (actionKey == "preprocess_resample") {
+                auto method_str = getStringParam(params, "resample_method");
+                reporter.onMessage("重采样: " + method_str);
+
+                ResampleMethod method = ResampleMethod::Nearest;
+                if (method_str == "Bilinear") method = ResampleMethod::Bilinear;
+
+                int new_size = std::max(raster_data->width, raster_data->height);
+                RasterResample resample;
+                auto result = resample.Execute(*raster_data, new_size, new_size, method);
+                rio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "preprocess_normalize") {
+                auto mode_str = getStringParam(params, "normalize_mode");
+                reporter.onMessage("归一化: " + mode_str);
+
+                if (mode_str == "None") {
+                    rio.Save(*raster_data, output_path);
+                } else {
+                    RasterNormalize normalize;
+                    auto result = normalize.Execute(*raster_data);
+                    rio.Save(*result, output_path);
+                }
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "preprocess_clip") {
+                auto extent = getExtentParam(params, "clip_extent");
+                reporter.onMessage("裁剪范围: " + std::to_string(extent[0]) + "," +
+                    std::to_string(extent[1]) + "," + std::to_string(extent[2]) + "," + std::to_string(extent[3]));
+
+                BoundingBox bbox;
+                bbox.min_x = extent[0];
+                bbox.min_y = extent[1];
+                bbox.max_x = extent[2];
+                bbox.max_y = extent[3];
+
+                RasterClip clip;
+                auto result = clip.Execute(*raster_data, bbox);
+                rio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            }
+        } else if (pluginName == "vector") {
+            auto input_vector = getStringParam(params, "input_vector");
+            auto output_path = getStringParam(params, "output_path");
+
+            VectorIO vio;
+            reporter.onMessage("加载矢量: " + input_vector);
+            reporter.onProgress(0.1);
+            auto vector_data = vio.Load(input_vector);
+
+            if (actionKey == "vector_simplify") {
+                auto tolerance = getDoubleParam(params, "simplify_tolerance", 1.0);
+                reporter.onMessage("简化容差: " + std::to_string(tolerance));
+
+                VectorSimplify simplify;
+                auto result = simplify.Execute(*vector_data, tolerance);
+                vio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "vector_buffer") {
+                auto distance = getDoubleParam(params, "buffer_distance", 10.0);
+                reporter.onMessage("缓冲距离: " + std::to_string(distance));
+
+                VectorBuffer buffer;
+                auto result = buffer.Execute(*vector_data, distance);
+                vio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "vector_clip") {
+                auto extent = getExtentParam(params, "clip_extent");
+                reporter.onMessage("裁剪范围: " + std::to_string(extent[0]) + "," +
+                    std::to_string(extent[1]) + "," + std::to_string(extent[2]) + "," + std::to_string(extent[3]));
+
+                BoundingBox bbox;
+                bbox.min_x = extent[0];
+                bbox.min_y = extent[1];
+                bbox.max_x = extent[2];
+                bbox.max_y = extent[3];
+
+                RasterIO rio;
+                RasterClip raster_clip;
+                auto clip_raster = std::make_unique<RasterData>();
+                clip_raster->width = 1;
+                clip_raster->height = 1;
+                clip_raster->band_count = 1;
+                clip_raster->geotransform[0] = bbox.min_x;
+                clip_raster->geotransform[1] = 1.0;
+                clip_raster->geotransform[3] = bbox.max_y;
+                clip_raster->geotransform[5] = -1.0;
+                clip_raster->bands.resize(1);
+                clip_raster->bands[0].resize(1, 1.0f);
+
+                VectorClip vclip;
+                auto result = vclip.Execute(*vector_data, *vector_data);
+                vio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            }
+        } else if (pluginName == "raster") {
+            auto input_raster = getStringParam(params, "input_raster");
+            auto output_path = getStringParam(params, "output_path");
+
+            RasterIO rio;
+            reporter.onMessage("加载栅格: " + input_raster);
+            reporter.onProgress(0.1);
+            auto raster_data = rio.Load(input_raster);
+
+            if (actionKey == "raster_mosaic") {
+                auto strategy_str = getStringParam(params, "mosaic_strategy");
+                reporter.onMessage("镶嵌策略: " + strategy_str);
+
+                MosaicStrategy strategy = MosaicStrategy::First;
+                if (strategy_str == "Overwrite") strategy = MosaicStrategy::Overwrite;
+                else if (strategy_str == "Mean") strategy = MosaicStrategy::Mean;
+                else if (strategy_str == "Max") strategy = MosaicStrategy::Max;
+                else if (strategy_str == "Min") strategy = MosaicStrategy::Min;
+
+                MosaicConfig mosaic_config;
+                mosaic_config.strategy = strategy;
+
+                RasterMosaic mosaic;
+                std::vector<std::reference_wrapper<const RasterData>> refs;
+                refs.push_back(std::cref(*raster_data));
+                auto result = mosaic.Execute(refs, mosaic_config);
+                rio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "raster_threshold") {
+                auto threshold = getDoubleParam(params, "threshold_value", 128.0);
+                reporter.onMessage("阈值: " + std::to_string(threshold));
+
+                RasterThreshold thresh;
+                auto result = thresh.Execute(*raster_data, threshold);
+                rio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            } else if (actionKey == "raster_resample") {
+                auto method_str = getStringParam(params, "resample_method");
+                reporter.onMessage("重采样: " + method_str);
+
+                ResampleMethod method = ResampleMethod::Nearest;
+                if (method_str == "Bilinear") method = ResampleMethod::Bilinear;
+
+                int new_size = std::max(raster_data->width, raster_data->height);
+                RasterResample resample;
+                auto result = resample.Execute(*raster_data, new_size, new_size, method);
+                rio.Save(*result, output_path);
+                reporter.onProgress(1.0);
+                return true;
+            }
+        } else if (pluginName == "batch") {
+            auto input_dir = getStringParam(params, "input_dir");
+            auto model_path = getStringParam(params, "model_path");
+            auto output_dir = getStringParam(params, "output_dir");
+            auto config = buildSegConfig(params);
+
+            LargeImageSeg seg(model_path);
+
+            if (actionKey == "batch_segment" || actionKey == "batch_inference") {
+                if (!std::filesystem::exists(input_dir)) {
+                    reporter.onMessage("输入目录不存在: " + input_dir);
+                    return false;
+                }
+                if (!std::filesystem::exists(output_dir)) {
+                    std::filesystem::create_directories(output_dir);
+                }
+
+                std::vector<std::filesystem::path> raster_files;
+                for (const auto& entry : std::filesystem::directory_iterator(input_dir)) {
+                    auto ext = entry.path().extension().string();
+                    if (ext == ".tif" || ext == ".tiff" || ext == ".img" || ext == ".png") {
+                        raster_files.push_back(entry.path());
+                    }
+                }
+
+                if (raster_files.empty()) {
+                    reporter.onMessage("输入目录中未找到栅格文件");
+                    return false;
+                }
+
+                reporter.onMessage("找到 " + std::to_string(raster_files.size()) + " 个栅格文件");
+
+                seg.SetProgressCallback([&reporter, total = raster_files.size()](int current, int, const std::string& msg) {
+                    reporter.onProgress(static_cast<double>(current) / total);
+                    reporter.onMessage(msg);
+                });
+
+                int success_count = 0;
+                for (size_t i = 0; i < raster_files.size(); ++i) {
+                    if (reporter.isCancelled()) {
+                        reporter.onMessage("任务已取消");
+                        return false;
+                    }
+
+                    auto stem = raster_files[i].stem().string();
+                    auto out_tif = std::filesystem::path(output_dir) / (stem + "_result.tif");
+
+                    reporter.onMessage("处理: " + raster_files[i].string());
+
+                    try {
+                        int ret = seg.SegmentToFile(raster_files[i].string(), out_tif.string(), "", config);
+                        if (ret == 0) success_count++;
+                    } catch (const std::exception& e) {
+                        reporter.onMessage("处理失败: " + std::string(e.what()));
+                    }
+
+                    reporter.onProgress(static_cast<double>(i + 1) / raster_files.size());
+                }
+
+                reporter.onMessage("批量处理完成: " + std::to_string(success_count) + "/" + std::to_string(raster_files.size()) + " 成功");
+                return success_count > 0;
+            }
+        }
+
+        reporter.onMessage("未知功能: " + pluginName + "/" + actionKey);
+        return false;
+    } catch (const std::exception& e) {
+        reporter.onMessage("执行异常: " + std::string(e.what()));
+        return false;
+    }
+}
+
+}

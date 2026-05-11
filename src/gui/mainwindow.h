@@ -11,12 +11,16 @@ class QProgressBar;
 class QScrollArea;
 class QDragEnterEvent;
 class QDropEvent;
+class QThread;
 
 namespace gis_ai::gui {
 
 class NavPanel;
 class ParamWidget;
 class TaskCenterPage;
+class ExecuteWorker;
+class QtProgressReporter;
+class ProgressDialog;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -33,6 +37,16 @@ private:
     void onPluginSelected(const std::string& pluginName);
     void onSubFunctionSelected(const std::string& pluginName, const std::string& actionKey);
     void onExecuteClicked();
+
+    void onParamsChanged();
+    void onWorkerFinished(bool success, const QString& message);
+    void onProgressChanged(const QString& taskId, double percent);
+    void onMessageLogged(const QString& taskId, const QString& msg);
+    void onRerunTask(const QString& taskId);
+    void onEditTask(const QString& taskId);
+
+    void syncDerivedParams();
+    void updateExecuteButtonState();
 
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
@@ -52,8 +66,14 @@ private:
 
     QTabWidget* tabWidget_ = nullptr;
 
+    QThread* workerThread_ = nullptr;
+    ExecuteWorker* currentWorker_ = nullptr;
+    QtProgressReporter* currentReporter_ = nullptr;
+    ProgressDialog* progressDialog_ = nullptr;
+
     std::string currentPluginName_;
     std::string currentActionKey_;
+    QString currentTaskId_;
 };
 
 }

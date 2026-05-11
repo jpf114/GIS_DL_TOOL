@@ -7,9 +7,14 @@
 #include "task_manager.h"
 #include "settings_manager.h"
 #include "gdal_config.h"
+#include "gui_data_support.h"
+#include "execute_worker.h"
+#include "qt_progress_reporter.h"
+#include "progress_dialog.h"
 
 #include <QApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -23,6 +28,7 @@
 #include <QScrollArea>
 #include <QStatusBar>
 #include <QTabWidget>
+#include <QThread>
 #include <QVBoxLayout>
 
 namespace gis_ai::gui {
@@ -70,6 +76,14 @@ std::string pluginDisplayName(const std::string& key) {
     return key;
 }
 
+QString deriveOutputPath(const QString& inputPath, const QString& suffix) {
+    if (inputPath.isEmpty()) return {};
+    QFileInfo fi(inputPath);
+    QString baseDir = fi.absolutePath();
+    QString baseName = fi.completeBaseName();
+    return baseDir + QStringLiteral("/") + baseName + suffix;
+}
+
 }
 
 MainWindow::MainWindow(QWidget* parent)
@@ -78,7 +92,12 @@ MainWindow::MainWindow(QWidget* parent)
     setupUi();
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow() {
+    if (workerThread_ && workerThread_->isRunning()) {
+        workerThread_->quit();
+        workerThread_->wait();
+    }
+}
 
 void MainWindow::setupUi() {
     setWindowTitle(QStringLiteral("GIS AI 工具台"));
@@ -173,6 +192,9 @@ void MainWindow::setupUi() {
     paramWidget_ = new ParamWidget;
     paramScrollArea->setWidget(paramWidget_);
 
+    connect(paramWidget_, &ParamWidget::paramsChanged,
+            this, &MainWindow::onParamsChanged);
+
     rightLayout->addWidget(paramScrollArea, 1);
 
     auto* executionCard = new QFrame;
@@ -233,6 +255,9 @@ void MainWindow::setupUi() {
         taskCenterPage_->clearLogDisplay();
     });
 
+    connect(taskCenterPage_, &TaskCenterPage::rerunTaskRequested, this, &MainWindow::onRerunTask);
+    connect(taskCenterPage_, &TaskCenterPage::editTaskRequested, this, &MainWindow::onEditTask);
+
     connect(&TaskManager::instance(), &TaskManager::taskSubmitted, this,
             [this](const QString& group, const QString& id) {
         if (group != QStringLiteral("default")) return;
@@ -277,6 +302,9 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
         functionIconLabel_->setPixmap(defaultBadgePixmap());
         executeButton_->setEnabled(false);
         statusAlgorithmLabel_->setText(QStringLiteral("当前算法：未选择"));
+        if (paramWidget_) {
+            paramWidget_->clear();
+        }
         return;
     }
 
@@ -307,14 +335,16 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     currentPluginName_ = pluginName;
     currentActionKey_ = actionKey;
 
+    auto uiConfig = getActionUiConfig(pluginName, actionKey);
     const QString pluginDisplay = QString::fromStdString(pluginDisplayName(pluginName));
-    const QString actionDisplay = QString::fromStdString(actionKey);
+    const QString actionDisplay = uiConfig.displayName.isEmpty()
+        ? QString::fromStdString(actionKey)
+        : uiConfig.displayName;
+
     functionTitleLabel_->setText(
         QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay));
-    functionDescLabel_->setText(
-        QStringLiteral("已选择 %1 的子功能 %2，请配置参数后执行。").arg(pluginDisplay, actionDisplay));
+    functionDescLabel_->setText(uiConfig.description);
     functionMetaLabel_->setText(QStringLiteral("当前状态：已选择子功能，可配置参数"));
-    executeButton_->setEnabled(true);
     statusAlgorithmLabel_->setText(
         QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay));
 
@@ -326,47 +356,62 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
         functionIconLabel_->setPixmap(defaultBadgePixmap());
     }
 
-    std::vector<ParamSpec> specs;
+    auto specs = buildEffectiveParamSpecs(pluginName, actionKey);
+    paramWidget_->setParamSpecs(specs);
 
-    if (pluginName == "segment") {
-        specs.push_back(ParamSpec{"input", "输入影像", "待分割的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output", "输出影像", "分割结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
-        specs.push_back(ParamSpec{"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
-        specs.push_back(ParamSpec{"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"average"}, int{0}, int{0}, {"average", "max", "min"}});
-    } else if (pluginName == "inference") {
-        specs.push_back(ParamSpec{"input", "输入影像", "待推理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output", "输出结果", "推理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"crs", "坐标系", "输出结果的坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
-    } else if (pluginName == "preprocess") {
-        specs.push_back(ParamSpec{"input", "输入影像", "待预处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output", "输出影像", "预处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"normalize", "归一化", "是否对影像进行归一化处理", ParamType::Bool, false, bool{false}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"nearest"}, int{0}, int{0}, {"nearest", "bilinear", "cubic"}});
-        specs.push_back(ParamSpec{"extent", "裁剪范围", "影像裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
-    } else if (pluginName == "vector") {
-        specs.push_back(ParamSpec{"input", "输入矢量", "待处理的矢量文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output", "输出矢量", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"crs", "目标坐标系", "矢量转换的目标坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
-    } else if (pluginName == "raster") {
-        specs.push_back(ParamSpec{"input", "输入栅格", "待处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output", "输出栅格", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"crs", "目标坐标系", "栅格转换的目标坐标系", ParamType::CRS, false, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"threshold", "阈值", "栅格阈值处理阈值", ParamType::Double, false, double{0.5}, double{0.0}, double{1.0}, {}});
-    } else if (pluginName == "batch") {
-        specs.push_back(ParamSpec{"input_dir", "输入目录", "批量处理的输入目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"output_dir", "输出目录", "批量处理的输出目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back(ParamSpec{"num_threads", "线程数", "并行处理线程数", ParamType::Int, false, int{1}, int{1}, int{32}, {}});
+    updateExecuteButtonState();
+}
+
+void MainWindow::onParamsChanged() {
+    syncDerivedParams();
+    updateExecuteButtonState();
+}
+
+void MainWindow::syncDerivedParams() {
+    if (currentPluginName_.empty() || currentActionKey_.empty()) return;
+
+    if (paramWidget_->hasParam("input_raster")) {
+        auto inputPath = paramWidget_->stringValue("input_raster");
+        if (!inputPath.empty()) {
+            QString qInput = QString::fromStdString(inputPath);
+            if (paramWidget_->hasParam("output_tif")) {
+                auto currentOutput = paramWidget_->stringValue("output_tif");
+                if (currentOutput.empty()) {
+                    paramWidget_->setStringValue("output_tif",
+                        deriveOutputPath(qInput, QStringLiteral("_result.tif")).toStdString());
+                }
+            }
+            if (paramWidget_->hasParam("output_path")) {
+                auto currentOutput = paramWidget_->stringValue("output_path");
+                if (currentOutput.empty()) {
+                    paramWidget_->setStringValue("output_path",
+                        deriveOutputPath(qInput, QStringLiteral("_result.tif")).toStdString());
+                }
+            }
+            if (paramWidget_->hasParam("output_shp")) {
+                auto currentOutput = paramWidget_->stringValue("output_shp");
+                if (currentOutput.empty()) {
+                    paramWidget_->setStringValue("output_shp",
+                        deriveOutputPath(qInput, QStringLiteral("_result.shp")).toStdString());
+                }
+            }
+        }
+    }
+}
+
+void MainWindow::updateExecuteButtonState() {
+    if (currentPluginName_.empty() || currentActionKey_.empty()) {
+        executeButton_->setEnabled(false);
+        return;
     }
 
-    paramWidget_->setParamSpecs(specs);
+    bool hasWorker = workerThread_ && workerThread_->isRunning();
+    executeButton_->setEnabled(!hasWorker);
 }
 
 void MainWindow::onExecuteClicked() {
     if (currentPluginName_.empty() || currentActionKey_.empty()) return;
+    if (workerThread_ && workerThread_->isRunning()) return;
 
     if (!paramWidget_->validate()) {
         resultSummaryLabel_->setText(QStringLiteral("参数验证失败，请检查必填参数。"));
@@ -376,9 +421,12 @@ void MainWindow::onExecuteClicked() {
     auto params = paramWidget_->getParamValues();
 
     QString pluginDisp = QString::fromStdString(pluginDisplayName(currentPluginName_));
-    QString actionDisp = QString::fromStdString(currentActionKey_);
+    auto uiConfig = getActionUiConfig(currentPluginName_, currentActionKey_);
+    QString actionDisp = uiConfig.displayName.isEmpty()
+        ? QString::fromStdString(currentActionKey_)
+        : uiConfig.displayName;
 
-    QString taskId = TaskManager::instance().submitTask(
+    currentTaskId_ = TaskManager::instance().submitTask(
         QStringLiteral("default"),
         QString::fromStdString(currentPluginName_),
         QString::fromStdString(currentActionKey_),
@@ -386,15 +434,164 @@ void MainWindow::onExecuteClicked() {
         pluginDisp,
         actionDisp);
 
-    if (taskId.isEmpty()) {
+    if (currentTaskId_.isEmpty()) {
         resultSummaryLabel_->setText(QStringLiteral("任务提交失败。"));
         return;
     }
 
-    resultSummaryLabel_->setText(
-        QStringLiteral("任务 %1 已提交，执行逻辑将在后续版本中实现。").arg(taskId));
+    TaskManager::instance().updateTaskStatus(QStringLiteral("default"), currentTaskId_,
+        TaskRecord::Running);
 
-    tabWidget_->setCurrentIndex(1);
+    currentReporter_ = new QtProgressReporter(currentTaskId_);
+    connect(currentReporter_, &QtProgressReporter::progressChanged,
+            this, &MainWindow::onProgressChanged);
+    connect(currentReporter_, &QtProgressReporter::messageLogged,
+            this, &MainWindow::onMessageLogged);
+
+    currentWorker_ = new ExecuteWorker;
+    currentWorker_->setup(
+        QString::fromStdString(currentPluginName_),
+        QString::fromStdString(currentActionKey_),
+        params,
+        currentReporter_);
+
+    workerThread_ = new QThread;
+    currentWorker_->moveToThread(workerThread_);
+
+    connect(workerThread_, &QThread::started, currentWorker_, &ExecuteWorker::run);
+    connect(currentWorker_, &ExecuteWorker::finished, this, &MainWindow::onWorkerFinished);
+    connect(currentWorker_, &ExecuteWorker::finished, workerThread_, &QThread::quit);
+    connect(workerThread_, &QThread::finished, workerThread_, &QThread::deleteLater);
+    connect(workerThread_, &QThread::finished, this, [this]() {
+        workerThread_ = nullptr;
+        updateExecuteButtonState();
+    });
+
+    progressDialog_ = new ProgressDialog(this);
+    connect(progressDialog_, &ProgressDialog::rejected, this, [this]() {
+        if (currentReporter_) {
+            currentReporter_->cancel();
+        }
+    });
+
+    executeButton_->setEnabled(false);
+    resultSummaryLabel_->setText(
+        QStringLiteral("任务 %1 正在执行...").arg(currentTaskId_));
+
+    workerThread_->start();
+    progressDialog_->exec();
+}
+
+void MainWindow::onWorkerFinished(bool success, const QString& message) {
+    if (progressDialog_) {
+        bool cancelled = currentReporter_ && currentReporter_->isCancelled();
+        progressDialog_->setFinished(message, success, cancelled);
+    }
+
+    if (!currentTaskId_.isEmpty()) {
+        TaskManager::instance().finishTask(
+            QStringLiteral("default"),
+            currentTaskId_,
+            success,
+            currentReporter_ && currentReporter_->isCancelled(),
+            message,
+            {});
+
+        auto rec = TaskManager::instance().findTask(QStringLiteral("default"), currentTaskId_);
+        taskCenterPage_->updateTaskRow(currentTaskId_,
+            static_cast<int>(rec.status),
+            rec.endTime.toString(Qt::ISODate),
+            rec.durationMs);
+    }
+
+    if (success) {
+        resultSummaryLabel_->setText(
+            QStringLiteral("任务 %1 执行成功。%2").arg(currentTaskId_, message));
+        statusBar()->showMessage(QStringLiteral("执行完成"));
+    } else {
+        resultSummaryLabel_->setText(
+            QStringLiteral("任务 %1 执行失败。%2").arg(currentTaskId_, message));
+        statusBar()->showMessage(QStringLiteral("执行失败"));
+    }
+
+    statusProgressBar_->setValue(success ? 100 : 0);
+
+    if (currentWorker_) {
+        currentWorker_->deleteLater();
+        currentWorker_ = nullptr;
+    }
+    if (currentReporter_) {
+        currentReporter_->deleteLater();
+        currentReporter_ = nullptr;
+    }
+
+    updateExecuteButtonState();
+}
+
+void MainWindow::onProgressChanged(const QString& taskId, double percent) {
+    int value = std::clamp(static_cast<int>(percent * 100.0), 0, 100);
+    statusProgressBar_->setValue(value);
+
+    if (progressDialog_) {
+        progressDialog_->updateProgress(percent);
+    }
+
+    if (taskId == currentTaskId_) {
+        taskCenterPage_->updateTaskProgress(taskId, percent);
+    }
+}
+
+void MainWindow::onMessageLogged(const QString& taskId, const QString& msg) {
+    if (taskId == currentTaskId_) {
+        TaskManager::instance().appendLog(QStringLiteral("default"), taskId, msg);
+        taskCenterPage_->appendLog(taskId, msg);
+
+        if (progressDialog_) {
+            progressDialog_->appendLog(msg);
+        }
+    }
+}
+
+void MainWindow::onRerunTask(const QString& taskId) {
+    auto rec = TaskManager::instance().findTask(QStringLiteral("default"), taskId);
+    if (rec.id.isEmpty()) return;
+
+    currentPluginName_ = rec.pluginName.toStdString();
+    currentActionKey_ = rec.actionKey.toStdString();
+
+    navPanel_->setCurrentPluginSelection(currentPluginName_);
+    navPanel_->setCurrentSubFunctionSelection(currentPluginName_, currentActionKey_);
+
+    auto specs = buildEffectiveParamSpecs(currentPluginName_, currentActionKey_);
+    paramWidget_->setParamSpecs(specs);
+
+    for (const auto& [key, value] : rec.params) {
+        if (auto* str = std::get_if<std::string>(&value)) {
+            paramWidget_->setStringValue(key, *str);
+        } else if (auto* ext = std::get_if<std::array<double, 4>>(&value)) {
+            paramWidget_->setExtentValue(key, *ext);
+        } else {
+            paramWidget_->setValueFromString(key, "");
+        }
+    }
+
+    auto uiConfig = getActionUiConfig(currentPluginName_, currentActionKey_);
+    const QString pluginDisplay = QString::fromStdString(pluginDisplayName(currentPluginName_));
+    const QString actionDisplay = uiConfig.displayName.isEmpty()
+        ? QString::fromStdString(currentActionKey_)
+        : uiConfig.displayName;
+
+    functionTitleLabel_->setText(
+        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay));
+    functionDescLabel_->setText(uiConfig.description);
+    functionMetaLabel_->setText(QStringLiteral("当前状态：已加载历史参数，可修改后执行"));
+
+    tabWidget_->setCurrentIndex(0);
+    updateExecuteButtonState();
+}
+
+void MainWindow::onEditTask(const QString& taskId) {
+    onRerunTask(taskId);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
@@ -406,6 +603,27 @@ void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
 void MainWindow::dropEvent(QDropEvent* event) {
     if (!event->mimeData()->hasUrls()) return;
     event->acceptProposedAction();
+
+    const auto urls = event->mimeData()->urls();
+    if (urls.isEmpty()) return;
+
+    QString filePath = urls.first().toLocalFile();
+    if (filePath.isEmpty()) return;
+
+    QFileInfo fi(filePath);
+    QString suffix = fi.suffix().toLower();
+
+    if (suffix == QStringLiteral("tif") || suffix == QStringLiteral("tiff") ||
+        suffix == QStringLiteral("img") || suffix == QStringLiteral("png")) {
+        if (paramWidget_ && paramWidget_->hasParam("input_raster")) {
+            paramWidget_->setStringValue("input_raster", filePath.toStdString());
+        }
+    } else if (suffix == QStringLiteral("shp") || suffix == QStringLiteral("geojson") ||
+               suffix == QStringLiteral("gpkg")) {
+        if (paramWidget_ && paramWidget_->hasParam("input_vector")) {
+            paramWidget_->setStringValue("input_vector", filePath.toStdString());
+        }
+    }
 }
 
 }

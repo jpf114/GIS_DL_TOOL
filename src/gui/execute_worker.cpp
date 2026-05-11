@@ -1,5 +1,6 @@
 #include "execute_worker.h"
 #include "qt_progress_reporter.h"
+#include "gui_data_support.h"
 
 #include <QThread>
 #include <exception>
@@ -26,7 +27,27 @@ void ExecuteWorker::run() {
             return;
         }
 
-        emit finished(false, QStringLiteral("执行逻辑尚未实现"));
+        if (!reporter_) {
+            emit finished(false, QStringLiteral("进度报告器未初始化"));
+            return;
+        }
+
+        bool success = executeAction(
+            pluginName_.toStdString(),
+            actionKey_.toStdString(),
+            params_,
+            *reporter_);
+
+        if (reporter_->isCancelled()) {
+            emit finished(false, QStringLiteral("任务已取消"));
+            return;
+        }
+
+        if (success) {
+            emit finished(true, QStringLiteral("执行成功"));
+        } else {
+            emit finished(false, QStringLiteral("执行失败"));
+        }
     } catch (const std::exception& e) {
         emit finished(false, QString::fromUtf8(e.what()));
     } catch (...) {

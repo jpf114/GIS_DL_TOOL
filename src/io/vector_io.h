@@ -30,6 +30,7 @@ using AttributeValue = std::variant<std::string, int, double>;
 struct GIS_AI_API Feature {
     FeatureType type = FeatureType::Point;
     std::vector<Coordinate> coordinates;
+    std::vector<std::vector<Coordinate>> inner_rings;
     std::map<std::string, AttributeValue> attributes;
 };
 

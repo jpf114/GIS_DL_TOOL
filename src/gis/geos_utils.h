@@ -48,7 +48,30 @@ inline GEOSGeometry* FeatureToGeos(GEOSContextHandle_t ctx, const Feature& featu
                 }
                 auto* ring = GEOSGeom_createLinearRing_r(ctx, seq);
                 if (ring) {
-                    geom = GEOSGeom_createPolygon_r(ctx, ring, nullptr, 0);
+                    std::vector<GEOSGeometry*> inner_geoms;
+                    inner_geoms.reserve(feature.inner_rings.size());
+                    bool valid = true;
+                    for (const auto& hole : feature.inner_rings) {
+                        if (hole.size() < 4) { valid = false; break; }
+                        auto* hole_seq = GEOSCoordSeq_create_r(ctx, static_cast<unsigned int>(hole.size()), 3);
+                        for (size_t i = 0; i < hole.size(); ++i) {
+                            GEOSCoordSeq_setX_r(ctx, hole_seq, static_cast<unsigned int>(i), hole[i].x);
+                            GEOSCoordSeq_setY_r(ctx, hole_seq, static_cast<unsigned int>(i), hole[i].y);
+                            GEOSCoordSeq_setZ_r(ctx, hole_seq, static_cast<unsigned int>(i), hole[i].z);
+                        }
+                        auto* hole_ring = GEOSGeom_createLinearRing_r(ctx, hole_seq);
+                        if (!hole_ring) { valid = false; break; }
+                        inner_geoms.push_back(hole_ring);
+                    }
+
+                    if (valid) {
+                        geom = GEOSGeom_createPolygon_r(ctx, ring,
+                            inner_geoms.empty() ? nullptr : inner_geoms.data(),
+                            static_cast<unsigned int>(inner_geoms.size()));
+                    } else {
+                        geom = GEOSGeom_createPolygon_r(ctx, ring, nullptr, 0);
+                        for (auto* g : inner_geoms) GEOSGeom_destroy_r(ctx, g);
+                    }
                 }
             }
             break;
@@ -100,6 +123,24 @@ inline std::unique_ptr<Feature> GeosToFeature(GEOSContextHandle_t ctx, GEOSGeome
                     GEOSCoordSeq_getZ_r(ctx, seq, i, &z);
                     feature->coordinates.push_back({x, y, z});
                 }
+            }
+
+            int num_holes = GEOSGetNumInteriorRings_r(ctx, geom);
+            for (int h = 0; h < num_holes; ++h) {
+                auto* hole_ring = GEOSGetInteriorRingN_r(ctx, geom, h);
+                if (!hole_ring) continue;
+                auto* hole_seq = GEOSGeom_getCoordSeq_r(ctx, hole_ring);
+                unsigned int hole_pts = 0;
+                GEOSCoordSeq_getSize_r(ctx, hole_seq, &hole_pts);
+                std::vector<Coordinate> hole_coords;
+                for (unsigned int i = 0; i < hole_pts; ++i) {
+                    double x, y, z = 0.0;
+                    GEOSCoordSeq_getX_r(ctx, hole_seq, i, &x);
+                    GEOSCoordSeq_getY_r(ctx, hole_seq, i, &y);
+                    GEOSCoordSeq_getZ_r(ctx, hole_seq, i, &z);
+                    hole_coords.push_back({x, y, z});
+                }
+                feature->inner_rings.push_back(std::move(hole_coords));
             }
             break;
         }

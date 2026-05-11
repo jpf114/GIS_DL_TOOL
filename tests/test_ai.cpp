@@ -269,3 +269,77 @@ TEST_F(MaskToPolygonTest, ExecuteFromRaster) {
     ASSERT_NE(result, nullptr);
     EXPECT_GT(result->features.size(), 0u);
 }
+
+TEST_F(MaskToPolygonTest, ExecuteWithHole) {
+    MaskToPolygon m2p;
+    int size = 20;
+    std::vector<uint8_t> mask(size * size, 0);
+
+    for (int y = 2; y < 18; ++y) {
+        for (int x = 2; x < 18; ++x) {
+            mask[y * size + x] = 1;
+        }
+    }
+
+    for (int y = 6; y < 14; ++y) {
+        for (int x = 6; x < 14; ++x) {
+            mask[y * size + x] = 0;
+        }
+    }
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->features.size(), 1u);
+    EXPECT_EQ(result->features[0].inner_rings.size(), 1u);
+}
+
+TEST_F(MaskToPolygonTest, Execute8DirectionDiagonal) {
+    MaskToPolygon m2p;
+    int size = 10;
+    std::vector<uint8_t> mask(size * size, 0);
+
+    mask[1 * size + 1] = 1;
+    mask[1 * size + 2] = 1;
+    mask[2 * size + 1] = 1;
+    mask[2 * size + 2] = 1;
+    mask[3 * size + 3] = 1;
+    mask[3 * size + 4] = 1;
+    mask[4 * size + 3] = 1;
+    mask[4 * size + 4] = 1;
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_GE(result->features.size(), 1u);
+}
+
+TEST_F(MaskToPolygonTest, ExecuteMultipleHoles) {
+    MaskToPolygon m2p;
+    int size = 30;
+    std::vector<uint8_t> mask(size * size, 0);
+
+    for (int y = 2; y < 28; ++y) {
+        for (int x = 2; x < 28; ++x) {
+            mask[y * size + x] = 1;
+        }
+    }
+
+    for (int y = 5; y < 9; ++y) {
+        for (int x = 5; x < 9; ++x) {
+            mask[y * size + x] = 0;
+        }
+    }
+
+    for (int y = 20; y < 24; ++y) {
+        for (int x = 20; x < 24; ++x) {
+            mask[y * size + x] = 0;
+        }
+    }
+
+    double geotransform[6] = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    auto result = m2p.Execute(mask, size, size, geotransform, 1);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->features.size(), 1u);
+    EXPECT_EQ(result->features[0].inner_rings.size(), 2u);
+}

@@ -43,6 +43,16 @@ static void ExtractCoordinates(OGRGeometry* geom, Feature& feature) {
                 feature.coordinates.push_back({ring->getX(i), ring->getY(i), ring->getZ(i)});
             }
         }
+        int num_holes = poly->getNumInteriorRings();
+        for (int h = 0; h < num_holes; ++h) {
+            OGRLinearRing* hole_ring = poly->getInteriorRing(h);
+            if (!hole_ring) continue;
+            std::vector<Coordinate> hole_coords;
+            for (int i = 0; i < hole_ring->getNumPoints(); ++i) {
+                hole_coords.push_back({hole_ring->getX(i), hole_ring->getY(i), hole_ring->getZ(i)});
+            }
+            feature.inner_rings.push_back(std::move(hole_coords));
+        }
     } else if (flat_type == wkbMultiPoint || flat_type == wkbMultiLineString ||
                flat_type == wkbMultiPolygon) {
         OGRGeometryCollection* gc = geom->toGeometryCollection();
@@ -263,6 +273,19 @@ void VectorIO::Save(const VectorData& data, const std::string& path) {
                 auto* poly = new OGRPolygon();
                 poly->addRing(ring);
                 delete ring;
+
+                for (const auto& hole : feature.inner_rings) {
+                    if (hole.size() < 3) continue;
+                    auto* hole_ring = new OGRLinearRing();
+                    for (const auto& c : hole) {
+                        hole_ring->addPoint(c.x, c.y, c.z);
+                    }
+                    const auto& hfirst = hole[0];
+                    hole_ring->addPoint(hfirst.x, hfirst.y, hfirst.z);
+                    poly->addRing(hole_ring);
+                    delete hole_ring;
+                }
+
                 geom = poly;
                 break;
             }

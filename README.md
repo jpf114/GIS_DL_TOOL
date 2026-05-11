@@ -1,26 +1,29 @@
-# GIS AI 算法库
+# GIS AI TOOL
 
 [![Build Status](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/gis_ai_lib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-这是一个基于 C++17 的 GIS 算法库，聚焦栅格、矢量、点云处理，以及基于 ONNX Runtime 的遥感栅格分割能力。
+基于深度学习的遥感智能解译工具，集成传统 GIS 算法与 AI 推理能力，提供 CLI 和 GUI 双入口。
 
 ## 功能特性
 
-- 基于 ONNX Runtime 的遥感影像语义分割
-- 面向矢量、栅格、点云数据的传统 GIS 算法
-- 提供纯 C API，便于 C、C#、Python、Java 等语言绑定
-- 支持 Windows、Linux、macOS 的跨平台构建预设
+- **大图分割**：滑窗推理 + 重叠区混合（None/Linear/Gaussian）+ 矢量化
+- **模型推理**：基于 ONNX Runtime 的遥感影像语义分割
+- **数据预处理**：栅格重采样、归一化、裁剪
+- **矢量处理**：简化、缓冲区、裁剪
+- **栅格处理**：镶嵌、阈值分割、掩膜转矢量
+- **批量处理**：多线程批量推理
 
 ## 技术栈
 
 | 组件 | 技术 | 版本 |
 |------|------|------|
 | 编程语言 | C++ | C++17 |
-| 构建系统 | CMake | 3.16+ |
+| 构建系统 | CMake | 3.21+ |
 | 包管理 | vcpkg | 最新版 |
-| GIS 依赖 | GDAL/GEOS/PROJ | 3.6+/3.11+/9.2+ |
+| GIS 依赖 | GDAL / GEOS / PROJ | 3.6+ / 3.11+ / 9.2+ |
 | AI 推理 | ONNX Runtime | 1.16+ |
+| GUI 框架 | Qt6 | 6.x（Widgets + Svg + Sql） |
 | 日志 | spdlog | 1.12+ |
 | 测试 | GoogleTest | 1.14+ |
 
@@ -28,118 +31,86 @@
 
 ### 前置条件
 
-- CMake 3.16 或更高版本
-- 支持 C++17 的编译器
-- vcpkg
+- CMake 3.21 或更高版本
+- 支持 C++17 的编译器（MSVC 2019+ / GCC 9+ / Clang 10+）
+- vcpkg（设置 `VCPKG_ROOT` 环境变量）
 
 ### 构建
 
 ```bash
+# Windows
 cmake --preset=dev-windows
 cmake --build --preset=dev
+
+# Linux
+cmake --preset=dev-linux
+cmake --build --preset=dev
+```
+
+### 构建 GUI
+
+```bash
+cmake -B build -S . -DGIS_AI_BUILD_GUI=ON ^
+    -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
 ```
 
 ### 测试
 
-在运行集成测试前，请先准备测试夹具目录结构：
-
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/generate_test_data.ps1
-```
-
-Linux/macOS：
-
-```bash
-bash scripts/generate_test_data.sh
-```
-
-Windows 下如果测试使用了 PROJ，需将 `PROJ_LIB` 指向 vcpkg 中的 PROJ 数据目录：
-
-```powershell
+# Windows
 $env:PROJ_LIB = (Resolve-Path "build/dev-windows/vcpkg_installed/x64-windows/share/proj").Path
 ctest --test-dir build/dev-windows -C Debug --output-on-failure -E test_ai_integration
 ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_integration
 ```
 
-由于 ONNX 依赖链在 Windows `Debug` 模式下仍存在 schema 注册问题，`test_ai_integration` 当前仅在 `Release` 模式下执行。
+## 使用方法
 
-当前仓库只跟踪测试夹具目录约定和说明文档，不直接提交生成后的测试资产。
-当前脚本可以自动生成栅格与矢量夹具，但 `test_seg_model.onnx` 仍需额外准备。
-如果你已经有可用模型，可通过 `scripts/prepare_test_model.ps1` 或 `scripts/prepare_test_model.sh` 放入标准测试位置。
+### CLI
 
-## 项目结构
+```bash
+# 单图分割
+gis_ai_cli segment model.onnx input.tif output_seg.tif output_seg.shp
 
-```text
-gis_ai_lib/
-|-- CMakeLists.txt
-|-- CMakePresets.json
-|-- vcpkg.json
-|-- include/gis_ai/
-|-- src/
-|   |-- core/
-|   |-- io/
-|   |-- gis/
-|   |-- ai/
-|   `-- fusion/
-|-- tests/
-|-- examples/
-|-- scripts/
-|-- docker/
-`-- docs/
+# 批量分割
+gis_ai_cli batch model.onnx input_dir/ output_dir/ --threads 4
+
+# 使用配置文件
+gis_ai_cli run task_config.json
+
+# 生成默认配置模板
+gis_ai_cli generate-config config.json
 ```
 
-## 模块说明
+CLI 选项：
 
-### Core
+| 选项 | 说明 | 默认值 |
+|------|------|--------|
+| `--tile-size <int>` | 切片大小 | 512 |
+| `--stride <int>` | 滑窗步长 | 384 |
+| `--blend <mode>` | 融合模式（none/linear/gaussian） | gaussian |
+| `--threads <int>` | 批量处理线程数 | 1 |
+| `--no-shp` | 不输出矢量文件 | — |
+| `--verbose` | 详细日志 | — |
 
-- 日志、异常、平台兼容、内存、配置相关基础能力
+### GUI
 
-### IO
+```bash
+gis-ai-gui
+```
 
-- 栅格读写：TIFF
-- 矢量读写：Shapefile、GeoJSON
-- 点云读写：基于 GDAL/OGR 的点要素方式读写
+GUI 提供图形化的任务配置、执行与进度监控界面，支持任务队列、进度回调和结果查看。
 
-### GIS
-
-- 矢量：缓冲区、相交、裁剪、简化、拓扑检查
-- 栅格：重采样、归一化、裁剪、阈值分割、镶嵌
-- 点云：过滤、降采样
-- 坐标转换：基于 PROJ 的 CRS 转换
-
-### AI
-
-- ONNX Runtime 集成
-- 模型管理
-- 栅格预处理与后处理
-- 掩膜转多边形
-
-### Fusion
-
-- 端到端栅格分割流程
-- 批量文件处理
-
-## C API 示例
+### C API
 
 ```cpp
 #include <gis_ai/gis_ai.h>
 
 int main() {
-    if (GisAi_Init(nullptr) != 0) {
-        return 1;
-    }
+    if (GisAi_Init(nullptr) != 0) return 1;
 
-    GisAiRasterSeg* seg = GisAi_RasterSeg_Create("test_data/models/test_seg_model.onnx");
-    if (!seg) {
-        GisAi_Shutdown();
-        return 1;
-    }
-
-    int ret = GisAi_RasterSeg_Run(
-        seg,
-        "test_data/raster/test_100x100.tif",
-        "test_data/raster/test_seg_output.tif",
-        "test_data/vector/test_seg_output.shp");
+    GisAiRasterSeg* seg = GisAi_RasterSeg_Create("model.onnx");
+    int ret = GisAi_RasterSeg_Run(seg, "input.tif", "output.tif", "output.shp");
 
     GisAi_RasterSeg_Destroy(seg);
     GisAi_Shutdown();
@@ -147,31 +118,38 @@ int main() {
 }
 ```
 
+## 项目结构
+
+```text
+GIS_DL_TOOL/
+├── CMakeLists.txt
+├── CMakePresets.json
+├── include/gis_ai/          # 公共头文件
+├── src/
+│   ├── core/                # 基础能力（日志、异常、配置）
+│   ├── io/                  # 数据读写（栅格、矢量、点云）
+│   ├── gis/                 # GIS 算法（栅格、矢量、坐标转换）
+│   ├── ai/                  # AI 推理（ONNX、预处理、后处理）
+│   ├── fusion/              # 融合层（大图分割、批量处理）
+│   ├── gui/                 # Qt6 GUI
+│   └── cli/                 # 命令行入口
+├── tests/
+├── examples/
+├── tools/
+└── docs/
+    ├── 架构设计文档.md
+    ├── 用户手册.md
+    └── 算法说明/            # 算法文档目录
+```
+
 ## 文档索引
 
-- [项目进度](docs/PROJECT_PROGRESS.md)
-- [架构设计](docs/architecture.md)
+- [架构设计文档](docs/架构设计文档.md)
+- [用户手册](docs/用户手册.md)
+- [算法说明总览](docs/算法说明/总览.md)
 - [API 参考](docs/api_reference.md)
-- [用户手册](docs/user_manual.md)
 - [测试指南](docs/testing.md)
-- [实用化功能路线图](<docs/实用化功能路线图.md>)
-- [下一阶段开发优先级清单](<docs/下一阶段开发优先级清单.md>)
 - [贡献说明](CONTRIBUTING.md)
-
-## 安装后消费示例
-
-仓库提供了安装包消费示例工程：
-
-- [examples/installed_package/README.md](examples/installed_package/README.md)
-
-该示例用于验证安装后的包是否能够通过 `find_package(gis_ai CONFIG REQUIRED)` 和 `gis_ai::gis_ai` 正常被外部工程引用。
-
-## 开发环境
-
-```bash
-docker build -t gis_ai_dev -f docker/Dockerfile.dev .
-docker run -it gis_ai_dev bash
-```
 
 ## 许可证
 

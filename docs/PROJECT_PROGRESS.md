@@ -1,78 +1,65 @@
-# GIS AI 算法库项目进展
+# Project Progress
 
-## 项目概览
+Last updated: 2026-05-13
 
-- 项目名称：`GIS AI Algorithm Library`
-- 当前版本：`0.1.0`
-- 当前重点：从“功能基本完成”推进到“构建、测试、安装、文档可复现”
+## Summary
 
-## 当前状态判断
+`GIS_DL_TOOL` is in an active productization phase. The repository already has substantial GIS/AI functionality, and the recent work has been focused on making the Windows GUI shell, runtime packaging, and verification flow behave more like `GIS_TOOL`, the motherbase.
 
-从代码结构看，项目已经具备较完整的模块体系和公共 C API，核心实现覆盖了 `core / io / gis / ai / fusion` 五个层面。  
-从工程交付角度看，当前最需要补强的是以下几类能力：
+## What Is Verified Now
 
-- 测试夹具准备入口
-- CMake 预设与 CI 行为一致性
-- 安装后外部消费验证
-- 文档与当前仓库状态对齐
+Verified on 2026-05-13 in this workspace:
 
-## 模块完成度
+- Release configure: `cmake --preset release`
+- Release build: `cmake --build --preset release`
+- GUI queue regression: `ctest --test-dir build/release -C Release -R test_gui_queue`
+- GUI smoke automation: `ctest --test-dir build/release -C Release -R gui_smoke_test`
+- Release install: `cmake --install build/release --config Release`
+- Installed CLI smoke: `install\bin\gis_ai_cli.exe help`
+- Installed GUI smoke: `install\bin\gis-ai-gui.exe --self-test`
 
-| 模块 | 实现状态 | 当前说明 |
-|------|----------|----------|
-| Core | 已实现 | 日志、异常、平台、内存、配置基础能力已具备 |
-| IO | 已实现 | 栅格、矢量、点云读写主流程已具备 |
-| GIS | 已实现 | 矢量、栅格、点云、坐标转换算法已具备 |
-| AI | 已实现 | ONNX Runtime 推理、预处理、后处理、掩膜转面已具备 |
-| Fusion | 已实现 | 端到端分割和批处理已具备 |
-| C API | 已实现 | 已提供基础初始化、IO、算法、推理、分割、坐标转换接口 |
-| 打包安装 | 部分验证 | 已有安装导出逻辑，但仍需完整外部消费验证 |
+## Recent Completed Work
 
-## 可复现性状态
+- Task-center result area now surfaces structured execution details instead of leaving users to infer everything from logs
+- GUI smoke verification now exercises automation hooks instead of only checking that the app can start
+- Windows release build and install tree were re-verified end to end
+- Installed `platforms/`, `sqldrivers/`, `share/proj`, `share/gdal`, and `share/icons` layout was confirmed workable in the current release flow
 
-| 项目项 | 是否已实现 | 是否可从当前仓库直接复现 | 说明 |
-|--------|------------|--------------------------|------|
-| 单元测试代码 | 是 | 基本可以 | 依赖环境安装完整时可执行 |
-| IO 集成测试 | 是 | 需先准备夹具 | 依赖 `test_data` 目录及内容 |
-| AI 集成测试 | 是 | 需先准备夹具，Windows 下需 Release | 受 ONNX Debug 限制 |
-| CI 工作流 | 是 | 已部分对齐 | 仍需持续验证实际跑法与文档一致 |
-| 安装后消费 | 是 | 已补示例骨架 | 还需在真实安装产物上完成冒烟验证 |
+## Current Strengths
 
-## 最近已完成事项
+- Clear segmentation-focused business workflow
+- Shared/static library outputs, CLI, and Qt GUI all build from the same repo
+- Task queue, persistence, rerun flow, and structured task results in the GUI
+- Working Windows install layout with runnable installed binaries
 
-- 补充了测试夹具目录说明，并将脚本入口接入现有数据生成工具
-- 缺少 `test_data` 时，测试与 ctypes 验证会给出更明确提示
-- 将 `GTest` 依赖改为仅在开启测试时查找
-- 将 release 预设与 CI 的测试预期对齐
-- 统一了核心 CI 与扩展构建工作流的命名和依赖基线
-- 在 Windows CI 中明确区分 Debug 非 AI 测试与 Release AI 集成测试
-- 补充了安装包外部消费示例
-- 新增和更新的文档统一改为中文
+## Open Areas
 
-## 最新验证记录
+- Continued motherbase alignment for broader product-shell behavior
+- Wider verification beyond the current Windows-focused checks
+- Additional documentation cleanup and removal of older overstated claims in secondary docs
+- More representative install/export validation for downstream consumers
 
-- 2026-04-24：`scripts/generate_test_data.ps1` 已验证能够在缺少构建产物时给出明确提示
-- 2026-04-24：尝试执行 `cmake --preset=dev-windows`，确认当前机器存在两个环境阻塞项：
-  - 本地 `vcpkg` 仓库无法 checkout 到 baseline `42f37e46d37baf7b218966434b91116bddf73461`
-  - 当前环境未检测到 `Visual Studio 17 2022`
+## Packaging Status
 
-## 待推进事项
+Current Windows release packaging has been validated for:
 
-1. 在本地或干净环境中真实执行一次 `cmake --preset` 与 `ctest` 验证
-2. 为 `test_seg_model.onnx` 增加仓库内自动生成路径，当前已补充标准导入路径
-3. 验证 `cmake --install` 与外部 `find_package(gis_ai CONFIG REQUIRED)` 链路
-4. 继续对齐剩余文档与当前仓库状态
-5. 根据验证结果更新发布门禁
+- `install/bin`
+- `install/bin/platforms`
+- `install/bin/sqldrivers`
+- `install/share/proj`
+- `install/share/gdal`
+- `install/share/icons`
 
-## 发布门禁
+During install verification on 2026-05-13, runtime dependency scanning fell back to the minimal DLL copy path because `dumpbin`/`objdump` was not found by the install script. The install still completed successfully and the installed binaries remained runnable.
 
-- [ ] 新克隆仓库可按文档命令完成配置
-- [ ] 可通过仓库脚本准备测试夹具
-- [ ] 核心 CI 工作流通过
-- [ ] 安装/导出冒烟验证通过
-- [ ] README 与测试文档和实际行为一致
+## Honest Boundaries
 
-## 说明
+- This document does not claim full cross-platform readiness.
+- This document does not claim that every historical test target was re-run in this session.
+- This document does not treat motherbase alignment as finished.
 
-历史文档中出现过“测试全部通过”之类的结论，但这类结论只有在对应环境、依赖和测试夹具都齐备时才有复现意义。  
-后续项目进展将优先记录“当前仓库状态下可以如何复现”，而不只记录一次性的本地验证结果。
+## Next Practical Moves
+
+1. Re-run `test_gui_task_database` and `test_io_integration` inside the same release verification sweep
+2. Decide whether the install-time `dumpbin` fallback should remain acceptable or whether tool discovery should be tightened
+3. Keep updating repo docs so they match the newest verified state instead of older intent

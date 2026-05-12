@@ -1,64 +1,84 @@
-# 测试指南
+# Testing Guide
 
-在运行集成测试前，请先准备标准测试夹具目录结构。
+This document reflects the repository state verified on 2026-05-13.
 
-## 准备测试夹具
+## Scope
 
-### Windows
+The current test story is strongest on Windows release builds. Debug and cross-platform paths still depend on local environment details and have not been re-verified in this current sweep.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/generate_test_data.ps1
-```
+## Prerequisites
 
-### Linux 和 macOS
+- Windows
+- Visual Studio 2022
+- CMake 3.21+
+- `VCPKG_ROOT` pointing at the shared global `vcpkg`
 
-```bash
-bash scripts/generate_test_data.sh
-```
+## Configure and Build
 
-仓库会保留 `test_data` 目录说明文档，但生成后的栅格、矢量和模型夹具仍然属于本地产物，不直接提交。
-当前脚本可自动生成栅格与矢量夹具，但 `test_data/models/test_seg_model.onnx` 仍需单独准备。
-
-如果你本地已经有可用的 ONNX 模型，可通过以下脚本导入到标准测试位置：
-
-### Windows
+Release:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/prepare_test_model.ps1 -SourceModel D:\path\to\model.onnx
+cmake --preset release
+cmake --build --preset release
 ```
 
-### Linux 和 macOS
-
-```bash
-bash scripts/prepare_test_model.sh /path/to/model.onnx
-```
-
-## Windows
-
-### Debug
+Debug:
 
 ```powershell
-$env:PROJ_LIB = (Resolve-Path "build/dev-windows/vcpkg_installed/x64-windows/share/proj").Path
-ctest --test-dir build/dev-windows -C Debug --output-on-failure -E test_ai_integration
+cmake --preset debug
+cmake --build --preset debug
 ```
 
-### Release AI 集成测试
+## Focused Release Verification
+
+These are the commands that match the current phase checks:
 
 ```powershell
-$env:PROJ_LIB = (Resolve-Path "build/dev-windows/vcpkg_installed/x64-windows/share/proj").Path
-ctest --test-dir build/dev-windows -C Release --output-on-failure -R test_ai_integration
+ctest --test-dir build/release -C Release --output-on-failure -R test_gui_task_database
+ctest --test-dir build/release -C Release --output-on-failure -R test_gui_queue
+ctest --test-dir build/release -C Release --output-on-failure -R gui_smoke_test
+ctest --test-dir build/release -C Release --output-on-failure -R test_io_integration
 ```
 
-由于 ONNX 依赖链在 Windows `Debug` 模式下仍存在 schema 注册问题，`test_ai_integration` 当前仅在 `Release` 模式下执行。
+## What Each Test Covers
 
-## Linux 和 macOS
+- `test_gui_task_database`: task persistence schema and stored task metadata
+- `test_gui_queue`: queued execution flow, log clearing, and task-center result detail presentation
+- `gui_smoke_test`: GUI bootstrap automation path, parameter injection, auto-execute, screenshot/status artifacts
+- `test_io_integration`: representative IO integration behavior against generated test assets
 
-```bash
-ctest --output-on-failure -E test_ai_integration
+## Installed Tree Smoke Checks
+
+After installing the release tree:
+
+```powershell
+cmake --install build/release --config Release
+install\bin\gis_ai_cli.exe help
+install\bin\gis-ai-gui.exe --self-test
 ```
 
-## 测试目标
+These commands were verified successfully on 2026-05-13.
 
-- `test_gis_ai`：覆盖 core、IO、GIS、AI 工具代码和 fusion 数据流的单元测试
-- `test_io_integration`：真实文件 I/O 集成测试
-- `test_ai_integration`：ONNX 模型加载与端到端分割流程测试
+## Notes About Runtime Packaging
+
+- The install step currently succeeds even when `dumpbin` or `objdump` is not found.
+- In that case, `install_runtime_deps.cmake` falls back to copying the minimal runtime DLL list directly.
+- That fallback path was exercised successfully during the 2026-05-13 install verification.
+
+## Known Gaps
+
+- No fresh claim is made here about Linux or macOS verification.
+- No fresh claim is made here about Windows Debug parity for all integration targets.
+- AI integration coverage outside the currently exercised release path still depends on local model/runtime setup.
+
+## Recommended Current-Phase Check Order
+
+```powershell
+cmake --preset release
+cmake --build --preset release
+ctest --test-dir build/release -C Release --output-on-failure -R test_gui_task_database
+ctest --test-dir build/release -C Release --output-on-failure -R test_gui_queue
+ctest --test-dir build/release -C Release --output-on-failure -R gui_smoke_test
+cmake --install build/release --config Release
+install\bin\gis-ai-gui.exe --self-test
+```

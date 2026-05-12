@@ -46,10 +46,13 @@ private slots:
 private:
     void setupUi();
     QTreeWidgetItem* findItemByTaskId(const QString& taskId) const;
+    void updateResultDisplay(const TaskRecord& record);
+    static QString formatDuration(qint64 durationMs);
     static QString statusText(int status);
     static QString statusColor(int status);
 
     QTreeWidget* taskTree_ = nullptr;
+    QTextEdit* resultDisplay_ = nullptr;
     QTextEdit* logDisplay_ = nullptr;
     QPushButton* rerunButton_ = nullptr;
     QPushButton* clearHistoryButton_ = nullptr;

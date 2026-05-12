@@ -12,6 +12,7 @@
 #include <QTime>
 #include <QDateTime>
 #include <QHeaderView>
+#include <QStringList>
 #include <algorithm>
 
 namespace gis_ai::gui {
@@ -124,6 +125,16 @@ void TaskCenterPage::setupUi() {
 
     logLayout->addLayout(logHeaderLayout);
 
+    auto* resultTitleLabel = new QLabel(QStringLiteral("执行结果"));
+    resultTitleLabel->setObjectName(QStringLiteral("cardTitle"));
+    logLayout->addWidget(resultTitleLabel);
+
+    resultDisplay_ = new QTextEdit;
+    resultDisplay_->setObjectName(QStringLiteral("taskResultDisplay"));
+    resultDisplay_->setReadOnly(true);
+    resultDisplay_->setMaximumHeight(120);
+    logLayout->addWidget(resultDisplay_);
+
     logDisplay_ = new QTextEdit;
     logDisplay_->setObjectName(QStringLiteral("logTerminal"));
     logDisplay_->setReadOnly(true);
@@ -221,6 +232,7 @@ void TaskCenterPage::removeTaskRows(const QStringList& taskIds) {
 
 void TaskCenterPage::refreshAll() {
     taskTree_->clear();
+    resultDisplay_->clear();
     logDisplay_->clear();
     currentLogTaskId_.clear();
 
@@ -312,6 +324,7 @@ void TaskCenterPage::onCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetI
     if (!current) {
         rerunButton_->setEnabled(false);
         logTaskLabel_->clear();
+        resultDisplay_->clear();
         return;
     }
 
@@ -319,6 +332,8 @@ void TaskCenterPage::onCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetI
     if (taskId.isEmpty()) return;
 
     currentLogTaskId_ = taskId;
+    const auto record = TaskManager::instance().findTask(currentGroup_, taskId);
+    updateResultDisplay(record);
 
     auto logs = TaskManager::instance().logsForTask(currentGroup_, taskId);
     logDisplay_->clear();
@@ -335,7 +350,7 @@ void TaskCenterPage::onCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetI
         logDisplay_->append(html);
     }
 
-    int status = TaskManager::instance().findTask(currentGroup_, taskId).status;
+    int status = record.status;
     bool canRerun = (status == TaskRecord::Completed ||
                      status == TaskRecord::Failed ||
                      status == TaskRecord::Cancelled);
@@ -417,6 +432,60 @@ QTreeWidgetItem* TaskCenterPage::findItemByTaskId(const QString& taskId) const {
         }
     }
     return nullptr;
+}
+
+void TaskCenterPage::updateResultDisplay(const TaskRecord& record) {
+    if (!resultDisplay_) {
+        return;
+    }
+
+    if (record.id.isEmpty()) {
+        resultDisplay_->clear();
+        return;
+    }
+
+    QStringList lines;
+    lines << QStringLiteral("任务ID: %1").arg(record.id);
+    lines << QStringLiteral("状态: %1").arg(statusText(record.status));
+
+    const QString resultMessage = record.resultMessage.isEmpty()
+        ? statusText(record.status)
+        : record.resultMessage;
+    lines << QStringLiteral("结果摘要: %1").arg(resultMessage);
+
+    if (!record.resultRawMessage.isEmpty() && record.resultRawMessage != resultMessage) {
+        lines << QStringLiteral("原始信息: %1").arg(record.resultRawMessage);
+    }
+
+    if (!record.outputPath.isEmpty()) {
+        lines << QStringLiteral("输出路径: %1").arg(record.outputPath);
+    }
+
+    if (record.durationMs > 0) {
+        lines << QStringLiteral("耗时: %1").arg(formatDuration(record.durationMs));
+    } else if (record.startTime.isValid() && record.endTime.isValid()) {
+        const qint64 durationMs = record.startTime.msecsTo(record.endTime);
+        if (durationMs > 0) {
+            lines << QStringLiteral("耗时: %1").arg(formatDuration(durationMs));
+        }
+    }
+
+    resultDisplay_->setPlainText(lines.join(QLatin1Char('\n')));
+}
+
+QString TaskCenterPage::formatDuration(qint64 durationMs) {
+    if (durationMs <= 0) {
+        return QStringLiteral("-");
+    }
+
+    const qint64 totalSeconds = durationMs / 1000;
+    if (totalSeconds < 60) {
+        return QStringLiteral("%1 秒").arg(durationMs / 1000.0, 0, 'f', 1);
+    }
+
+    const qint64 minutes = totalSeconds / 60;
+    const qint64 seconds = totalSeconds % 60;
+    return QStringLiteral("%1 分 %2 秒").arg(minutes).arg(seconds);
 }
 
 QString TaskCenterPage::statusText(int status) {

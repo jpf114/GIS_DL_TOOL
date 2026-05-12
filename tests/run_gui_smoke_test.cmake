@@ -28,6 +28,18 @@ execute_process(
     COMMAND "${GUI_PATH}"
         -platform offscreen
         --self-test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.."
+    RESULT_VARIABLE GUI_SELF_TEST_EXIT_CODE
+    TIMEOUT 30
+)
+
+if(NOT GUI_SELF_TEST_EXIT_CODE EQUAL 0)
+    message(FATAL_ERROR "GUI self-test failed with exit code ${GUI_SELF_TEST_EXIT_CODE}")
+endif()
+
+execute_process(
+    COMMAND "${GUI_PATH}"
+        -platform offscreen
         --select-plugin segment
         --select-action segment_raster
         --set-param "model_path=test_data/models/test_seg_model.onnx"
@@ -42,7 +54,7 @@ execute_process(
 )
 
 if(NOT GUI_EXIT_CODE EQUAL 0)
-    message(FATAL_ERROR "GUI smoke test failed with exit code ${GUI_EXIT_CODE}")
+    message(FATAL_ERROR "GUI automation flow failed with exit code ${GUI_EXIT_CODE}")
 endif()
 
 if(NOT EXISTS "${STATUS_FILE}")

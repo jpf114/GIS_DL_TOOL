@@ -61,9 +61,9 @@ These commands were verified successfully on 2026-05-13.
 
 ## Notes About Runtime Packaging
 
-- The install step currently succeeds even when `dumpbin` or `objdump` is not found.
-- In that case, `install_runtime_deps.cmake` falls back to copying the minimal runtime DLL list directly.
-- That fallback path was exercised successfully during the 2026-05-13 install verification.
+- On Windows, the install script now checks `PATH` first and then uses `vswhere` to locate Visual Studio's `dumpbin.exe` when it is not already exposed in the shell environment.
+- If no runtime dependency scanner can be found, `install_runtime_deps.cmake` still falls back to copying the minimal runtime DLL list directly.
+- The `vswhere -> dumpbin` discovery path was verified successfully on 2026-05-13 in this workspace.
 
 ## Known Gaps
 

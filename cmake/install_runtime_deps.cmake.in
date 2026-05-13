@@ -6,6 +6,8 @@ if(POLICY CMP0057)
 endif()
 
 set(_gis_ai_install_bin_dir "${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@")
+set(_gis_ai_install_platform_dir "${CMAKE_INSTALL_PREFIX}/@GIS_AI_INSTALL_PLATFORM_DIR@")
+set(_gis_ai_install_sqldrivers_dir "${CMAKE_INSTALL_PREFIX}/@GIS_AI_INSTALL_SQLDRIVERS_DIR@")
 
 set(_gis_ai_runtime_executables
     "${_gis_ai_install_bin_dir}/gis_ai_cli.exe"
@@ -15,12 +17,71 @@ if(EXISTS "${_gis_ai_install_bin_dir}/gis-ai-gui.exe")
     list(APPEND _gis_ai_runtime_executables "${_gis_ai_install_bin_dir}/gis-ai-gui.exe")
 endif()
 
+set(_gis_ai_runtime_libraries)
+
+if(EXISTS "${_gis_ai_install_bin_dir}/gis_ai.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_bin_dir}/gis_ai.dll")
+endif()
+
+if(EXISTS "${_gis_ai_install_platform_dir}/qwindows.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qwindows.dll")
+endif()
+
+if(EXISTS "${_gis_ai_install_platform_dir}/qoffscreen.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qoffscreen.dll")
+endif()
+
+if(EXISTS "${_gis_ai_install_sqldrivers_dir}/qsqlite.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_sqldrivers_dir}/qsqlite.dll")
+endif()
+
 set(_gis_ai_can_scan_runtime_deps TRUE)
 
 if(WIN32)
+    function(_gis_ai_try_configure_dumpbin_from_vswhere)
+        if(NOT DEFINED ENV{ProgramFiles\(x86\)})
+            return()
+        endif()
+
+        set(_gis_ai_program_files_x86 "$ENV{ProgramFiles\(x86\)}")
+        set(_gis_ai_vswhere "${_gis_ai_program_files_x86}/Microsoft Visual Studio/Installer/vswhere.exe")
+        if(NOT EXISTS "${_gis_ai_vswhere}")
+            return()
+        endif()
+
+        execute_process(
+            COMMAND "${_gis_ai_vswhere}"
+                -latest
+                -products *
+                -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+                -property installationPath
+            OUTPUT_VARIABLE _gis_ai_vs_install_path
+            RESULT_VARIABLE _gis_ai_vswhere_result
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
+        if(NOT _gis_ai_vswhere_result EQUAL 0 OR _gis_ai_vs_install_path STREQUAL "")
+            return()
+        endif()
+
+        file(GLOB _gis_ai_dumpbin_candidates
+            "${_gis_ai_vs_install_path}/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe"
+        )
+        list(SORT _gis_ai_dumpbin_candidates ORDER DESCENDING)
+        list(GET _gis_ai_dumpbin_candidates 0 _gis_ai_dumpbin_candidate)
+
+        if(EXISTS "${_gis_ai_dumpbin_candidate}")
+            set(_gis_ai_dumpbin_command "${_gis_ai_dumpbin_candidate}" PARENT_SCOPE)
+        endif()
+    endfunction()
+
     find_program(_gis_ai_dumpbin_command dumpbin)
     find_program(_gis_ai_llvm_objdump_command llvm-objdump)
     find_program(_gis_ai_objdump_command objdump)
+
+    if(NOT _gis_ai_dumpbin_command)
+        _gis_ai_try_configure_dumpbin_from_vswhere()
+    endif()
 
     if(_gis_ai_dumpbin_command)
         set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL dumpbin)
@@ -40,6 +101,7 @@ endif()
 if(_gis_ai_can_scan_runtime_deps)
     file(GET_RUNTIME_DEPENDENCIES
         EXECUTABLES ${_gis_ai_runtime_executables}
+        LIBRARIES ${_gis_ai_runtime_libraries}
         RESOLVED_DEPENDENCIES_VAR _gis_ai_resolved_deps
         UNRESOLVED_DEPENDENCIES_VAR _gis_ai_unresolved_deps
         DIRECTORIES
@@ -91,74 +153,12 @@ if(_gis_ai_can_scan_runtime_deps)
     endforeach()
 else()
     set(_gis_ai_minimal_dlls
-        abseil_dll.dll
-        aec.dll
-        brotlicommon.dll
-        brotlidec.dll
-        bz2.dll
-        deflate.dll
-        double-conversion.dll
-        fontconfig-1.dll
-        freetype.dll
-        freexl-1.dll
-        gdal.dll
-        geos.dll
-        geos_c.dll
-        geotiff.dll
-        gif.dll
-        harfbuzz.dll
-        harfbuzz-subset.dll
-        harfbuzz-raster.dll
-        harfbuzz-vector.dll
-        hdf5.dll
-        hdf5_hl.dll
-        Iex-3_4.dll
-        iconv-2.dll
-        IlmThread-3_4.dll
-        Imath-3_2.dll
-        jpeg62.dll
-        json-c.dll
-        Lerc.dll
-        libcrypto-3-x64.dll
-        libcurl.dll
-        libexpat.dll
-        liblzma.dll
-        libpng16.dll
-        libpq.dll
-        libprotobuf.dll
-        libssl-3-x64.dll
-        libsharpyuv.dll
-        libwebp.dll
-        libwebpdecoder.dll
-        libwebpdemux.dll
-        libwebpmux.dll
-        libxml2.dll
-        lz4.dll
-        md4c.dll
-        md4c-html.dll
-        minizip.dll
-        netcdf.dll
-        onnxruntime.dll
-        OpenEXR-3_4.dll
-        OpenEXRCore-3_4.dll
-        openjp2.dll
-        pcre2-8.dll
-        proj_9.dll
-        qhull_r.dll
-        spatialite.dll
-        sqlite3.dll
-        szip.dll
-        tinyxml2.dll
-        tiff.dll
-        turbojpeg.dll
-        uriparser.dll
-        zlib1.dll
-        zstd.dll
-        icudt78.dll
-        icuin78.dll
-        icuio78.dll
-        icutu78.dll
-        icuuc78.dll
+        @GIS_AI_RUNTIME_DLLS_INSTALL_ENTRIES@
+        Qt6Core.dll
+        Qt6Gui.dll
+        Qt6Sql.dll
+        Qt6Svg.dll
+        Qt6Widgets.dll
     )
 
     foreach(_gis_ai_dll_name IN LISTS _gis_ai_minimal_dlls)
@@ -172,3 +172,9 @@ else()
         endif()
     endforeach()
 endif()
+
+foreach(_gis_ai_qt_dir IN ITEMS "${_gis_ai_install_platform_dir}" "${_gis_ai_install_sqldrivers_dir}")
+    if(NOT EXISTS "${_gis_ai_qt_dir}")
+        file(MAKE_DIRECTORY "${_gis_ai_qt_dir}")
+    endif()
+endforeach()

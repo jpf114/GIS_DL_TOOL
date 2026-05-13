@@ -50,7 +50,7 @@ Current Windows release packaging has been validated for:
 - `install/share/gdal`
 - `install/share/icons`
 
-During install verification on 2026-05-13, runtime dependency scanning fell back to the minimal DLL copy path because `dumpbin`/`objdump` was not found by the install script. The install still completed successfully and the installed binaries remained runnable.
+During install verification on 2026-05-13, the install script was improved to locate Visual Studio's `dumpbin.exe` through `vswhere` when it is not on `PATH`. After that change, runtime dependency scanning succeeded without the previous warning-only fallback, and the installed binaries remained runnable.
 
 ## Honest Boundaries
 
@@ -61,5 +61,5 @@ During install verification on 2026-05-13, runtime dependency scanning fell back
 ## Next Practical Moves
 
 1. Re-run `test_gui_task_database` and `test_io_integration` inside the same release verification sweep
-2. Decide whether the install-time `dumpbin` fallback should remain acceptable or whether tool discovery should be tightened
+2. Decide whether the install-time fallback path should stay as-is or be covered by an explicit packaging regression check
 3. Keep updating repo docs so they match the newest verified state instead of older intent

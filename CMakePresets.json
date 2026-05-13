@@ -10,6 +10,9 @@
             "name": "base",
             "hidden": true,
             "generator": "Visual Studio 17 2022",
+            "environment": {
+                "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
+            },
             "architecture": {
                 "value": "x64",
                 "strategy": "set"
@@ -21,7 +24,7 @@
             "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
-                "GIS_AI_BUILD_GUI": "OFF",
+                "GIS_AI_BUILD_GUI": "ON",
                 "GIS_AI_BUILD_TESTS": "ON"
             }
         },

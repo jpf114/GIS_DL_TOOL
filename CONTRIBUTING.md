@@ -18,4 +18,6 @@ Before submitting changes:
 
 - Windows presets use `VCPKG_ROOT`
 - ONNX overlay patches live in `vcpkg-overlay/onnx`
+- Windows presets export `VCPKG_OVERLAY_PORTS=${sourceDir}/vcpkg-overlay`
+- The ONNX overlay must keep `ONNX_DISABLE_STATIC_REGISTRATION=ON` for ONNX Runtime compatibility
 - AI integration tests run in `Release` on Windows

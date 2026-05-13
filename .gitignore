@@ -6,3 +6,32 @@ test_data/*
 !test_data/README.md
 vcpkg_installed/
 *.log
+install
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local editor and assistant settings
+.vs/
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# Local CMake presets
+CMakeUserPresets.json
+
+# Visual Studio / MSBuild intermediates
+*.obj
+*.pdb
+*.ilk
+*.tlog
+*.vcxproj.user
+*.suo
+*.user
+
+# Generic temp files
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store

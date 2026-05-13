@@ -64,6 +64,12 @@ set(GIS_AI_VCPKG_DEBUG_BIN_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/debug/bin")
 set(GIS_AI_VCPKG_SHARE_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/share")
 set(GIS_AI_VCPKG_PROJ_DATA_DIR "${GIS_AI_VCPKG_SHARE_DIR}/proj")
 set(GIS_AI_VCPKG_GDAL_DATA_DIR "${GIS_AI_VCPKG_SHARE_DIR}/gdal")
+set(GIS_AI_VCPKG_RELEASE_QT_PLATFORMS_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/Qt6/plugins/platforms")
+set(GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/debug/Qt6/plugins/platforms")
+set(GIS_AI_VCPKG_RELEASE_QT_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/Qt6")
+set(GIS_AI_VCPKG_DEBUG_QT_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/debug/Qt6")
+set(GIS_AI_INSTALL_PLATFORM_DIR "${CMAKE_INSTALL_BINDIR}/platforms")
+set(GIS_AI_INSTALL_SQLDRIVERS_DIR "${CMAKE_INSTALL_BINDIR}/sqldrivers")
 
 file(TO_CMAKE_PATH "${GIS_AI_VCPKG_INSTALLED_DIR}" GIS_AI_VCPKG_INSTALLED_DIR)
 file(TO_CMAKE_PATH "${GIS_AI_VCPKG_RELEASE_BIN_DIR}" GIS_AI_VCPKG_RELEASE_BIN_DIR)
@@ -71,8 +77,17 @@ file(TO_CMAKE_PATH "${GIS_AI_VCPKG_DEBUG_BIN_DIR}" GIS_AI_VCPKG_DEBUG_BIN_DIR)
 file(TO_CMAKE_PATH "${GIS_AI_VCPKG_SHARE_DIR}" GIS_AI_VCPKG_SHARE_DIR)
 file(TO_CMAKE_PATH "${GIS_AI_VCPKG_PROJ_DATA_DIR}" GIS_AI_VCPKG_PROJ_DATA_DIR)
 file(TO_CMAKE_PATH "${GIS_AI_VCPKG_GDAL_DATA_DIR}" GIS_AI_VCPKG_GDAL_DATA_DIR)
+file(TO_CMAKE_PATH "${GIS_AI_VCPKG_RELEASE_QT_PLATFORMS_DIR}" GIS_AI_VCPKG_RELEASE_QT_PLATFORMS_DIR)
+file(TO_CMAKE_PATH "${GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR}" GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR)
+file(TO_CMAKE_PATH "${GIS_AI_VCPKG_RELEASE_QT_DIR}" GIS_AI_VCPKG_RELEASE_QT_DIR)
+file(TO_CMAKE_PATH "${GIS_AI_VCPKG_DEBUG_QT_DIR}" GIS_AI_VCPKG_DEBUG_QT_DIR)
 
 set(GIS_AI_VCPKG_RUNTIME_BIN_DIR "$<$<CONFIG:Debug>:${GIS_AI_VCPKG_DEBUG_BIN_DIR}>$<$<NOT:$<CONFIG:Debug>>:${GIS_AI_VCPKG_RELEASE_BIN_DIR}>")
+set(GIS_AI_VCPKG_QT_PLATFORMS_DIR "$<$<CONFIG:Debug>:${GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR}>$<$<NOT:$<CONFIG:Debug>>:${GIS_AI_VCPKG_RELEASE_QT_PLATFORMS_DIR}>")
+
+# ── 运行时 DLL 复制 ──
+include("${CMAKE_SOURCE_DIR}/cmake/gis_ai_runtime_dlls.cmake")
+string(REPLACE ";" "\n        " GIS_AI_RUNTIME_DLLS_INSTALL_ENTRIES "${GIS_AI_RUNTIME_DLLS}")
 
 # 配置安装时运行时依赖脚本
 configure_file(
@@ -220,9 +235,6 @@ else()
     add_library(gis_ai ALIAS gis_ai_static)
 endif()
 
-# ── 运行时 DLL 复制 ──
-include("${CMAKE_SOURCE_DIR}/cmake/gis_ai_runtime_dlls.cmake")
-
 add_custom_target(copy_runtime_dlls ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/share/proj
@@ -241,6 +253,15 @@ add_custom_command(TARGET copy_runtime_dlls POST_BUILD
     COMMENT "复制 PROJ/GDAL 数据目录到构建目录"
 )
 
+# ── 工具和 CLI ──
+if(GIS_AI_BUILD_TOOLS)
+    add_subdirectory(tools)
+
+    add_executable(gis_ai_cli src/cli/main.cpp)
+    target_link_libraries(gis_ai_cli PRIVATE gis_ai_static)
+    set_target_properties(gis_ai_cli PROPERTIES OUTPUT_NAME "gis_ai_cli")
+endif()
+
 # ── 测试 ──
 if(GIS_AI_BUILD_TESTS)
     enable_testing()
@@ -250,21 +271,6 @@ endif()
 # ── 示例 ──
 if(GIS_AI_BUILD_EXAMPLES)
     add_subdirectory(examples)
-endif()
-
-# ── 工具和 CLI ──
-if(GIS_AI_BUILD_TOOLS)
-    add_subdirectory(tools)
-
-    add_executable(gis_ai_cli src/cli/main.cpp)
-    target_link_libraries(gis_ai_cli PRIVATE gis_ai_static ${COMMON_LINK_LIBS})
-    set_target_properties(gis_ai_cli PROPERTIES OUTPUT_NAME "gis_ai_cli")
-
-    if(GIS_AI_BUILD_TESTS)
-        set_property(TEST test_cli PROPERTY ENVIRONMENT
-            "GIS_AI_CLI_PATH=$<TARGET_FILE:gis_ai_cli>"
-        )
-    endif()
 endif()
 
 # ── GUI ──

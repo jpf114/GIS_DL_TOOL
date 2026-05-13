@@ -2,9 +2,13 @@
 #include <ogrsf_frmts.h>
 #include <cpl_conv.h>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 
 int main() {
+    std::filesystem::create_directories("test_data/raster");
+    std::filesystem::create_directories("test_data/vector");
+
     GDALAllRegister();
 
     auto* driver = GetGDALDriverManager()->GetDriverByName("GTiff");

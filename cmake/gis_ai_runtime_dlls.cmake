@@ -8,6 +8,7 @@ set(GIS_AI_RUNTIME_DLLS
     charset-1.dll
     deflate.dll
     double-conversion.dll
+    fmt.dll
     fontconfig-1.dll
     freetype.dll
     freexl-1.dll
@@ -41,6 +42,7 @@ set(GIS_AI_RUNTIME_DLLS
     libpng16.dll
     libpq.dll
     libprotobuf.dll
+    libprotobuf-lite.dll
     libsharpyuv.dll
     libssl-3-x64.dll
     libwebp.dll
@@ -55,11 +57,14 @@ set(GIS_AI_RUNTIME_DLLS
     netcdf.dll
     onnxruntime.dll
     openjp2.dll
+    pcre2-16.dll
     OpenEXR-3_4.dll
     OpenEXRCore-3_4.dll
     pcre2-8.dll
     proj_9.dll
     qhull_r.dll
+    re2.dll
+    spdlog.dll
     spatialite.dll
     sqlite3.dll
     szip.dll

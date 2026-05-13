@@ -15,11 +15,20 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DATA_DIR = os.path.join(BASE_DIR, "test_data")
 
 
-def ensure_test_data_root():
-    if not os.path.isdir(TEST_DATA_DIR):
-        raise RuntimeError(
-            "未找到 test_data 目录。请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh。"
-        )
+def test_data_path(*parts):
+    return os.path.join(TEST_DATA_DIR, *parts)
+
+
+def missing_test_data_message(path):
+    return (
+        f"Missing test data file: {path}. "
+        "Run scripts/generate_test_data.ps1 or scripts/generate_test_data.sh first."
+    )
+
+
+def ensure_test_data_file(path):
+    if not os.path.exists(path):
+        raise RuntimeError(missing_test_data_message(path))
 
 
 class TestGisAiInit(unittest.TestCase):
@@ -42,10 +51,10 @@ class TestGisAiInit(unittest.TestCase):
 class TestGisAiRasterIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
-        cls.raster_path = os.path.join(TEST_DATA_DIR, "raster", "test_100x100.tif")
+        cls.raster_path = test_data_path("raster", "test_100x100.tif")
+        ensure_test_data_file(cls.raster_path)
         cls.skip_raster = not os.path.exists(cls.raster_path)
 
     @classmethod
@@ -140,11 +149,12 @@ class TestGisAiRasterIO(unittest.TestCase):
 class TestGisAiVectorIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
-        cls.shp_path = os.path.join(TEST_DATA_DIR, "vector", "test_polygons.shp")
-        cls.geojson_path = os.path.join(TEST_DATA_DIR, "vector", "test_points.geojson")
+        cls.shp_path = test_data_path("vector", "test_polygons.shp")
+        cls.geojson_path = test_data_path("vector", "test_points.geojson")
+        ensure_test_data_file(cls.shp_path)
+        ensure_test_data_file(cls.geojson_path)
         cls.skip_shp = not os.path.exists(cls.shp_path)
         cls.skip_geojson = not os.path.exists(cls.geojson_path)
 
@@ -207,6 +217,7 @@ class TestGisAiVectorIO(unittest.TestCase):
                 self.lib.vector_destroy(vector2)
             finally:
                 import shutil
+
                 shutil.rmtree(out_dir, ignore_errors=True)
         finally:
             self.lib.vector_destroy(vector)
@@ -248,11 +259,12 @@ class TestGisAiCoordTransform(unittest.TestCase):
 class TestGisAiAI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        ensure_test_data_root()
         cls.lib = GisAiLibrary()
         cls.lib.init()
-        cls.model_path = os.path.join(TEST_DATA_DIR, "models", "test_seg_model.onnx")
-        cls.raster_path = os.path.join(TEST_DATA_DIR, "raster", "test_100x100.tif")
+        cls.model_path = test_data_path("models", "test_seg_model.onnx")
+        cls.raster_path = test_data_path("raster", "test_100x100.tif")
+        ensure_test_data_file(cls.model_path)
+        ensure_test_data_file(cls.raster_path)
         cls.skip_model = not os.path.exists(cls.model_path)
         cls.skip_raster = not os.path.exists(cls.raster_path)
 

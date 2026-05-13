@@ -37,11 +37,37 @@ GisAiRasterSegPtr = ctypes.POINTER(GisAiRasterSeg)
 
 
 class GisAiLibrary:
+    _loaded_libraries = {}
+
     def __init__(self, lib_path: Optional[str] = None):
+        self._configure_proj_environment()
         if lib_path is None:
             lib_path = self._find_library()
-        self._lib = ctypes.CDLL(lib_path)
+        lib_path = os.path.abspath(lib_path)
+        self._lib = self._loaded_libraries.get(lib_path)
+        if self._lib is None:
+            self._lib = ctypes.CDLL(lib_path)
+            self._loaded_libraries[lib_path] = self._lib
         self._setup_signatures()
+
+    def _configure_proj_environment(self):
+        if os.environ.get("PROJ_LIB"):
+            return
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        proj_candidates = [
+            os.path.join(base_dir, "build", "release", "vcpkg_installed", "x64-windows", "share", "proj"),
+            os.path.join(base_dir, "build", "dev-windows", "vcpkg_installed", "x64-windows", "share", "proj"),
+        ]
+
+        vcpkg_root = os.environ.get("VCPKG_ROOT")
+        if vcpkg_root:
+            proj_candidates.append(os.path.join(vcpkg_root, "installed", "x64-windows", "share", "proj"))
+
+        for proj_dir in proj_candidates:
+            if os.path.exists(os.path.join(proj_dir, "proj.db")):
+                os.environ["PROJ_LIB"] = proj_dir
+                return
 
     def _find_library(self) -> str:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -49,7 +75,7 @@ class GisAiLibrary:
 
         search_paths = []
         if platform.system() == "Windows":
-            for preset in ["dev-windows", "release-windows"]:
+            for preset in ["dev-windows", "release-windows", "release"]:
                 for config in ["Release", "Debug"]:
                     search_paths.append(os.path.join(build_dir, preset, "bin", config, "gis_ai.dll"))
                 search_paths.append(os.path.join(build_dir, preset, "bin", "gis_ai.dll"))

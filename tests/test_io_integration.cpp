@@ -26,20 +26,40 @@ protected:
         gis_ai::Logger::Instance().Initialize("test_io_integration.log");
     }
 
-    static bool TestDataRootExists() { return std::filesystem::exists("test_data"); }
-    static void SkipIfTestDataMissing() {
-        if (!TestDataRootExists()) {
-            GTEST_SKIP() << "未找到 test_data 目录，请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh";
-        }
+    static bool TestDataFileExists(const std::string& path) {
+        return std::filesystem::exists(path);
+    }
+
+    static std::string MissingDataMessage(const std::string& path) {
+        return "未找到测试数据文件: " + path +
+               "，请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh";
     }
 
     static std::string RasterPath() { return "test_data/raster/test_100x100.tif"; }
     static std::string ShpPath() { return "test_data/vector/test_polygons.shp"; }
     static std::string GeoJsonPath() { return "test_data/vector/test_points.geojson"; }
+
+    static void ExpectFiniteCoordinates(const gis_ai::Feature& feature) {
+        for (const auto& coord : feature.coordinates) {
+            EXPECT_TRUE(std::isfinite(coord.x));
+            EXPECT_TRUE(std::isfinite(coord.y));
+            EXPECT_TRUE(std::isfinite(coord.z));
+        }
+        for (const auto& ring : feature.inner_rings) {
+            for (const auto& coord : ring) {
+                EXPECT_TRUE(std::isfinite(coord.x));
+                EXPECT_TRUE(std::isfinite(coord.y));
+                EXPECT_TRUE(std::isfinite(coord.z));
+            }
+        }
+    }
 };
 
 TEST_F(IOIntegrationTest, RasterLoadSave) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
@@ -63,7 +83,10 @@ TEST_F(IOIntegrationTest, RasterLoadSave) {
 }
 
 TEST_F(IOIntegrationTest, RasterResamplePipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
@@ -82,7 +105,10 @@ TEST_F(IOIntegrationTest, RasterResamplePipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterNormalizePipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
@@ -103,7 +129,10 @@ TEST_F(IOIntegrationTest, RasterNormalizePipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterClipPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
@@ -119,7 +148,10 @@ TEST_F(IOIntegrationTest, RasterClipPipeline) {
 }
 
 TEST_F(IOIntegrationTest, RasterThresholdPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::RasterIO io;
     auto data = io.Load(RasterPath());
@@ -134,7 +166,10 @@ TEST_F(IOIntegrationTest, RasterThresholdPipeline) {
 }
 
 TEST_F(IOIntegrationTest, VectorLoadShapefile) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(ShpPath())) {
+        GTEST_SKIP() << MissingDataMessage(ShpPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
@@ -151,7 +186,10 @@ TEST_F(IOIntegrationTest, VectorLoadShapefile) {
 }
 
 TEST_F(IOIntegrationTest, VectorLoadGeoJSON) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(GeoJsonPath())) {
+        GTEST_SKIP() << MissingDataMessage(GeoJsonPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(GeoJsonPath());
@@ -167,7 +205,10 @@ TEST_F(IOIntegrationTest, VectorLoadGeoJSON) {
 }
 
 TEST_F(IOIntegrationTest, VectorSaveAndReload) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(ShpPath())) {
+        GTEST_SKIP() << MissingDataMessage(ShpPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
@@ -181,7 +222,10 @@ TEST_F(IOIntegrationTest, VectorSaveAndReload) {
 }
 
 TEST_F(IOIntegrationTest, VectorBufferPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(ShpPath())) {
+        GTEST_SKIP() << MissingDataMessage(ShpPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
@@ -192,12 +236,18 @@ TEST_F(IOIntegrationTest, VectorBufferPipeline) {
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->feature_type, gis_ai::FeatureType::Polygon);
     EXPECT_GE(result->features.size(), 2u);
+    for (const auto& feature : result->features) {
+        ExpectFiniteCoordinates(feature);
+    }
 
     io.Save(*result, "test_data/vector/test_buffer.shp");
 }
 
 TEST_F(IOIntegrationTest, VectorIntersectPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(ShpPath())) {
+        GTEST_SKIP() << MissingDataMessage(ShpPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
@@ -220,7 +270,10 @@ TEST_F(IOIntegrationTest, VectorIntersectPipeline) {
 }
 
 TEST_F(IOIntegrationTest, VectorSimplifyPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(ShpPath())) {
+        GTEST_SKIP() << MissingDataMessage(ShpPath());
+        return;
+    }
 
     gis_ai::VectorIO io;
     auto data = io.Load(ShpPath());
@@ -233,7 +286,10 @@ TEST_F(IOIntegrationTest, VectorSimplifyPipeline) {
 }
 
 TEST_F(IOIntegrationTest, CoordTransformPipeline) {
-    SkipIfTestDataMissing();
+    if (!TestDataFileExists(RasterPath())) {
+        GTEST_SKIP() << MissingDataMessage(RasterPath());
+        return;
+    }
 
     gis_ai::CoordTransform transform;
     auto result = transform.Transform(116.0, 39.0, 0.0, "EPSG:4326", "EPSG:3857");

@@ -3,14 +3,20 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
 #include <QTimer>
 
 #include <gdal_priv.h>
 #include <cpl_conv.h>
 
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -102,9 +108,156 @@ int main(int argc, char* argv[])
 
     const QStringList arguments = QCoreApplication::arguments();
     const bool selfTestMode = arguments.contains(QStringLiteral("--self-test"));
+    const bool autoExecute = arguments.contains(QStringLiteral("--auto-execute"));
+    std::optional<QString> screenshotPath;
+    std::optional<QString> statusFilePath;
+    std::optional<std::string> selectedPlugin;
+    std::optional<std::string> selectedAction;
+    std::vector<std::pair<std::string, std::string>> paramAssignments;
+    std::vector<std::string> failedParamAssignments;
+
+    for (int i = 1; i < arguments.size(); ++i) {
+        const QString arg = arguments.at(i);
+        if (arg == QStringLiteral("--screenshot") && (i + 1) < arguments.size()) {
+            screenshotPath = arguments.at(i + 1);
+            ++i;
+            continue;
+        }
+        if (arg == QStringLiteral("--status-file") && (i + 1) < arguments.size()) {
+            statusFilePath = arguments.at(i + 1);
+            ++i;
+            continue;
+        }
+        if (arg == QStringLiteral("--select-plugin") && (i + 1) < arguments.size()) {
+            selectedPlugin = arguments.at(i + 1).toUtf8().toStdString();
+            ++i;
+            continue;
+        }
+        if (arg == QStringLiteral("--select-action") && (i + 1) < arguments.size()) {
+            selectedAction = arguments.at(i + 1).toUtf8().toStdString();
+            ++i;
+            continue;
+        }
+        if (arg == QStringLiteral("--set-param") && (i + 1) < arguments.size()) {
+            const QString assignment = arguments.at(i + 1);
+            const int pos = assignment.indexOf('=');
+            if (pos >= 0) {
+                paramAssignments.emplace_back(
+                    assignment.left(pos).toUtf8().toStdString(),
+                    assignment.mid(pos + 1).toUtf8().toStdString());
+            }
+            ++i;
+        }
+    }
 
     gis_ai::gui::MainWindow window;
+    if (selectedPlugin.has_value()) {
+        window.selectPluginByName(selectedPlugin.value());
+    }
+    if (selectedAction.has_value()) {
+        window.selectActionByKey(selectedAction.value());
+    }
+    for (const auto& [key, value] : paramAssignments) {
+        if (!window.setParamValue(key, value)) {
+            failedParamAssignments.push_back(key);
+        }
+    }
     window.show();
+
+    if (autoExecute && !failedParamAssignments.empty()) {
+        QTimer::singleShot(100, &app, [&app, &window, screenshotPath, statusFilePath, failedParamAssignments]() {
+            const QString failedKeys = QString::fromUtf8([&failedParamAssignments]() {
+                std::string joined;
+                for (size_t i = 0; i < failedParamAssignments.size(); ++i) {
+                    if (i > 0) {
+                        joined += ",";
+                    }
+                    joined += failedParamAssignments[i];
+                }
+                return joined;
+            }().c_str());
+
+            if (statusFilePath.has_value()) {
+                const QFileInfo info(statusFilePath.value());
+                if (!info.absoluteDir().exists()) {
+                    info.absoluteDir().mkpath(QStringLiteral("."));
+                }
+
+                QJsonObject status;
+                status.insert(QStringLiteral("success"), false);
+                status.insert(QStringLiteral("cancelled"), false);
+                status.insert(QStringLiteral("message"),
+                    QStringLiteral("以下参数未能应用到当前界面：%1").arg(failedKeys));
+                status.insert(QStringLiteral("raw_message"),
+                    QStringLiteral("failed_to_apply_param:%1").arg(failedKeys));
+
+                QSaveFile statusFile(statusFilePath.value());
+                if (statusFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    statusFile.write(QJsonDocument(status).toJson(QJsonDocument::Indented));
+                    statusFile.commit();
+                }
+            }
+
+            if (screenshotPath.has_value()) {
+                const QFileInfo info(screenshotPath.value());
+                if (!info.absoluteDir().exists()) {
+                    info.absoluteDir().mkpath(QStringLiteral("."));
+                }
+                window.grab().save(screenshotPath.value());
+            }
+            app.exit(2);
+        });
+    }
+
+    if (screenshotPath.has_value() && !autoExecute) {
+        const QString targetPath = screenshotPath.value();
+        QTimer::singleShot(500, &app, [&app, &window, targetPath]() {
+            const QFileInfo info(targetPath);
+            if (!info.absoluteDir().exists()) {
+                info.absoluteDir().mkpath(QStringLiteral("."));
+            }
+            window.grab().save(targetPath);
+            app.quit();
+        });
+    }
+
+    if (autoExecute) {
+        QTimer::singleShot(200, &app, [&window]() {
+            window.triggerExecute();
+        });
+    }
+
+    if (autoExecute && (screenshotPath.has_value() || statusFilePath.has_value())) {
+        QObject::connect(&window, &gis_ai::gui::MainWindow::executionFinished, &app,
+            [&app, &window, screenshotPath, statusFilePath](bool) {
+                if (statusFilePath.has_value()) {
+                    const QFileInfo info(statusFilePath.value());
+                    if (!info.absoluteDir().exists()) {
+                        info.absoluteDir().mkpath(QStringLiteral("."));
+                    }
+
+                    QJsonObject status;
+                    status.insert(QStringLiteral("success"), window.lastExecutionSuccess());
+                    status.insert(QStringLiteral("cancelled"), window.lastExecutionCancelled());
+                    status.insert(QStringLiteral("message"), window.lastExecutionMessage());
+                    status.insert(QStringLiteral("raw_message"), window.lastExecutionRawMessage());
+
+                    QSaveFile statusFile(statusFilePath.value());
+                    if (statusFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                        statusFile.write(QJsonDocument(status).toJson(QJsonDocument::Indented));
+                        statusFile.commit();
+                    }
+                }
+                if (screenshotPath.has_value()) {
+                    const QFileInfo info(screenshotPath.value());
+                    if (!info.absoluteDir().exists()) {
+                        info.absoluteDir().mkpath(QStringLiteral("."));
+                    }
+                    window.grab().save(screenshotPath.value());
+                }
+                QTimer::singleShot(150, &app, &QApplication::quit);
+            });
+    }
 
     if (selfTestMode) {
         QTimer::singleShot(300, &app, &QApplication::quit);

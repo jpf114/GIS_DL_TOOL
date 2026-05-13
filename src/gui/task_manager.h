@@ -30,9 +30,12 @@ public:
                           TaskRecord::Status status);
     void finishTask(const QString& displayGroup, const QString& id,
                     bool success, bool cancelled,
-                    const QString& resultMsg, const QString& outputPath);
+                    const QString& resultMsg, const QString& resultRaw,
+                    const QString& outputPath);
     void deleteTasks(const QString& displayGroup, const QStringList& ids);
     void clearHistory(const QString& displayGroup);
+    void clearLogsForTask(const QString& displayGroup, const QString& taskId);
+    void clearAllLogs(const QString& displayGroup);
 
     void appendLog(const QString& displayGroup, const QString& taskId,
                    const QString& message, int level = 0);

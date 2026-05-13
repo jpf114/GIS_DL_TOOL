@@ -4,6 +4,8 @@
 #include <QString>
 #include <map>
 #include <string>
+#include <array>
+#include <optional>
 #include "param_card_widget.h"
 
 class QFrame;
@@ -32,6 +34,14 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+    void selectPluginByName(const std::string& pluginName);
+    void selectActionByKey(const std::string& actionKey);
+    bool setParamValue(const std::string& key, const std::string& value);
+    void triggerExecute();
+    bool lastExecutionSuccess() const;
+    bool lastExecutionCancelled() const;
+    QString lastExecutionMessage() const;
+    QString lastExecutionRawMessage() const;
 
 signals:
     void executionFinished(bool success);
@@ -42,11 +52,12 @@ private:
     void onPluginSelected(const std::string& pluginName);
     void onSubFunctionSelected(const std::string& pluginName, const std::string& actionKey);
     void onExecuteClicked();
-
+    void onTaskRunnerStarted(const QString& displayGroup, const QString& taskId);
     void onParamsChanged();
-    void onWorkerFinished(bool success, const QString& message);
-    void onProgressChanged(const QString& taskId, double percent);
-    void onMessageLogged(const QString& taskId, const QString& msg);
+    void onTaskRunnerFinished(const QString& displayGroup, const QString& taskId,
+                              bool success, bool cancelled);
+    void onTaskProgressChanged(const QString& taskId, double percent);
+    void onTaskLogMessage(const QString& displayGroup, const QString& taskId, const QString& msg);
     void onRerunTask(const QString& taskId);
     void onEditTask(const QString& taskId);
 
@@ -81,9 +92,6 @@ private:
     QLineEdit* batchFilterEdit_ = nullptr;
     QLabel* batchCountLabel_ = nullptr;
 
-    QThread* workerThread_ = nullptr;
-    ExecuteWorker* currentWorker_ = nullptr;
-    QtProgressReporter* currentReporter_ = nullptr;
     ProgressDialog* progressDialog_ = nullptr;
 
     std::string currentPluginName_;
@@ -91,6 +99,11 @@ private:
     QString currentTaskId_;
 
     std::map<std::string, QString> lastAutoOutputPath_;
+    std::string currentDisplayGroupKey_{"default"};
+    bool lastExecutionSuccess_ = false;
+    bool lastExecutionCancelled_ = false;
+    QString lastExecutionMessage_;
+    QString lastExecutionRawMessage_;
 };
 
 }

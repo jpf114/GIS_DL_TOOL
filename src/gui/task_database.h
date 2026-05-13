@@ -30,6 +30,7 @@ struct TaskRecord {
     QString actionDisplayName;
     std::map<std::string, ParamValue> params;
     QString resultMessage;
+    QString resultRawMessage;
     QString outputPath;
     QDateTime startTime;
     QDateTime endTime;
@@ -50,8 +51,9 @@ public:
     QString insertTask(const QString& displayGroup, const TaskRecord& rec);
     bool updateTaskStatus(const QString& displayGroup, const QString& id, int status);
     bool updateTaskResult(const QString& displayGroup, const QString& id, int status,
-                          const QString& resultMsg, const QString& outputPath,
-                          const QString& endTime, qint64 durationMs = 0);
+                          const QString& resultMsg, const QString& resultRaw,
+                          const QString& outputPath, const QString& endTime,
+                          qint64 durationMs = 0);
     bool updateTaskParams(const QString& displayGroup, const QString& id,
                           const QString& paramsJson, int status, const QString& startTime);
     bool deleteTasks(const QString& displayGroup, const QStringList& ids);

@@ -107,6 +107,7 @@ bool TaskDatabase::createTables(const QString& displayGroup) {
             "params TEXT NOT NULL,"
             "status INTEGER NOT NULL DEFAULT 0,"
             "result_msg TEXT,"
+            "result_raw TEXT,"
             "output_path TEXT,"
             "start_time TEXT,"
             "end_time TEXT,"
@@ -144,6 +145,9 @@ bool TaskDatabase::createTables(const QString& displayGroup) {
     }
     if (!existingColumns.contains(QStringLiteral("action_display_name"))) {
         query.exec(QStringLiteral("ALTER TABLE tasks ADD COLUMN action_display_name TEXT"));
+    }
+    if (!existingColumns.contains(QStringLiteral("result_raw"))) {
+        query.exec(QStringLiteral("ALTER TABLE tasks ADD COLUMN result_raw TEXT"));
     }
     if (!existingColumns.contains(QStringLiteral("duration_ms"))) {
         query.exec(QStringLiteral("ALTER TABLE tasks ADD COLUMN duration_ms INTEGER"));
@@ -229,16 +233,18 @@ bool TaskDatabase::updateTaskStatus(const QString& displayGroup, const QString& 
 }
 
 bool TaskDatabase::updateTaskResult(const QString& displayGroup, const QString& id, int status,
-                                     const QString& resultMsg, const QString& outputPath,
-                                     const QString& endTime, qint64 durationMs) {
+                                     const QString& resultMsg, const QString& resultRaw,
+                                     const QString& outputPath, const QString& endTime,
+                                     qint64 durationMs) {
     QSqlDatabase db = databaseForGroup(displayGroup);
     if (!db.isOpen()) return false;
 
     QSqlQuery query(db);
     query.prepare(QStringLiteral(
-        "UPDATE tasks SET status=?, result_msg=?, output_path=?, end_time=?, duration_ms=? WHERE id=?"));
+        "UPDATE tasks SET status=?, result_msg=?, result_raw=?, output_path=?, end_time=?, duration_ms=? WHERE id=?"));
     query.addBindValue(status);
     query.addBindValue(resultMsg);
+    query.addBindValue(resultRaw);
     query.addBindValue(outputPath);
     query.addBindValue(endTime);
     query.addBindValue(durationMs);
@@ -257,7 +263,7 @@ bool TaskDatabase::updateTaskParams(const QString& displayGroup, const QString& 
     query.exec();
 
     query.prepare(QStringLiteral(
-        "UPDATE tasks SET params=?, status=?, result_msg=NULL, "
+        "UPDATE tasks SET params=?, status=?, result_msg=NULL, result_raw=NULL, "
         "output_path=NULL, start_time=?, end_time=NULL WHERE id=?"));
     query.addBindValue(paramsJson);
     query.addBindValue(status);
@@ -413,10 +419,11 @@ static TaskRecord recordFromQuery(const QSqlQuery& query) {
     rec.params = parseParamsFromJson(query.value(5).toString());
     rec.status = static_cast<TaskRecord::Status>(query.value(6).toInt());
     rec.resultMessage = query.value(7).toString();
-    rec.outputPath = query.value(8).toString();
-    rec.startTime = QDateTime::fromString(query.value(9).toString(), Qt::ISODate);
-    rec.endTime = QDateTime::fromString(query.value(10).toString(), Qt::ISODate);
-    rec.durationMs = query.value(11).toLongLong();
+    rec.resultRawMessage = query.value(8).toString();
+    rec.outputPath = query.value(9).toString();
+    rec.startTime = QDateTime::fromString(query.value(10).toString(), Qt::ISODate);
+    rec.endTime = QDateTime::fromString(query.value(11).toString(), Qt::ISODate);
+    rec.durationMs = query.value(12).toLongLong();
     rec.success = (rec.status == TaskRecord::Completed);
     rec.isCancelled = (rec.status == TaskRecord::Cancelled);
     return rec;
@@ -430,7 +437,7 @@ QList<TaskRecord> TaskDatabase::recentTasks(const QString& displayGroup, int lim
     QSqlQuery query(db);
     query.prepare(QStringLiteral(
         "SELECT id, plugin_name, action_key, plugin_display_name, action_display_name, "
-        "params, status, result_msg, output_path, start_time, end_time, duration_ms "
+        "params, status, result_msg, result_raw, output_path, start_time, end_time, duration_ms "
         "FROM tasks ORDER BY start_time DESC LIMIT ?"));
     query.addBindValue(limit);
 
@@ -449,7 +456,7 @@ TaskRecord TaskDatabase::findTask(const QString& displayGroup, const QString& id
     QSqlQuery query(db);
     query.prepare(QStringLiteral(
         "SELECT id, plugin_name, action_key, plugin_display_name, action_display_name, "
-        "params, status, result_msg, output_path, start_time, end_time, duration_ms "
+        "params, status, result_msg, result_raw, output_path, start_time, end_time, duration_ms "
         "FROM tasks WHERE id=?"));
     query.addBindValue(id);
 

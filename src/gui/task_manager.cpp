@@ -91,7 +91,8 @@ void TaskManager::updateTaskStatus(const QString& displayGroup,
 
 void TaskManager::finishTask(const QString& displayGroup, const QString& id,
                               bool success, bool cancelled,
-                              const QString& resultMsg, const QString& outputPath) {
+                              const QString& resultMsg, const QString& resultRaw,
+                              const QString& outputPath) {
     int status;
     if (success) status = TaskRecord::Completed;
     else if (cancelled) status = TaskRecord::Cancelled;
@@ -107,7 +108,7 @@ void TaskManager::finishTask(const QString& displayGroup, const QString& id,
 
     TaskDatabase::instance().updateTaskResult(
         displayGroup, id, status,
-        resultMsg, outputPath,
+        resultMsg, resultRaw, outputPath,
         endTime, durationMs);
 
     emit taskFinished(displayGroup, id);
@@ -119,6 +120,14 @@ void TaskManager::deleteTasks(const QString& displayGroup, const QStringList& id
 
 void TaskManager::clearHistory(const QString& displayGroup) {
     TaskDatabase::instance().clearHistory(displayGroup);
+}
+
+void TaskManager::clearLogsForTask(const QString& displayGroup, const QString& taskId) {
+    TaskDatabase::instance().clearLogsForTask(displayGroup, taskId);
+}
+
+void TaskManager::clearAllLogs(const QString& displayGroup) {
+    TaskDatabase::instance().clearAllLogs(displayGroup);
 }
 
 void TaskManager::appendLog(const QString& displayGroup, const QString& taskId,

@@ -4,11 +4,26 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cmath>
 #include <geos_c.h>
 #include "io/vector_io.h"
 
 namespace gis_ai {
 namespace geos_utils {
+
+inline Coordinate CoordFromGeosSeq(GEOSContextHandle_t ctx, const GEOSCoordSequence* seq, unsigned int index) {
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+
+    GEOSCoordSeq_getX_r(ctx, seq, index, &x);
+    GEOSCoordSeq_getY_r(ctx, seq, index, &y);
+    if (GEOSCoordSeq_getZ_r(ctx, seq, index, &z) == 0 || !std::isfinite(z)) {
+        z = 0.0;
+    }
+
+    return {x, y, z};
+}
 
 inline GEOSGeometry* FeatureToGeos(GEOSContextHandle_t ctx, const Feature& feature) {
     GEOSGeometry* geom = nullptr;
@@ -89,11 +104,7 @@ inline std::unique_ptr<Feature> GeosToFeature(GEOSContextHandle_t ctx, GEOSGeome
         case FeatureType::Point: {
             auto* seq = GEOSGeom_getCoordSeq_r(ctx, geom);
             if (seq) {
-                double x, y, z = 0.0;
-                GEOSCoordSeq_getX_r(ctx, seq, 0, &x);
-                GEOSCoordSeq_getY_r(ctx, seq, 0, &y);
-                GEOSCoordSeq_getZ_r(ctx, seq, 0, &z);
-                feature->coordinates.push_back({x, y, z});
+                feature->coordinates.push_back(CoordFromGeosSeq(ctx, seq, 0));
             }
             break;
         }
@@ -102,11 +113,7 @@ inline std::unique_ptr<Feature> GeosToFeature(GEOSContextHandle_t ctx, GEOSGeome
             unsigned int num_points = 0;
             GEOSCoordSeq_getSize_r(ctx, seq, &num_points);
             for (unsigned int i = 0; i < num_points; ++i) {
-                double x, y, z = 0.0;
-                GEOSCoordSeq_getX_r(ctx, seq, i, &x);
-                GEOSCoordSeq_getY_r(ctx, seq, i, &y);
-                GEOSCoordSeq_getZ_r(ctx, seq, i, &z);
-                feature->coordinates.push_back({x, y, z});
+                feature->coordinates.push_back(CoordFromGeosSeq(ctx, seq, i));
             }
             break;
         }
@@ -117,11 +124,7 @@ inline std::unique_ptr<Feature> GeosToFeature(GEOSContextHandle_t ctx, GEOSGeome
                 unsigned int num_points = 0;
                 GEOSCoordSeq_getSize_r(ctx, seq, &num_points);
                 for (unsigned int i = 0; i < num_points; ++i) {
-                    double x, y, z = 0.0;
-                    GEOSCoordSeq_getX_r(ctx, seq, i, &x);
-                    GEOSCoordSeq_getY_r(ctx, seq, i, &y);
-                    GEOSCoordSeq_getZ_r(ctx, seq, i, &z);
-                    feature->coordinates.push_back({x, y, z});
+                    feature->coordinates.push_back(CoordFromGeosSeq(ctx, seq, i));
                 }
             }
 
@@ -134,11 +137,7 @@ inline std::unique_ptr<Feature> GeosToFeature(GEOSContextHandle_t ctx, GEOSGeome
                 GEOSCoordSeq_getSize_r(ctx, hole_seq, &hole_pts);
                 std::vector<Coordinate> hole_coords;
                 for (unsigned int i = 0; i < hole_pts; ++i) {
-                    double x, y, z = 0.0;
-                    GEOSCoordSeq_getX_r(ctx, hole_seq, i, &x);
-                    GEOSCoordSeq_getY_r(ctx, hole_seq, i, &y);
-                    GEOSCoordSeq_getZ_r(ctx, hole_seq, i, &z);
-                    hole_coords.push_back({x, y, z});
+                    hole_coords.push_back(CoordFromGeosSeq(ctx, hole_seq, i));
                 }
                 feature->inner_rings.push_back(std::move(hole_coords));
             }

@@ -4,7 +4,7 @@ Last updated: 2026-05-13
 
 ## Summary
 
-`GIS_DL_TOOL` is in an active productization phase. The repository already has substantial GIS/AI functionality, and the recent work has been focused on making the Windows GUI shell, runtime packaging, and verification flow behave more like `GIS_TOOL`, the motherbase.
+`GIS_DL_TOOL` is in an active productization phase. The repository already has substantial GIS/AI functionality, and the recent work has been focused on making the Windows GUI shell, runtime packaging, and verification flow stay aligned with the sibling tool `GIS_TOOL` outside business-specific functionality.
 
 ## What Is Verified Now
 
@@ -34,7 +34,7 @@ Verified on 2026-05-13 in this workspace:
 
 ## Open Areas
 
-- Continued motherbase alignment for broader product-shell behavior
+- Continued cross-tool alignment for broader product-shell behavior
 - Wider verification beyond the current Windows-focused checks
 - Additional documentation cleanup and removal of older overstated claims in secondary docs
 - More representative install/export validation for downstream consumers
@@ -56,7 +56,7 @@ During install verification on 2026-05-13, the install script was improved to lo
 
 - This document does not claim full cross-platform readiness.
 - This document does not claim that every historical test target was re-run in this session.
-- This document does not treat motherbase alignment as finished.
+- This document does not treat cross-tool alignment as finished.
 
 ## Next Practical Moves
 

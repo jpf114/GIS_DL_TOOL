@@ -2,14 +2,14 @@
 
 Windows-focused GIS + AI toolkit for raster segmentation workflows.
 
-`GIS_DL_TOOL` is the AI/GIS business variant built on top of the product shell patterns proven in `D:\Code\MyProject\GIS_TOOL`. The motherbase remains the reference for GUI shell behavior, runtime packaging, and productization conventions. This repository keeps the segmentation workflow, CLI/C API, and Qt desktop shell together while the remaining productization gaps are closed phase by phase.
+`GIS_DL_TOOL` is a sibling GIS+AI tool aligned with `D:\Code\MyProject\GIS_TOOL`. The two tools should stay as consistent as possible in GUI shell behavior, runtime packaging, and productization conventions, while differing mainly in business functionality. This repository keeps the segmentation workflow, CLI/C API, and Qt desktop shell together while the remaining alignment gaps are closed phase by phase.
 
 ## Current Position
 
 - Primary platform: Windows + Visual Studio 2022
 - Core workflow: ONNX-based raster segmentation and batch segmentation
 - Delivery surfaces: CLI, C API, Qt GUI
-- Motherbase relationship: `GIS_TOOL` is the platform motherbase; this repo selectively ports shared product behavior while keeping AI business logic local
+- Sibling-tool relationship: `GIS_TOOL` is the closest peer reference; this repo should match its non-business product behavior while keeping AI segmentation logic local
 
 ## What Works Today
 
@@ -22,7 +22,7 @@ Windows-focused GIS + AI toolkit for raster segmentation workflows.
 
 ## What Is Still In Motion
 
-- Ongoing motherbase alignment outside the segmentation-specific surface
+- Ongoing cross-tool alignment outside the segmentation-specific surface
 - Wider install/export validation beyond the current Windows verification path
 - Broader automated coverage for non-GUI productization scenarios
 - Documentation cleanup for older claims that predate the current verification sweep

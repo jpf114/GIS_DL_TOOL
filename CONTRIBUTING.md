@@ -3,8 +3,8 @@
 ## Local Workflow
 
 ```bash
-cmake --preset=dev-windows
-cmake --build --preset=dev
+cmake --preset release
+cmake --build --preset release
 ```
 
 Before submitting changes:
@@ -21,3 +21,4 @@ Before submitting changes:
 - Windows presets export `VCPKG_OVERLAY_PORTS=${sourceDir}/vcpkg-overlay`
 - The ONNX overlay must keep `ONNX_DISABLE_STATIC_REGISTRATION=ON` for ONNX Runtime compatibility
 - AI integration tests run in `Release` on Windows
+- Keep non-business build/install/GUI behavior aligned with `D:\Code\MyProject\GIS_TOOL`

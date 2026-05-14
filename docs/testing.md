@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document reflects the repository state verified on 2026-05-13.
+This document reflects the repository state verified on 2026-05-14.
 
 ## Scope
 
@@ -37,6 +37,8 @@ These are the commands that match the current phase checks:
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_task_database
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_queue
 ctest --test-dir build/release -C Release --output-on-failure -R gui_smoke_test
+ctest --test-dir build/release -C Release --output-on-failure -R gui_invalid_param_fast_fail_test
+ctest --test-dir build/release -C Release --output-on-failure -R release_installed_gui_segment_test
 ctest --test-dir build/release -C Release --output-on-failure -R test_io_integration
 ```
 
@@ -45,6 +47,8 @@ ctest --test-dir build/release -C Release --output-on-failure -R test_io_integra
 - `test_gui_task_database`: task persistence schema and stored task metadata
 - `test_gui_queue`: queued execution flow, log clearing, and task-center result detail presentation
 - `gui_smoke_test`: GUI bootstrap automation path, parameter injection, auto-execute, screenshot/status artifacts
+- `gui_invalid_param_fast_fail_test`: invalid parameter fast-fail regression — confirms exit code 2 and failure status file when unknown params are injected via `--set-param`
+- `release_installed_gui_segment_test`: installed-tree business-action regression — confirms the installed GUI can execute a segment action end-to-end with exit code 0, non-empty output, and non-empty screenshot
 - `test_io_integration`: representative IO integration behavior against generated test assets
 
 ## Installed Tree Smoke Checks
@@ -57,7 +61,7 @@ install\bin\gis_ai_cli.exe help
 install\bin\gis-ai-gui.exe --self-test
 ```
 
-These commands were verified successfully on 2026-05-13.
+These commands were verified successfully on 2026-05-14.
 
 ## Notes About Runtime Packaging
 
@@ -79,6 +83,8 @@ cmake --build --preset release
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_task_database
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_queue
 ctest --test-dir build/release -C Release --output-on-failure -R gui_smoke_test
+ctest --test-dir build/release -C Release --output-on-failure -R gui_invalid_param_fast_fail_test
+ctest --test-dir build/release -C Release --output-on-failure -R release_installed_gui_segment_test
 cmake --install build/release --config Release
 install\bin\gis-ai-gui.exe --self-test
 ```

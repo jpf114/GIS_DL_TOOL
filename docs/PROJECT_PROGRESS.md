@@ -31,22 +31,29 @@ Verified on 2026-05-14 in this workspace:
 - Release package export now declares the transitive `nlohmann_json` dependency needed by downstream consumers
 - A standalone downstream package-consumer verification script was added under `tests/verify_release_package_consumer.ps1`
 - Release build, install tree, installed CLI, installed GUI self-test, installed GUI startup, and downstream consumer build/run were re-verified end to end
+- GUI invalid-parameter fast-fail regression test (`gui_invalid_param_fast_fail_test`) added and passing
+- Installed-tree business-action GUI regression test (`release_installed_gui_segment_test`) added and passing
+- `gui_data_support` now provides 4 platform-level capabilities aligned with GIS_TOOL: result message localization (`localizeResultMessage`), action-specific parameter validation (`validateActionSpecificParams`), execute button state management (`buildExecuteButtonState`), and invalid param highlighting (`resolveHighlightedParamKey`)
+- Task runner now localizes result messages before displaying them in the task center
+- MainWindow now uses `buildExecuteButtonState` for unified button state logic and `validateActionSpecificParams` for secondary validation
+- GUI shell file cross-tool review completed: 27 files enumerated and compared against GIS_TOOL, with structural differences documented
 
 ## Current Strengths
 
 - Clear segmentation-focused business workflow
 - Shared/static library outputs, CLI, and Qt GUI all build from the same repo
 - Task queue, persistence, rerun flow, and structured task results in the GUI
+- GUI result message localization and action-specific parameter validation
 - Working Windows install layout with runnable installed binaries
 - Downstream `find_package` consumption from the installed release tree now works in this workspace
+- GUI regression coverage includes smoke, invalid-param fast-fail, and installed-tree business-action tests
 
 ## Open Areas
 
-- Continued cross-tool alignment for broader product-shell behavior
+- Remaining `gui_data_support` platform-level capabilities not yet ported: data auto-fill, output path derivation, file dialog config, text placeholder config, drag-drop binding
 - Wider verification beyond the current Windows-focused checks
 - Additional documentation cleanup and removal of older overstated claims in secondary docs
-- More representative install/export validation for downstream consumers
-- Broader side-by-side shell review beyond startup and execution-summary areas
+- `test_gui_queue` timing sensitivity still causes occasional failures
 
 ## Packaging Status
 
@@ -71,6 +78,6 @@ Downstream package verification on 2026-05-14 also confirmed that a separate con
 
 ## Next Practical Moves
 
-1. Continue side-by-side shell review for more UI/status areas beyond startup and execution summary
-2. Broaden install/export validation for downstream consumers beyond the current Windows release tree assertions
+1. Port remaining `gui_data_support` platform-level capabilities (data auto-fill, output path derivation, file dialog config)
+2. Fix `test_gui_queue` timing sensitivity
 3. Keep updating repo docs so they match the newest verified state instead of older intent

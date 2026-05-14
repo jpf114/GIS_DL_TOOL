@@ -18,13 +18,14 @@ Windows-focused GIS + AI toolkit for raster segmentation workflows.
 - ONNX Runtime inference pipeline
 - Raster/vector/point-cloud IO foundation
 - Qt GUI with task queue, task persistence, progress, logs, rerun/edit flow, and structured result details
+- GUI result message localization and action-specific parameter validation
 - Windows release build, install tree generation, and installed binary smoke verification
+- GUI invalid-parameter fast-fail regression and installed-tree business-action regression
 
 ## What Is Still In Motion
 
-- Ongoing cross-tool alignment outside the segmentation-specific surface
+- Ongoing cross-tool alignment: data auto-fill, output path derivation, file dialog config, drag-drop binding
 - Wider install/export validation beyond the current Windows verification path
-- Broader automated coverage for non-GUI productization scenarios
 - Documentation cleanup for older claims that predate the current verification sweep
 
 ## Tech Stack
@@ -100,6 +101,8 @@ Focused release checks currently used in this phase:
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_task_database
 ctest --test-dir build/release -C Release --output-on-failure -R test_gui_queue
 ctest --test-dir build/release -C Release --output-on-failure -R gui_smoke_test
+ctest --test-dir build/release -C Release --output-on-failure -R gui_invalid_param_fast_fail_test
+ctest --test-dir build/release -C Release --output-on-failure -R release_installed_gui_segment_test
 ctest --test-dir build/release -C Release --output-on-failure -R test_io_integration
 ```
 
@@ -124,12 +127,14 @@ GIS_DL_TOOL/
 
 ## Verified Snapshot
 
-As of 2026-05-13, the following were verified on this machine:
+As of 2026-05-14, the following were verified on this machine:
 
 - `cmake --preset release`
 - `cmake --build --preset release`
 - `ctest --test-dir build/release -C Release -R test_gui_queue`
 - `ctest --test-dir build/release -C Release -R gui_smoke_test`
+- `ctest --test-dir build/release -C Release -R gui_invalid_param_fast_fail_test`
+- `ctest --test-dir build/release -C Release -R release_installed_gui_segment_test`
 - `cmake --install build/release --config Release`
 - `install\bin\gis_ai_cli.exe help`
 - `install\bin\gis-ai-gui.exe --self-test`

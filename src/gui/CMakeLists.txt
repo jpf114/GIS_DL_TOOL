@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-add_executable(gis-ai-gui
-    main.cpp
+add_library(gis_ai_gui_lib STATIC
     mainwindow.cpp
     nav_panel.cpp
     icon_manager.cpp
@@ -23,7 +22,7 @@ add_executable(gis-ai-gui
 find_package(Qt6 COMPONENTS Sql REQUIRED)
 find_package(SQLite3 REQUIRED)
 
-target_link_libraries(gis-ai-gui PRIVATE
+target_link_libraries(gis_ai_gui_lib PUBLIC
     gis_ai_static
     Qt6::Core
     Qt6::Gui
@@ -33,6 +32,18 @@ target_link_libraries(gis-ai-gui PRIVATE
     SQLite3::SQLite3
     PROJ::proj
 )
+
+set_target_properties(gis_ai_gui_lib PROPERTIES
+    AUTOMOC ON
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+
+add_executable(gis-ai-gui
+    main.cpp
+)
+
+target_link_libraries(gis-ai-gui PRIVATE gis_ai_gui_lib)
 
 set_target_properties(gis-ai-gui PROPERTIES
     AUTOMOC ON

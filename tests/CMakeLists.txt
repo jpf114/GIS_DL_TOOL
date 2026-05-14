@@ -174,6 +174,26 @@ if(GIS_AI_BUILD_GUI)
     add_test(NAME test_gui_task_database COMMAND test_gui_task_database WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(test_gui_task_database PROPERTIES TIMEOUT 60)
 
+    add_executable(test_gui_data_support
+        test_gui_data_support.cpp
+    )
+
+    target_link_libraries(test_gui_data_support
+        PRIVATE
+            gis_ai_gui_lib
+            GTest::gtest
+            GTest::gtest_main
+    )
+
+    target_include_directories(test_gui_data_support
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CMAKE_SOURCE_DIR}/src/gui
+    )
+
+    add_test(NAME test_gui_data_support COMMAND test_gui_data_support WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    set_tests_properties(test_gui_data_support PROPERTIES TIMEOUT 60)
+
     add_executable(test_gui_queue
         test_gui_queue.cpp
         ../src/gui/mainwindow.cpp

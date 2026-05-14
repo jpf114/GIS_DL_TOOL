@@ -47,19 +47,19 @@ Verified on 2026-05-14 in this workspace:
 - Clear segmentation-focused business workflow
 - Shared/static library outputs, CLI, and Qt GUI all build from the same repo
 - Task queue, persistence, rerun flow, and structured task results in the GUI
+- Full `gui_data_support` platform-level capabilities integrated: data detection, auto-fill (CRS, extent, layer name), output path derivation, file dialog config, param text
 - GUI result message localization and action-specific parameter validation
-- Full `gui_data_support` platform-level capabilities: data detection, auto-fill, output path derivation, file dialog config, param text
 - Working Windows install layout with runnable installed binaries
 - Downstream `find_package` consumption from the installed release tree now works in this workspace
 - GUI regression coverage includes smoke, invalid-param fast-fail, and installed-tree business-action tests
 - Cross-tool alignment check as a CTest regression
-- 13/13 CTest regressions passing (100%)
+- `gis_ai_gui_lib` static library enables GUI unit testing (25 data support test cases)
+- 14/14 CTest regressions passing (100%)
 
 ## Open Areas
 
-- Integrating `gui_data_support` new capabilities into MainWindow/ParamCardWidget (auto-fill on input change, derived output sync, file dialog filters)
+- P2: Shared shell pieces to reduce independently drifting implementations
 - Wider verification beyond the current Windows-focused checks
-- Additional documentation cleanup and removal of older overstated claims in secondary docs
 
 ## Packaging Status
 
@@ -84,5 +84,5 @@ Downstream package verification on 2026-05-14 also confirmed that a separate con
 
 ## Next Practical Moves
 
-1. Integrate `gui_data_support` new capabilities into MainWindow/ParamCardWidget (auto-fill on input change, derived output sync, file dialog filters)
-2. Keep updating repo docs so they match the newest verified state instead of older intent
+1. P2: Extract shared shell pieces to reduce independently drifting implementations
+2. Keep updating repo docs so they match the newest verified state

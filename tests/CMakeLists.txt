@@ -238,6 +238,23 @@ if(GIS_AI_BUILD_GUI)
     )
     gis_ai_configure_test_environment(gui_smoke_test)
 
+    add_test(NAME gui_invalid_param_fast_fail_test
+        COMMAND ${CMAKE_COMMAND}
+            -DGUI_PATH=$<TARGET_FILE:gis-ai-gui>
+            -DINPUT_PATH=${CMAKE_SOURCE_DIR}/test_data/raster/test_100x100.tif
+            -DOUTPUT_PATH=${CMAKE_BINARY_DIR}/gui_regression/invalid_param/output.tif
+            -DSCREENSHOT_PATH=${CMAKE_BINARY_DIR}/gui_regression/invalid_param/gui_invalid_param.png
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_gui_invalid_param_regression.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(gui_invalid_param_fast_fail_test PROPERTIES
+        TIMEOUT 60
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(gui_invalid_param_fast_fail_test)
+
     add_test(NAME release_install_tree_test
         COMMAND ${CMAKE_COMMAND}
             -DREPO_ROOT=${CMAKE_SOURCE_DIR}
@@ -248,4 +265,18 @@ if(GIS_AI_BUILD_GUI)
     set_tests_properties(release_install_tree_test PROPERTIES
         TIMEOUT 240
     )
+
+    add_test(NAME release_installed_gui_segment_test
+        COMMAND ${CMAKE_COMMAND}
+            -DREPO_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_installed_gui_segment_regression.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(release_installed_gui_segment_test PROPERTIES
+        TIMEOUT 240
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(release_installed_gui_segment_test)
 endif()

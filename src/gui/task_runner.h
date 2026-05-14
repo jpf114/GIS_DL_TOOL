@@ -50,6 +50,9 @@ public:
     QString runningTaskId() const;
     int queuedCount() const;
 
+    static void setTaskStartDelayForTesting(int delayMs);
+    static void resetTaskStartDelayForTesting();
+
 signals:
     void taskStarted(const QString& displayGroup, const QString& taskId);
     void taskFinished(const QString& displayGroup, const QString& taskId,
@@ -68,6 +71,7 @@ private:
     QQueue<QueuedTask> queue_;
     QMap<QString, std::shared_ptr<TaskContext>> activeTasks_;
     QString runningTaskId_;
+    static int taskStartDelayMs_;
 };
 
 }  // namespace gis_ai::gui

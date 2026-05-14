@@ -9,6 +9,8 @@
 
 namespace gis_ai::gui {
 
+int TaskRunner::taskStartDelayMs_ = 0;
+
 TaskRunner& TaskRunner::instance() {
     static TaskRunner inst;
     return inst;
@@ -90,7 +92,12 @@ void TaskRunner::startTask(const QueuedTask& task) {
         TaskManager::instance().updateTaskStatus(task.displayGroup, task.taskId, TaskRecord::Running);
         emit taskStarted(task.displayGroup, task.taskId);
     });
-    connect(thread, &QThread::started, worker, &ExecuteWorker::run);
+    connect(thread, &QThread::started, worker, [worker]() {
+        if (TaskRunner::taskStartDelayMs_ > 0) {
+            QThread::msleep(static_cast<unsigned long>(TaskRunner::taskStartDelayMs_));
+        }
+        QMetaObject::invokeMethod(worker, &ExecuteWorker::run, Qt::QueuedConnection);
+    });
 
     connect(worker, &ExecuteWorker::finished, this,
             [this, task](bool success, const QString& message) {
@@ -138,6 +145,14 @@ QString TaskRunner::runningTaskId() const {
 
 int TaskRunner::queuedCount() const {
     return queue_.size();
+}
+
+void TaskRunner::setTaskStartDelayForTesting(int delayMs) {
+    taskStartDelayMs_ = delayMs;
+}
+
+void TaskRunner::resetTaskStartDelayForTesting() {
+    taskStartDelayMs_ = 0;
 }
 
 }  // namespace gis_ai::gui

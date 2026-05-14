@@ -198,6 +198,8 @@ TEST(GuiQueueTest, SecondExecuteRequestQueuesWhileFirstTaskIsRunning) {
 
     GDALAllRegister();
 
+    gis_ai::gui::TaskRunner::setTaskStartDelayForTesting(200);
+
     QTemporaryDir tempDir;
     ASSERT_TRUE(tempDir.isValid());
 
@@ -275,6 +277,8 @@ TEST(GuiQueueTest, SecondExecuteRequestQueuesWhileFirstTaskIsRunning) {
 
     app->exec();
 
+    gis_ai::gui::TaskRunner::resetTaskStartDelayForTesting();
+
     EXPECT_TRUE(secondSubmissionAttempted);
     EXPECT_TRUE(inspectedQueue);
     EXPECT_TRUE(sawQueuedState);
@@ -285,6 +289,8 @@ TEST(GuiQueueTest, QueuedTaskSummarySwitchesToRunningWhenExecutionStarts) {
     ASSERT_NE(app, nullptr);
 
     GDALAllRegister();
+
+    gis_ai::gui::TaskRunner::setTaskStartDelayForTesting(200);
 
     QTemporaryDir tempDir;
     ASSERT_TRUE(tempDir.isValid());
@@ -381,6 +387,8 @@ TEST(GuiQueueTest, QueuedTaskSummarySwitchesToRunningWhenExecutionStarts) {
     });
 
     app->exec();
+
+    gis_ai::gui::TaskRunner::resetTaskStartDelayForTesting();
 
     EXPECT_TRUE(sawQueuedSummary);
     EXPECT_TRUE(sawActiveSummaryAfterQueue);
@@ -733,6 +741,8 @@ TEST(GuiQueueTest, BackgroundTaskFinishDoesNotOverwriteDifferentGroupSummary) {
 
     GDALAllRegister();
 
+    gis_ai::gui::TaskRunner::setTaskStartDelayForTesting(200);
+
     QTemporaryDir tempDir;
     ASSERT_TRUE(tempDir.isValid());
     const QDir rootDir(tempDir.path());
@@ -814,6 +824,8 @@ TEST(GuiQueueTest, BackgroundTaskFinishDoesNotOverwriteDifferentGroupSummary) {
     });
 
     app->exec();
+
+    gis_ai::gui::TaskRunner::resetTaskStartDelayForTesting();
 
     EXPECT_TRUE(switchedGroupWhileRunning);
     EXPECT_TRUE(summaryStayedOnCurrentGroup);

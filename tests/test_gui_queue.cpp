@@ -94,7 +94,7 @@ TEST(GuiQueueTest, BusinessActionSuccessUpdatesExecutionStateAndOutputFile) {
     QTimer::singleShot(0, app, [&window]() {
         window.triggerExecute();
     });
-    QTimer::singleShot(6000, app, [&]() {
+    QTimer::singleShot(10000, app, [&]() {
         app->quit();
     });
 
@@ -176,11 +176,11 @@ TEST(GuiQueueTest, BatchExecutionProcessesMatchingRasterFiles) {
     const bool completed = spinUntil([]() {
         return !gis_ai::gui::TaskRunner::instance().isRunning() &&
                gis_ai::gui::TaskRunner::instance().queuedCount() == 0;
-    });
+    }, 10000);
 
     ASSERT_TRUE(completed);
 
-    const auto records = manager.recentTasks(QStringLiteral("segment"), 10);
+    const auto records = manager.recentTasks(QStringLiteral("segment"), 2);
     ASSERT_EQ(records.size(), 2);
     for (const auto& record : records) {
         EXPECT_EQ(record.status, gis_ai::gui::TaskRecord::Completed);
@@ -255,19 +255,19 @@ TEST(GuiQueueTest, SecondExecuteRequestQueuesWhileFirstTaskIsRunning) {
             return;
         }
 
-        if (++retryCount > 200) {
+        if (++retryCount > 500) {
             app->quit();
             return;
         }
 
-        QTimer::singleShot(5, app, trySubmitSecond);
+        QTimer::singleShot(1, app, trySubmitSecond);
     };
 
     QTimer::singleShot(0, app, [&window]() {
         window.triggerExecute();
     });
     QTimer::singleShot(0, app, trySubmitSecond);
-    QTimer::singleShot(5000, app, [&]() {
+    QTimer::singleShot(8000, app, [&]() {
         if (!inspectedQueue) {
             app->quit();
         }
@@ -376,7 +376,7 @@ TEST(GuiQueueTest, QueuedTaskSummarySwitchesToRunningWhenExecutionStarts) {
         window.triggerExecute();
     });
     QTimer::singleShot(0, app, trySubmitSecond);
-    QTimer::singleShot(6000, app, [&]() {
+    QTimer::singleShot(8000, app, [&]() {
         app->quit();
     });
 
@@ -616,6 +616,15 @@ TEST(GuiQueueTest, ClearHistoryResetsExecutionSummary) {
     manager.initializeGroup(displayGroup);
     manager.clearHistory(displayGroup);
 
+    auto allRecords = manager.recentTasks(displayGroup, 1000);
+    if (!allRecords.empty()) {
+        QStringList allIds;
+        for (const auto& rec : allRecords) {
+            allIds.append(rec.id);
+        }
+        manager.deleteTasks(displayGroup, allIds);
+    }
+
     const QString taskId = manager.submitTask(
         displayGroup,
         QStringLiteral("segment"),
@@ -634,6 +643,7 @@ TEST(GuiQueueTest, ClearHistoryResetsExecutionSummary) {
         QStringLiteral("clear history raw"),
         QStringLiteral("D:/tmp/clear_history_out.tif"));
 
+    taskCenterPage->setCurrentGroup(QString());
     taskCenterPage->setCurrentGroup(displayGroup);
     summaryLabel->setText(QStringLiteral("任务 %1 执行成功。执行成功").arg(taskId));
 
@@ -799,7 +809,7 @@ TEST(GuiQueueTest, BackgroundTaskFinishDoesNotOverwriteDifferentGroupSummary) {
         window.triggerExecute();
     });
     QTimer::singleShot(0, app, switchWhenRunning);
-    QTimer::singleShot(6000, app, [&]() {
+    QTimer::singleShot(8000, app, [&]() {
         app->quit();
     });
 

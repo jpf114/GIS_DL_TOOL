@@ -280,3 +280,5 @@ if(GIS_AI_BUILD_GUI)
     )
     gis_ai_configure_test_environment(release_installed_gui_segment_test)
 endif()
+
+include("${CMAKE_SOURCE_DIR}/cmake/cross_tool_alignment_check.cmake")

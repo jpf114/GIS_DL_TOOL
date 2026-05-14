@@ -14,7 +14,10 @@ endfunction()
 
 function(gis_ai_configure_generated_test_data test_name)
     if(TARGET generate_test_data)
-        set_tests_properties(${test_name} PROPERTIES FIXTURES_REQUIRED gis_test_data)
+        set_tests_properties(${test_name} PROPERTIES
+            FIXTURES_REQUIRED gis_test_data
+            RESOURCE_LOCK gis_test_data_resource
+        )
     endif()
 endfunction()
 
@@ -27,6 +30,7 @@ if(TARGET generate_test_data)
     set_tests_properties(prepare_gis_test_data PROPERTIES
         TIMEOUT 120
         FIXTURES_SETUP gis_test_data
+        RESOURCE_LOCK gis_test_data_resource
     )
     gis_ai_configure_test_environment(prepare_gis_test_data)
 endif()
@@ -115,7 +119,10 @@ else()
     add_test(NAME test_ai_integration COMMAND test_ai_integration WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 set_tests_properties(test_ai_integration PROPERTIES TIMEOUT 300)
-set_tests_properties(test_ai_integration PROPERTIES FIXTURES_REQUIRED "gis_test_data;ai_test_model")
+set_tests_properties(test_ai_integration PROPERTIES
+    FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+    RESOURCE_LOCK gis_test_data_resource
+)
 gis_ai_configure_test_environment(test_ai_integration)
 
 add_executable(test_cli
@@ -214,6 +221,7 @@ if(GIS_AI_BUILD_GUI)
     set_tests_properties(test_gui_queue PROPERTIES
         TIMEOUT 120
         FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
     gis_ai_configure_test_environment(test_gui_queue)
@@ -222,5 +230,22 @@ if(GIS_AI_BUILD_GUI)
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/run_gui_smoke_test.cmake
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
-    set_tests_properties(gui_smoke_test PROPERTIES TIMEOUT 60)
+    set_tests_properties(gui_smoke_test PROPERTIES
+        TIMEOUT 60
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(gui_smoke_test)
+
+    add_test(NAME release_install_tree_test
+        COMMAND ${CMAKE_COMMAND}
+            -DREPO_ROOT=${CMAKE_SOURCE_DIR}
+            -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/verify_release_install_tree.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(release_install_tree_test PROPERTIES
+        TIMEOUT 240
+    )
 endif()

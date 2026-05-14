@@ -47,7 +47,7 @@ void TaskCenterPage::setupUi() {
     taskHeaderLayout->addWidget(taskTitleLabel);
 
     taskCountLabel_ = new QLabel(QStringLiteral("共 0 个任务"));
-    taskCountLabel_->setObjectName(QStringLiteral("heroMeta"));
+    taskCountLabel_->setObjectName(QStringLiteral("taskCountMeta"));
     taskHeaderLayout->addWidget(taskCountLabel_);
     taskHeaderLayout->addStretch();
 
@@ -108,7 +108,7 @@ void TaskCenterPage::setupUi() {
     logHeaderLayout->addWidget(logTitleLabel);
 
     logTaskLabel_ = new QLabel;
-    logTaskLabel_->setObjectName(QStringLiteral("heroMeta"));
+    logTaskLabel_->setObjectName(QStringLiteral("logTaskMeta"));
     logHeaderLayout->addWidget(logTaskLabel_);
     logHeaderLayout->addStretch();
 
@@ -209,6 +209,16 @@ void TaskCenterPage::updateTaskRow(const QString& taskId, int status,
         }
     }
     item->setText(3, status == TaskRecord::Completed ? QStringLiteral("100%") : QStringLiteral("-"));
+
+    auto* current = taskTree_ ? taskTree_->currentItem() : nullptr;
+    if (current && current->data(0, Qt::UserRole).toString() == taskId) {
+        const auto record = TaskManager::instance().findTask(currentGroup_, taskId);
+        updateResultDisplay(record);
+        const bool canRerun = (status == TaskRecord::Completed ||
+                               status == TaskRecord::Failed ||
+                               status == TaskRecord::Cancelled);
+        rerunButton_->setEnabled(canRerun);
+    }
 }
 
 void TaskCenterPage::updateTaskProgress(const QString& taskId, double percent) {
@@ -220,7 +230,11 @@ void TaskCenterPage::updateTaskProgress(const QString& taskId, double percent) {
 }
 
 void TaskCenterPage::removeTaskRows(const QStringList& taskIds) {
+    bool removedCurrentTask = false;
     for (const auto& id : taskIds) {
+        if (id == currentLogTaskId_) {
+            removedCurrentTask = true;
+        }
         auto* item = findItemByTaskId(id);
         if (item) {
             delete item;
@@ -228,6 +242,13 @@ void TaskCenterPage::removeTaskRows(const QStringList& taskIds) {
     }
     int count = taskTree_->topLevelItemCount();
     taskCountLabel_->setText(QStringLiteral("共 %1 个任务").arg(count));
+    if (removedCurrentTask || count == 0) {
+        currentLogTaskId_.clear();
+        logTaskLabel_->clear();
+        logDisplay_->clear();
+        resultDisplay_->clear();
+        rerunButton_->setEnabled(false);
+    }
 }
 
 void TaskCenterPage::refreshAll() {
@@ -235,6 +256,8 @@ void TaskCenterPage::refreshAll() {
     resultDisplay_->clear();
     logDisplay_->clear();
     currentLogTaskId_.clear();
+    logTaskLabel_->clear();
+    rerunButton_->setEnabled(false);
 
     if (currentGroup_.isEmpty()) {
         taskCountLabel_->setText(QStringLiteral("共 0 个任务"));

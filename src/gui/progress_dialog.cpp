@@ -23,7 +23,7 @@ ProgressDialog::ProgressDialog(QWidget* parent)
     layout->setSpacing(12);
 
     statusLabel_ = new QLabel(QStringLiteral("正在执行，请稍候..."));
-    statusLabel_->setObjectName(QStringLiteral("heroMeta"));
+    statusLabel_->setObjectName(QStringLiteral("progressStatusMeta"));
     layout->addWidget(statusLabel_);
 
     progressBar_ = new QProgressBar;

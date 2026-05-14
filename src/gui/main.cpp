@@ -20,7 +20,7 @@
 
 namespace {
 
-void initGdalRuntime() {
+void initGdalRuntime(const QString& applicationDirPath) {
     GDALAllRegister();
 
     QString gdalDataDir;
@@ -28,7 +28,7 @@ void initGdalRuntime() {
         gdalDataDir = QString::fromUtf8(qgetenv("GDAL_DATA"));
     }
     if (gdalDataDir.isEmpty()) {
-        QDir appDir(QApplication::applicationDirPath());
+        QDir appDir(applicationDirPath);
         gdalDataDir = appDir.filePath(QStringLiteral("../share/gdal"));
     }
     if (QDir(gdalDataDir).exists()) {
@@ -43,7 +43,7 @@ void initGdalRuntime() {
         projDataDir = QString::fromUtf8(qgetenv("PROJ_LIB"));
     }
     if (projDataDir.isEmpty()) {
-        QDir appDir(QApplication::applicationDirPath());
+        QDir appDir(applicationDirPath);
         projDataDir = appDir.filePath(QStringLiteral("../share/proj"));
     }
     if (QDir(projDataDir).exists()) {
@@ -57,6 +57,9 @@ void initGdalRuntime() {
 
 int main(int argc, char* argv[])
 {
+    const QString applicationDirPath = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
+    initGdalRuntime(applicationDirPath);
+
     QApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
@@ -104,17 +107,16 @@ int main(int argc, char* argv[])
         }
     }
 
-    initGdalRuntime();
-
     const QStringList arguments = QCoreApplication::arguments();
     const bool selfTestMode = arguments.contains(QStringLiteral("--self-test"));
-    const bool autoExecute = arguments.contains(QStringLiteral("--auto-execute"));
     std::optional<QString> screenshotPath;
     std::optional<QString> statusFilePath;
     std::optional<std::string> selectedPlugin;
     std::optional<std::string> selectedAction;
     std::vector<std::pair<std::string, std::string>> paramAssignments;
     std::vector<std::string> failedParamAssignments;
+    const bool autoExecute = arguments.contains(QStringLiteral("--auto-execute"));
+    const bool quitOnFinish = arguments.contains(QStringLiteral("--quit-on-finish"));
 
     for (int i = 1; i < arguments.size(); ++i) {
         const QString arg = arguments.at(i);
@@ -227,9 +229,9 @@ int main(int argc, char* argv[])
         });
     }
 
-    if (autoExecute && (screenshotPath.has_value() || statusFilePath.has_value())) {
+    if (autoExecute && (quitOnFinish || screenshotPath.has_value() || statusFilePath.has_value())) {
         QObject::connect(&window, &gis_ai::gui::MainWindow::executionFinished, &app,
-            [&app, &window, screenshotPath, statusFilePath](bool) {
+            [&app, &window, screenshotPath, statusFilePath, quitOnFinish](bool) {
                 if (statusFilePath.has_value()) {
                     const QFileInfo info(statusFilePath.value());
                     if (!info.absoluteDir().exists()) {
@@ -255,7 +257,9 @@ int main(int argc, char* argv[])
                     }
                     window.grab().save(screenshotPath.value());
                 }
-                QTimer::singleShot(150, &app, &QApplication::quit);
+                if (quitOnFinish || screenshotPath.has_value() || statusFilePath.has_value()) {
+                    QTimer::singleShot(150, &app, &QApplication::quit);
+                }
             });
     }
 

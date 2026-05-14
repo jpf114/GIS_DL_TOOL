@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QMap>
 #include <QString>
 #include <map>
 #include <string>
@@ -37,6 +38,9 @@ public:
     void selectPluginByName(const std::string& pluginName);
     void selectActionByKey(const std::string& actionKey);
     bool setParamValue(const std::string& key, const std::string& value);
+    bool setBatchMode(bool enabled);
+    bool setBatchInputDirectory(const std::string& directory);
+    bool setBatchFilter(const std::string& filter);
     void triggerExecute();
     bool lastExecutionSuccess() const;
     bool lastExecutionCancelled() const;
@@ -62,6 +66,23 @@ private:
     void onEditTask(const QString& taskId);
 
     void syncDerivedParams();
+    void ensureProgressDialog();
+    void resetExecutionSummary();
+    bool currentGroupHasPendingExecution() const;
+    void discardTaskExecutionState(const QStringList& taskIds);
+    void showRunningTaskSummary(const QString& taskId);
+    void showQueuedTaskSummary(const QString& taskId);
+    void showQueuedBatchSummary(int submittedCount);
+    void showFinishedTaskSummary(const QString& taskId,
+                                 const QString& message,
+                                 bool success,
+                                 bool cancelled);
+    void applyFunctionPanelState(const QString& title,
+                                 const QString& description,
+                                 const QString& metaText,
+                                 const QString& algorithmText,
+                                 const std::string& pluginName);
+    void syncExecutionSummaryForCurrentGroup();
     void updateExecuteButtonState();
     QString validateParams() const;
     void updateBatchCount();
@@ -97,6 +118,7 @@ private:
     std::string currentPluginName_;
     std::string currentActionKey_;
     QString currentTaskId_;
+    QMap<QString, QString> pendingResultTaskIds_;
 
     std::map<std::string, QString> lastAutoOutputPath_;
     std::string currentDisplayGroupKey_{"default"};

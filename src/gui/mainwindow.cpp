@@ -131,6 +131,30 @@ bool MainWindow::setParamValue(const std::string& key, const std::string& value)
     return true;
 }
 
+bool MainWindow::setBatchMode(bool enabled) {
+    if (!batchCheckBox_) {
+        return false;
+    }
+    batchCheckBox_->setChecked(enabled);
+    return true;
+}
+
+bool MainWindow::setBatchInputDirectory(const std::string& directory) {
+    if (!batchDirEdit_) {
+        return false;
+    }
+    batchDirEdit_->setText(QString::fromStdString(directory));
+    return true;
+}
+
+bool MainWindow::setBatchFilter(const std::string& filter) {
+    if (!batchFilterEdit_) {
+        return false;
+    }
+    batchFilterEdit_->setText(QString::fromStdString(filter));
+    return true;
+}
+
 void MainWindow::triggerExecute() {
     onExecuteClicked();
 }
@@ -245,7 +269,7 @@ void MainWindow::setupUi() {
     heroTextLayout->addWidget(functionDescLabel_);
 
     functionMetaLabel_ = new QLabel(QStringLiteral("当前状态：等待选择主功能"));
-    functionMetaLabel_->setObjectName(QStringLiteral("heroMeta"));
+    functionMetaLabel_->setObjectName(QStringLiteral("mainHeroMeta"));
     heroTextLayout->addWidget(functionMetaLabel_);
 
     heroMainLayout->addLayout(heroTextLayout, 1);
@@ -342,8 +366,7 @@ void MainWindow::setupUi() {
     resultSummaryLabel_->setWordWrap(true);
     resultSummaryLabel_->setObjectName(QStringLiteral("execSummary"));
     resultSummaryLabel_->setMinimumHeight(28);
-    resultSummaryLabel_->setText(
-        QStringLiteral("当前未执行任务。选择子功能并补全参数后，可以直接开始运行。"));
+    resetExecutionSummary();
     executionLayout->addWidget(resultSummaryLabel_);
 
     rightLayout->addWidget(executionCard);
@@ -354,26 +377,40 @@ void MainWindow::setupUi() {
     tabWidget_->addTab(rightPanel, QStringLiteral("功能配置"));
 
     taskCenterPage_ = new TaskCenterPage;
-    taskCenterPage_->setCurrentGroup(QStringLiteral("default"));
+    taskCenterPage_->setCurrentGroup(QString::fromStdString(currentDisplayGroupKey_));
     tabWidget_->addTab(taskCenterPage_, QStringLiteral("任务中心"));
 
     connect(taskCenterPage_, &TaskCenterPage::clearHistoryRequested, this, [this]() {
-        TaskManager::instance().clearHistory(QStringLiteral("default"));
+        const QString displayGroup = taskCenterPage_->currentGroup();
+        QStringList taskIds;
+        const auto tasks = TaskManager::instance().recentTasks(displayGroup, 1000);
+        taskIds.reserve(tasks.size());
+        for (const auto& task : tasks) {
+            taskIds.push_back(task.id);
+        }
+        discardTaskExecutionState(taskIds);
+        TaskManager::instance().clearHistory(taskCenterPage_->currentGroup());
         taskCenterPage_->refreshAll();
+        resetExecutionSummary();
     });
 
     connect(taskCenterPage_, &TaskCenterPage::deleteTasksRequested, this, [this](const QStringList& ids) {
-        TaskManager::instance().deleteTasks(QStringLiteral("default"), ids);
+        const QString displayGroup = taskCenterPage_->currentGroup();
+        discardTaskExecutionState(ids);
+        TaskManager::instance().deleteTasks(displayGroup, ids);
         taskCenterPage_->removeTaskRows(ids);
+        if (TaskManager::instance().taskCount(displayGroup) == 0) {
+            resetExecutionSummary();
+        }
     });
 
     connect(taskCenterPage_, &TaskCenterPage::clearLogsRequested, this, [this](const QString& taskId) {
-        TaskManager::instance().clearLogsForTask(QStringLiteral("default"), taskId);
+        TaskManager::instance().clearLogsForTask(taskCenterPage_->currentGroup(), taskId);
         taskCenterPage_->clearLogDisplay();
     });
 
     connect(taskCenterPage_, &TaskCenterPage::clearAllLogsRequested, this, [this]() {
-        TaskManager::instance().clearAllLogs(QStringLiteral("default"));
+        TaskManager::instance().clearAllLogs(taskCenterPage_->currentGroup());
         taskCenterPage_->clearLogDisplay();
     });
 
@@ -382,7 +419,7 @@ void MainWindow::setupUi() {
 
     connect(&TaskManager::instance(), &TaskManager::taskSubmitted, this,
             [this](const QString& group, const QString& id) {
-        if (group != QStringLiteral("default")) return;
+        if (group != taskCenterPage_->currentGroup()) return;
         auto rec = TaskManager::instance().findTask(group, id);
         taskCenterPage_->addTaskRow(id, rec.actionDisplayName,
             static_cast<int>(rec.status),
@@ -391,7 +428,7 @@ void MainWindow::setupUi() {
 
     connect(&TaskManager::instance(), &TaskManager::taskFinished, this,
             [this](const QString& group, const QString& id) {
-        if (group != QStringLiteral("default")) return;
+        if (group != taskCenterPage_->currentGroup()) return;
         auto rec = TaskManager::instance().findTask(group, id);
         taskCenterPage_->updateTaskRow(id, static_cast<int>(rec.status),
             rec.endTime.toString(Qt::ISODate), rec.durationMs);
@@ -425,43 +462,51 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
     currentPluginName_.clear();
     currentActionKey_.clear();
     lastAutoOutputPath_.clear();
+    currentDisplayGroupKey_ = pluginName.empty() ? std::string{"default"} : pluginName;
 
     if (pluginName.empty()) {
-        functionTitleLabel_->setText(QStringLiteral("请选择功能"));
-        functionDescLabel_->setText(
-            QStringLiteral("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"));
-        functionMetaLabel_->setText(QStringLiteral("当前状态：等待选择主功能"));
-        functionIconLabel_->setPixmap(defaultBadgePixmap());
+        applyFunctionPanelState(
+            QStringLiteral("请选择功能"),
+            QStringLiteral("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"),
+            QStringLiteral("当前状态：等待选择主功能"),
+            QStringLiteral("当前算法：未选择"),
+            {});
         executeButton_->setEnabled(false);
         executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
-        statusAlgorithmLabel_->setText(QStringLiteral("当前算法：未选择"));
         if (paramWidget_) {
             paramWidget_->clear();
         }
+        if (taskCenterPage_) {
+            taskCenterPage_->setCurrentGroup(QString::fromStdString(currentDisplayGroupKey_));
+        }
+        syncExecutionSummaryForCurrentGroup();
+        statusBar()->showMessage(QStringLiteral("就绪"));
         return;
     }
 
     currentPluginName_ = pluginName;
     const QString displayName = QString::fromStdString(pluginDisplayName(pluginName));
-    functionTitleLabel_->setText(displayName);
-    functionDescLabel_->setText(
-        QStringLiteral("已选择 %1，请选择子功能进行操作。").arg(displayName));
-    functionMetaLabel_->setText(QStringLiteral("当前状态：已选择主功能"));
+    applyFunctionPanelState(
+        displayName,
+        QStringLiteral("已选择 %1，请选择子功能进行操作。").arg(displayName),
+        QStringLiteral("当前状态：已选择主功能"),
+        QStringLiteral("当前算法：%1").arg(displayName),
+        pluginName);
     executeButton_->setEnabled(false);
     executeButton_->setToolTip(QStringLiteral("请先选择子功能"));
-    statusAlgorithmLabel_->setText(QStringLiteral("当前算法：%1").arg(displayName));
 
     if (paramWidget_) {
         paramWidget_->clear();
     }
-
-    auto& mgr = IconManager::instance();
-    if (mgr.hasPluginIcon(pluginName)) {
-        QPixmap iconPixmap = mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6"));
-        functionIconLabel_->setPixmap(iconPixmap);
-    } else {
-        functionIconLabel_->setPixmap(defaultBadgePixmap());
+    if (taskCenterPage_) {
+        taskCenterPage_->setCurrentGroup(QString::fromStdString(currentDisplayGroupKey_));
     }
+    syncExecutionSummaryForCurrentGroup();
+    if (!currentGroupHasPendingExecution() && resultSummaryLabel_) {
+        resultSummaryLabel_->setStyleSheet(QString());
+        resultSummaryLabel_->setText(QStringLiteral("请选择该主功能下的子功能，然后补全参数。"));
+    }
+    statusBar()->showMessage(QStringLiteral("当前主功能：%1").arg(displayName));
 }
 
 void MainWindow::onSubFunctionSelected(const std::string& pluginName,
@@ -469,6 +514,7 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     currentPluginName_ = pluginName;
     currentActionKey_ = actionKey;
     lastAutoOutputPath_.clear();
+    currentDisplayGroupKey_ = pluginName.empty() ? std::string{"default"} : pluginName;
 
     auto uiConfig = getActionUiConfig(pluginName, actionKey);
     const QString pluginDisplay = QString::fromStdString(pluginDisplayName(pluginName));
@@ -476,23 +522,24 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
         ? QString::fromStdString(actionKey)
         : uiConfig.displayName;
 
-    functionTitleLabel_->setText(
-        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay));
-    functionDescLabel_->setText(uiConfig.description);
-    functionMetaLabel_->setText(QStringLiteral("当前状态：已选择子功能，可配置参数"));
-    statusAlgorithmLabel_->setText(
-        QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay));
-
-    auto& mgr = IconManager::instance();
-    if (mgr.hasPluginIcon(pluginName)) {
-        QPixmap iconPixmap = mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6"));
-        functionIconLabel_->setPixmap(iconPixmap);
-    } else {
-        functionIconLabel_->setPixmap(defaultBadgePixmap());
-    }
+    applyFunctionPanelState(
+        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay),
+        uiConfig.description,
+        QStringLiteral("当前状态：已选择子功能，可配置参数"),
+        QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay),
+        pluginName);
 
     auto specs = buildEffectiveParamSpecs(pluginName, actionKey);
     paramWidget_->setParamSpecs(specs);
+    if (taskCenterPage_) {
+        taskCenterPage_->setCurrentGroup(QString::fromStdString(currentDisplayGroupKey_));
+    }
+    syncExecutionSummaryForCurrentGroup();
+    if (!currentGroupHasPendingExecution() && resultSummaryLabel_) {
+        resultSummaryLabel_->setStyleSheet(QString());
+        resultSummaryLabel_->setText(QStringLiteral("参数面板已刷新，补全必填项后即可执行当前子功能。"));
+    }
+    statusBar()->showMessage(QStringLiteral("当前子功能：%1").arg(actionDisplay));
 
     updateExecuteButtonState();
 }
@@ -559,6 +606,183 @@ QString MainWindow::buildSuggestedOutputPath(const QString& inputPath,
     }
 
     return baseDir + QStringLiteral("/") + baseName + funcSuffix + actionPart + ext;
+}
+
+void MainWindow::ensureProgressDialog() {
+    if (progressDialog_) {
+        progressDialog_->deleteLater();
+        progressDialog_ = nullptr;
+    }
+
+    progressDialog_ = new ProgressDialog(this);
+    progressDialog_->setAttribute(Qt::WA_DeleteOnClose);
+    connect(progressDialog_, &QObject::destroyed, this, [this]() {
+        progressDialog_ = nullptr;
+    });
+    connect(progressDialog_, &ProgressDialog::rejected, this, [this]() {
+        if (!currentTaskId_.isEmpty()) {
+            TaskRunner::instance().cancelTask(currentTaskId_);
+        }
+    });
+}
+
+void MainWindow::resetExecutionSummary() {
+    if (resultSummaryLabel_) {
+        resultSummaryLabel_->setText(
+            QStringLiteral("当前未执行任务。选择子功能并补全参数后，可以直接开始运行。"));
+    }
+    if (statusProgressBar_) {
+        statusProgressBar_->setValue(0);
+    }
+}
+
+bool MainWindow::currentGroupHasPendingExecution() const {
+    const QString currentGroup = QString::fromStdString(currentDisplayGroupKey_);
+    if (!currentTaskId_.isEmpty() && pendingResultTaskIds_.value(currentTaskId_) == currentGroup) {
+        return true;
+    }
+
+    for (auto it = pendingResultTaskIds_.cbegin(); it != pendingResultTaskIds_.cend(); ++it) {
+        if (it.value() == currentGroup) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::discardTaskExecutionState(const QStringList& taskIds) {
+    bool clearedActiveTask = false;
+    for (const QString& taskId : taskIds) {
+        pendingResultTaskIds_.remove(taskId);
+        if (taskId == currentTaskId_) {
+            currentTaskId_.clear();
+            clearedActiveTask = true;
+        }
+    }
+
+    if (!clearedActiveTask) {
+        return;
+    }
+
+    if (progressDialog_) {
+        progressDialog_->deleteLater();
+        progressDialog_ = nullptr;
+    }
+    resetExecutionSummary();
+    statusBar()->showMessage(QStringLiteral("就绪"));
+}
+
+void MainWindow::showRunningTaskSummary(const QString& taskId) {
+    Q_UNUSED(taskId);
+    if (resultSummaryLabel_) {
+        resultSummaryLabel_->setStyleSheet(QString());
+        resultSummaryLabel_->setText(QStringLiteral("正在执行，请稍候..."));
+    }
+    if (statusProgressBar_) {
+        statusProgressBar_->setValue(0);
+    }
+    statusBar()->showMessage(QStringLiteral("执行中"));
+}
+
+void MainWindow::showQueuedTaskSummary(const QString& taskId) {
+    Q_UNUSED(taskId);
+    if (resultSummaryLabel_) {
+        resultSummaryLabel_->setStyleSheet(QString());
+        resultSummaryLabel_->setText(QStringLiteral("已加入队列，等待当前任务完成后自动执行。"));
+    }
+    statusBar()->showMessage(QStringLiteral("任务已加入队列"));
+}
+
+void MainWindow::showQueuedBatchSummary(int submittedCount) {
+    if (resultSummaryLabel_) {
+        resultSummaryLabel_->setStyleSheet(QString());
+        resultSummaryLabel_->setText(
+            QStringLiteral("批量处理：已提交 %1 个任务到队列").arg(submittedCount));
+    }
+    if (statusProgressBar_) {
+        statusProgressBar_->setValue(0);
+    }
+    statusBar()->showMessage(QStringLiteral("批量任务已加入队列"));
+}
+
+void MainWindow::showFinishedTaskSummary(const QString& taskId,
+                                         const QString& message,
+                                         bool success,
+                                         bool cancelled) {
+    Q_UNUSED(taskId);
+    if (resultSummaryLabel_) {
+        if (cancelled) {
+            resultSummaryLabel_->setText(QStringLiteral("✖ 已取消\n%1").arg(message));
+            resultSummaryLabel_->setStyleSheet(
+                QStringLiteral("QLabel#execSummary { color: #8A5A00; }"));
+        } else if (success) {
+            resultSummaryLabel_->setText(QStringLiteral("✓ 执行成功\n%1").arg(message));
+            resultSummaryLabel_->setStyleSheet(
+                QStringLiteral("QLabel#execSummary { color: #1F7A45; }"));
+        } else {
+            resultSummaryLabel_->setText(QStringLiteral("✖ 执行失败\n%1").arg(message));
+            resultSummaryLabel_->setStyleSheet(
+                QStringLiteral("QLabel#execSummary { color: #B42318; }"));
+        }
+    }
+
+    if (statusProgressBar_) {
+        statusProgressBar_->setValue(success ? 100 : 0);
+    }
+
+    if (cancelled) {
+        statusBar()->showMessage(QStringLiteral("执行已取消"));
+    } else if (success) {
+        statusBar()->showMessage(QStringLiteral("执行成功"));
+    } else {
+        statusBar()->showMessage(QStringLiteral("执行失败"));
+    }
+}
+
+void MainWindow::applyFunctionPanelState(const QString& title,
+                                         const QString& description,
+                                         const QString& metaText,
+                                         const QString& algorithmText,
+                                         const std::string& pluginName) {
+    functionTitleLabel_->setText(title);
+    functionDescLabel_->setText(description);
+    functionMetaLabel_->setText(metaText);
+    statusAlgorithmLabel_->setText(algorithmText);
+
+    auto& mgr = IconManager::instance();
+    if (!pluginName.empty() && mgr.hasPluginIcon(pluginName)) {
+        functionIconLabel_->setPixmap(mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6")));
+    } else {
+        functionIconLabel_->setPixmap(defaultBadgePixmap());
+    }
+}
+
+void MainWindow::syncExecutionSummaryForCurrentGroup() {
+    const QString currentGroup = QString::fromStdString(currentDisplayGroupKey_);
+    if (!currentTaskId_.isEmpty() && pendingResultTaskIds_.value(currentTaskId_) == currentGroup) {
+        showRunningTaskSummary(currentTaskId_);
+        return;
+    }
+
+    int queuedCount = 0;
+    for (auto it = pendingResultTaskIds_.cbegin(); it != pendingResultTaskIds_.cend(); ++it) {
+        if (it.value() == currentGroup) {
+            ++queuedCount;
+        }
+    }
+
+    if (queuedCount > 0) {
+        resultSummaryLabel_->setText(
+            QStringLiteral("当前分组有 %1 个任务正在队列中等待执行。").arg(queuedCount));
+        if (statusProgressBar_) {
+            statusProgressBar_->setValue(0);
+        }
+        statusBar()->showMessage(QStringLiteral("任务队列等待中"));
+        return;
+    }
+
+    resetExecutionSummary();
+    statusBar()->showMessage(QStringLiteral("就绪"));
 }
 
 void MainWindow::updateExecuteButtonState() {
@@ -694,16 +918,7 @@ void MainWindow::onExecuteClicked() {
         : uiConfig.displayName;
 
     if (!hadRunningTask && !progressDialog_) {
-        progressDialog_ = new ProgressDialog(this);
-        progressDialog_->setAttribute(Qt::WA_DeleteOnClose);
-        connect(progressDialog_, &QObject::destroyed, this, [this]() {
-            progressDialog_ = nullptr;
-        });
-        connect(progressDialog_, &ProgressDialog::rejected, this, [this]() {
-            if (!currentTaskId_.isEmpty()) {
-                TaskRunner::instance().cancelTask(currentTaskId_);
-            }
-        });
+        ensureProgressDialog();
     }
 
     if (batchCheckBox_ && batchCheckBox_->isChecked()) {
@@ -734,6 +949,7 @@ void MainWindow::onExecuteClicked() {
                 pluginDisp,
                 actionDisp);
             if (!taskId.isEmpty()) {
+                pendingResultTaskIds_.insert(taskId, QString::fromStdString(currentDisplayGroupKey_));
                 if (!hadRunningTask && currentTaskId_.isEmpty()) {
                     currentTaskId_ = taskId;
                 }
@@ -748,7 +964,11 @@ void MainWindow::onExecuteClicked() {
             }
             return;
         }
-        resultSummaryLabel_->setText(QStringLiteral("已提交 %1 个批量任务。").arg(submittedCount));
+        if (hadRunningTask) {
+            showQueuedBatchSummary(submittedCount);
+        } else {
+            resultSummaryLabel_->setText(QStringLiteral("已提交 %1 个批量任务。").arg(submittedCount));
+        }
     } else {
         const QString submittedTaskId = TaskRunner::instance().run(
             QString::fromStdString(currentDisplayGroupKey_),
@@ -765,30 +985,36 @@ void MainWindow::onExecuteClicked() {
             }
             return;
         }
+        pendingResultTaskIds_.insert(submittedTaskId, QString::fromStdString(currentDisplayGroupKey_));
         if (!hadRunningTask) {
             currentTaskId_ = submittedTaskId;
-            resultSummaryLabel_->setText(QStringLiteral("任务 %1 正在执行...").arg(currentTaskId_));
+            showRunningTaskSummary(currentTaskId_);
             if (progressDialog_) {
                 progressDialog_->show();
                 progressDialog_->raise();
                 progressDialog_->activateWindow();
             }
         } else {
-            resultSummaryLabel_->setText(
-                QStringLiteral("任务 %1 已加入队列，等待当前任务完成后自动执行。").arg(submittedTaskId));
-            statusBar()->showMessage(QStringLiteral("任务已加入队列"));
+            showQueuedTaskSummary(submittedTaskId);
         }
     }
     updateExecuteButtonState();
 }
 
 void MainWindow::onTaskRunnerStarted(const QString& displayGroup, const QString& taskId) {
-    if (displayGroup != QString::fromStdString(currentDisplayGroupKey_)) {
-        return;
-    }
-
-    if (currentTaskId_.isEmpty()) {
+    const bool affectsCurrentGroup =
+        displayGroup == QString::fromStdString(currentDisplayGroupKey_);
+    if (currentTaskId_.isEmpty() && pendingResultTaskIds_.contains(taskId)) {
         currentTaskId_ = taskId;
+        if (affectsCurrentGroup) {
+            ensureProgressDialog();
+            showRunningTaskSummary(currentTaskId_);
+            if (progressDialog_) {
+                progressDialog_->show();
+                progressDialog_->raise();
+                progressDialog_->activateWindow();
+            }
+        }
     }
 }
 
@@ -796,9 +1022,13 @@ void MainWindow::onTaskRunnerFinished(const QString& displayGroup,
                                       const QString& taskId,
                                       bool success,
                                       bool cancelled) {
-    if (displayGroup != QString::fromStdString(currentDisplayGroupKey_)) {
+    if (!pendingResultTaskIds_.contains(taskId)) {
         return;
     }
+    const QString taskGroup = pendingResultTaskIds_.value(taskId);
+    const bool affectsCurrentGroup =
+        taskGroup == QString::fromStdString(currentDisplayGroupKey_);
+    pendingResultTaskIds_.remove(taskId);
 
     const auto rec = TaskManager::instance().findTask(displayGroup, taskId);
     const QString message = rec.resultMessage.isEmpty()
@@ -811,21 +1041,16 @@ void MainWindow::onTaskRunnerFinished(const QString& displayGroup,
     lastExecutionRawMessage_ = rec.resultRawMessage.isEmpty() ? message : rec.resultRawMessage;
 
     if (taskId == currentTaskId_) {
-        if (progressDialog_) {
+        if (progressDialog_ && affectsCurrentGroup) {
             progressDialog_->setFinished(message, success, cancelled);
         }
-        if (cancelled) {
-            resultSummaryLabel_->setText(QStringLiteral("任务 %1 已取消。%2").arg(taskId, message));
-            statusBar()->showMessage(QStringLiteral("执行已取消"));
-        } else if (success) {
-            resultSummaryLabel_->setText(QStringLiteral("任务 %1 执行成功。%2").arg(taskId, message));
-            statusBar()->showMessage(QStringLiteral("执行完成"));
-        } else {
-            resultSummaryLabel_->setText(QStringLiteral("任务 %1 执行失败。%2").arg(taskId, message));
-            statusBar()->showMessage(QStringLiteral("执行失败"));
+        if (affectsCurrentGroup) {
+            showFinishedTaskSummary(taskId, message, success, cancelled);
         }
-        statusProgressBar_->setValue(success ? 100 : 0);
         currentTaskId_.clear();
+        if (!affectsCurrentGroup) {
+            syncExecutionSummaryForCurrentGroup();
+        }
         emit executionFinished(success);
     }
 
@@ -833,10 +1058,19 @@ void MainWindow::onTaskRunnerFinished(const QString& displayGroup,
 }
 
 void MainWindow::onTaskProgressChanged(const QString& taskId, double percent) {
-    int value = std::clamp(static_cast<int>(percent * 100.0), 0, 100);
-    statusProgressBar_->setValue(value);
+    const bool affectsCurrentGroup =
+        pendingResultTaskIds_.value(taskId) == QString::fromStdString(currentDisplayGroupKey_);
+    if (!affectsCurrentGroup && taskId != currentTaskId_) {
+        taskCenterPage_->updateTaskProgress(taskId, percent);
+        return;
+    }
 
-    if (progressDialog_) {
+    int value = std::clamp(static_cast<int>(percent * 100.0), 0, 100);
+    if (affectsCurrentGroup) {
+        statusProgressBar_->setValue(value);
+    }
+
+    if (progressDialog_ && affectsCurrentGroup) {
         progressDialog_->updateProgress(percent);
     }
 
@@ -844,10 +1078,9 @@ void MainWindow::onTaskProgressChanged(const QString& taskId, double percent) {
 }
 
 void MainWindow::onTaskLogMessage(const QString& displayGroup, const QString& taskId, const QString& msg) {
-    if (displayGroup != QString::fromStdString(currentDisplayGroupKey_)) {
-        return;
-    }
-    if (taskId == currentTaskId_) {
+    const bool affectsCurrentGroup =
+        displayGroup == QString::fromStdString(currentDisplayGroupKey_);
+    if (taskId == currentTaskId_ && affectsCurrentGroup) {
         if (progressDialog_) {
             progressDialog_->appendLog(msg);
         }
@@ -856,9 +1089,13 @@ void MainWindow::onTaskLogMessage(const QString& displayGroup, const QString& ta
 }
 
 void MainWindow::onRerunTask(const QString& taskId) {
-    auto rec = TaskManager::instance().findTask(QStringLiteral("default"), taskId);
+    const QString displayGroup = taskCenterPage_ ? taskCenterPage_->currentGroup() : QStringLiteral("default");
+    auto rec = TaskManager::instance().findTask(displayGroup, taskId);
     if (rec.id.isEmpty()) return;
 
+    currentDisplayGroupKey_ = rec.displayGroup.isEmpty()
+        ? rec.pluginName.toStdString()
+        : rec.displayGroup.toStdString();
     currentPluginName_ = rec.pluginName.toStdString();
     currentActionKey_ = rec.actionKey.toStdString();
 
@@ -884,10 +1121,17 @@ void MainWindow::onRerunTask(const QString& taskId) {
         ? QString::fromStdString(currentActionKey_)
         : uiConfig.displayName;
 
-    functionTitleLabel_->setText(
-        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay));
-    functionDescLabel_->setText(uiConfig.description);
-    functionMetaLabel_->setText(QStringLiteral("当前状态：已加载历史参数，可修改后执行"));
+    applyFunctionPanelState(
+        QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay),
+        uiConfig.description,
+        QStringLiteral("当前状态：已加载历史参数，可修改后执行"),
+        QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay),
+        currentPluginName_);
+    resultSummaryLabel_->setText(
+        QStringLiteral("已载入任务 %1 的历史参数，可直接执行或修改后执行。").arg(taskId));
+    if (taskCenterPage_) {
+        taskCenterPage_->setCurrentGroup(displayGroup);
+    }
 
     tabWidget_->setCurrentIndex(0);
     updateExecuteButtonState();

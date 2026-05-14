@@ -93,7 +93,7 @@ inline QString globalStyleSheet() {
         "}"
         "QLabel#heroTitle { font-size: 17px; font-weight: 700; color: %2; }"
         "QLabel#heroDesc { font-size: 12px; color: %9; line-height: 1.4; }"
-        "QLabel#heroMeta { font-size: 12px; color: %10; }"
+        "QLabel#heroMeta, QLabel#mainHeroMeta, QLabel#taskCountMeta, QLabel#logTaskMeta, QLabel#progressStatusMeta { font-size: 12px; color: %10; }"
         "QLabel#cardTitle { font-size: 11px; font-weight: 700; color: %10; letter-spacing: 1px; }"
         "QLabel#cardIcon { color: %7; font-size: 14px; font-weight: 700; min-width: 16px; }"
         "QLabel#cardDesc { font-size: 12px; color: %9; }"

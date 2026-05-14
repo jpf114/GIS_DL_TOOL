@@ -48,6 +48,7 @@ execute_process(
         --status-file "${STATUS_FILE}"
         --screenshot "${SCREENSHOT_FILE}"
         --auto-execute
+        --quit-on-finish
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.."
     RESULT_VARIABLE GUI_EXIT_CODE
     TIMEOUT 60

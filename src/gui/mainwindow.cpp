@@ -786,29 +786,34 @@ void MainWindow::syncExecutionSummaryForCurrentGroup() {
 }
 
 void MainWindow::updateExecuteButtonState() {
-    if (currentPluginName_.empty() || currentActionKey_.empty()) {
-        executeButton_->setEnabled(false);
-        executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
-        return;
-    }
+    const bool hasSelection = !currentPluginName_.empty() && !currentActionKey_.empty();
 
     QString error = validateParams();
-    if (!error.isEmpty()) {
-        executeButton_->setEnabled(false);
-        executeButton_->setToolTip(error);
-        return;
+
+    if (error.isEmpty() && hasSelection) {
+        auto values = paramWidget_->getParamValues();
+        auto actionIssue = validateActionSpecificParams(
+            currentPluginName_, currentActionKey_, values);
+        if (actionIssue.has_value()) {
+            error = actionIssue->message;
+        }
     }
 
-    executeButton_->setEnabled(true);
-    const int queued = TaskRunner::instance().queuedCount();
-    const bool running = TaskRunner::instance().isRunning();
-    if (running && queued > 0) {
-        executeButton_->setToolTip(
-            QStringLiteral("参数就绪，点击后将加入队列（当前排队 %1 个）").arg(queued));
-    } else if (running) {
-        executeButton_->setToolTip(QStringLiteral("参数就绪，点击后将自动加入队列"));
-    } else {
-        executeButton_->setToolTip(QStringLiteral("参数就绪，点击执行"));
+    auto state = buildExecuteButtonState(hasSelection, error);
+    executeButton_->setEnabled(state.enabled);
+    executeButton_->setToolTip(state.tooltip);
+
+    if (state.enabled) {
+        const int queued = TaskRunner::instance().queuedCount();
+        const bool running = TaskRunner::instance().isRunning();
+        if (running && queued > 0) {
+            executeButton_->setToolTip(
+                QStringLiteral("参数就绪，点击后将加入队列（当前排队 %1 个）").arg(queued));
+        } else if (running) {
+            executeButton_->setToolTip(QStringLiteral("参数就绪，点击后将自动加入队列"));
+        } else {
+            executeButton_->setToolTip(QStringLiteral("参数就绪，点击执行"));
+        }
     }
 }
 

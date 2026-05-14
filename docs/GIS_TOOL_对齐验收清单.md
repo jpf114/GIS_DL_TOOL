@@ -1,6 +1,6 @@
 # GIS_DL_TOOL 与 GIS_TOOL 对齐验收清单
 
-Last updated: 2026-05-14
+Last updated: 2026-05-14 (Phase 1 update)
 
 ## Principle
 
@@ -31,8 +31,8 @@ This checklist is for non-business alignment only. It does not require the two t
 - [x] Install tree layout is compared against `GIS_TOOL` as part of verification, not only by inspection
 - [x] GUI result-summary wording and task-state presentation are checked for consistency with `GIS_TOOL`
 - [ ] `gui_data_support.cpp` is reviewed as a data-driven business layer, with shell behavior kept aligned
-- [ ] Error handling and invalid-parameter fast-fail flows are covered by GUI regression checks
-- [ ] Installed-tree smoke checks are supplemented by business-action GUI regression checks
+- [x] Error handling and invalid-parameter fast-fail flows are covered by GUI regression checks
+- [x] Installed-tree smoke checks are supplemented by business-action GUI regression checks
 
 ## P2
 
@@ -58,4 +58,4 @@ This checklist is for non-business alignment only. It does not require the two t
 
 ## Current Assessment
 
-As of 2026-05-14, `GIS_DL_TOOL` is already close to the target in core Windows build/install shape and in the task-oriented GUI shell. In this workspace, the release install tree was regenerated and verified by an explicit CTest install-tree regression, installed CLI and GUI smoke checks passed, the installed GUI process survived a normal startup check, and a separate downstream consumer project successfully consumed the installed package through `find_package(gis_ai CONFIG REQUIRED)`. Startup/runtime initialization and execution-summary wording were both reviewed side by side against `GIS_TOOL` and tightened toward the same shell behavior. The main remaining gap is not the presence of the shell, but proving that broader shell areas stay consistently aligned with `GIS_TOOL` over time and lifting release verification confidence across the remaining shell-facing regressions.
+As of 2026-05-14 (Phase 1 update), `GIS_DL_TOOL` is already close to the target in core Windows build/install shape and in the task-oriented GUI shell. In this workspace, the release install tree was regenerated and verified by an explicit CTest install-tree regression, installed CLI and GUI smoke checks passed, the installed GUI process survived a normal startup check, and a separate downstream consumer project successfully consumed the installed package through `find_package(gis_ai CONFIG REQUIRED)`. Startup/runtime initialization and execution-summary wording were both reviewed side by side against `GIS_TOOL` and tightened toward the same shell behavior. GUI regression coverage now includes invalid-parameter fast-fail (`gui_invalid_param_fast_fail_test`) and installed-tree business-action segmentation (`release_installed_gui_segment_test`), both passing in Release. The `gui_data_support.cpp` gap analysis identified 11 missing platform-level capabilities compared to the motherbase (data detection, auto-fill, output path derivation, file dialog config, placeholder text, result localization, action-specific validation, execute button state, invalid param highlighting, drag-drop binding, auto-fill decision logic). The main remaining gap is closing these platform-level `gui_data_support` capabilities and enumerating GUI shell files for cross-tool review.

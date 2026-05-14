@@ -16,6 +16,7 @@
 
 #include <filesystem>
 #include <array>
+#include <QFileInfo>
 
 namespace gis_ai::gui {
 
@@ -538,6 +539,248 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
         reporter.onMessage("执行异常: " + std::string(e.what()));
         return false;
     }
+}
+
+std::string localizeResultMessage(const std::string& message) {
+    static const std::map<std::string, std::string> kKnownMessages = {
+        {"Segmentation completed successfully", "分割完成"},
+        {"Batch segmentation completed", "批量分割完成"},
+        {"Inference completed successfully", "推理完成"},
+        {"Resample completed successfully", "重采样完成"},
+        {"Normalization completed successfully", "归一化完成"},
+        {"Clip completed successfully", "裁剪完成"},
+        {"Vector simplify completed successfully", "矢量简化完成"},
+        {"Vector buffer completed successfully", "缓冲区处理完成"},
+        {"Vector clip completed successfully", "矢量裁剪完成"},
+        {"Raster mosaic completed successfully", "栅格镶嵌完成"},
+        {"Raster threshold completed successfully", "阈值分割完成"},
+        {"Raster resample completed successfully", "栅格重采样完成"},
+        {"Cancelled", "操作已取消"},
+    };
+
+    const auto it = kKnownMessages.find(message);
+    if (it != kKnownMessages.end()) {
+        return it->second;
+    }
+
+    std::string msg = message;
+
+    if (msg.find("Cannot open") != std::string::npos ||
+        msg.find("No such file") != std::string::npos) {
+        return "无法打开文件：" + msg + "\n建议：请检查文件路径是否正确，文件是否存在。";
+    }
+    if (msg.find("Permission denied") != std::string::npos) {
+        return "权限不足：" + msg + "\n建议：请检查文件是否被其他程序占用，或是否有写入权限。";
+    }
+    if (msg.find("out of memory") != std::string::npos ||
+        msg.find("OutOfMemory") != std::string::npos) {
+        return "内存不足：" + msg + "\n建议：请尝试处理更小的数据范围，或先分块处理。";
+    }
+    if (msg.find("Unsupported format") != std::string::npos ||
+        msg.find("not recognized") != std::string::npos) {
+        return "格式不支持：" + msg + "\n建议：请确认输入文件格式是否受支持。";
+    }
+    if (msg.find("Cancelled") != std::string::npos) {
+        return "操作已取消";
+    }
+
+    return msg;
+}
+
+std::optional<ActionValidationIssue> validateActionSpecificParams(
+    const std::string& pluginName,
+    const std::string& actionKey,
+    const std::map<std::string, ParamValue>& params) {
+    auto stringParam = [&](const std::string& key) -> std::string {
+        const auto it = params.find(key);
+        if (it == params.end()) return {};
+        if (const auto* value = std::get_if<std::string>(&it->second)) return *value;
+        return {};
+    };
+
+    auto intParam = [&](const std::string& key) -> std::optional<int> {
+        const auto it = params.find(key);
+        if (it == params.end()) return std::nullopt;
+        if (const auto* value = std::get_if<int>(&it->second)) return *value;
+        return std::nullopt;
+    };
+
+    auto doubleParam = [&](const std::string& key) -> std::optional<double> {
+        const auto it = params.find(key);
+        if (it == params.end()) return std::nullopt;
+        if (const auto* value = std::get_if<double>(&it->second)) return *value;
+        if (const auto* value = std::get_if<int>(&it->second)) return static_cast<double>(*value);
+        return std::nullopt;
+    };
+
+    if (pluginName == "segment") {
+        const auto tileSize = intParam("tile_size");
+        if (tileSize.has_value() && *tileSize < 64) {
+            return ActionValidationIssue{"tile_size", QString::fromUtf8("参数「分块大小」不能小于 64")};
+        }
+        const auto stride = intParam("stride");
+        if (stride.has_value() && *stride < 32) {
+            return ActionValidationIssue{"stride", QString::fromUtf8("参数「步长」不能小于 32")};
+        }
+        if (tileSize.has_value() && stride.has_value() && *stride > *tileSize) {
+            return ActionValidationIssue{"stride", QString::fromUtf8("参数「步长」不应大于「分块大小」")};
+        }
+        const auto targetClass = intParam("target_class");
+        if (targetClass.has_value() && (*targetClass < 0 || *targetClass > 255)) {
+            return ActionValidationIssue{"target_class", QString::fromUtf8("参数「目标类别」应落在 [0, 255] 范围内")};
+        }
+        const std::string outputTif = stringParam("output_tif");
+        if (!outputTif.empty() && outputTif.find(".tif") == std::string::npos &&
+            outputTif.find(".tiff") == std::string::npos) {
+            return ActionValidationIssue{"output_tif", QString::fromUtf8("参数「输出栅格」应使用 .tif 或 .tiff")};
+        }
+        const std::string outputShp = stringParam("output_shp");
+        if (!outputShp.empty() && outputShp.find(".shp") == std::string::npos) {
+            return ActionValidationIssue{"output_shp", QString::fromUtf8("参数「输出矢量」应使用 .shp")};
+        }
+    }
+
+    if (pluginName == "inference") {
+        const auto targetClass = intParam("target_class");
+        if (targetClass.has_value() && (*targetClass < 0 || *targetClass > 255)) {
+            return ActionValidationIssue{"target_class", QString::fromUtf8("参数「目标类别」应落在 [0, 255] 范围内")};
+        }
+    }
+
+    if (pluginName == "preprocess") {
+        if (actionKey == "preprocess_clip") {
+            const auto extent = getExtentParam(params, "clip_extent");
+            if (extent[0] == 0 && extent[1] == 0 && extent[2] == 0 && extent[3] == 0) {
+                return ActionValidationIssue{"clip_extent", QString::fromUtf8("参数「裁剪范围」不能全为零")};
+            }
+        }
+    }
+
+    if (pluginName == "vector") {
+        if (actionKey == "vector_simplify") {
+            const auto tolerance = doubleParam("simplify_tolerance");
+            if (tolerance.has_value() && *tolerance <= 0.0) {
+                return ActionValidationIssue{"simplify_tolerance", QString::fromUtf8("参数「简化容差」必须大于 0")};
+            }
+        }
+        if (actionKey == "vector_buffer") {
+            const auto distance = doubleParam("buffer_distance");
+            if (distance.has_value() && *distance <= 0.0) {
+                return ActionValidationIssue{"buffer_distance", QString::fromUtf8("参数「缓冲距离」必须大于 0")};
+            }
+        }
+    }
+
+    if (pluginName == "raster") {
+        if (actionKey == "raster_threshold") {
+            const auto threshold = doubleParam("threshold_value");
+            if (threshold.has_value() && *threshold < 0.0) {
+                return ActionValidationIssue{"threshold_value", QString::fromUtf8("参数「阈值」不能小于 0")};
+            }
+        }
+    }
+
+    if (pluginName == "batch") {
+        const std::string inputDir = stringParam("input_dir");
+        if (!inputDir.empty() && !std::filesystem::exists(inputDir)) {
+            return ActionValidationIssue{"input_dir", QString::fromUtf8("参数「输入目录」路径不存在")};
+        }
+    }
+
+    return std::nullopt;
+}
+
+ExecuteButtonState buildExecuteButtonState(bool hasSelection,
+                                           const QString& validationMessage) {
+    if (!hasSelection) {
+        return ExecuteButtonState{
+            false,
+            QStringLiteral("请先选择主功能和子功能"),
+            QStringLiteral("就绪"),
+            QStringLiteral("statusBadgeReady")
+        };
+    }
+    if (!validationMessage.isEmpty()) {
+        return ExecuteButtonState{
+            false,
+            validationMessage,
+            QStringLiteral("待修正"),
+            QStringLiteral("statusBadgeWarning")
+        };
+    }
+    return ExecuteButtonState{
+        true,
+        QStringLiteral("参数已就绪，可以执行当前功能"),
+        QStringLiteral("可执行"),
+        QStringLiteral("statusBadgeReady")
+    };
+}
+
+namespace {
+
+std::string findFirstInvalidParamKeyLocal(
+    const std::vector<ParamSpec>& specs,
+    const std::map<std::string, ParamValue>& params) {
+    for (const auto& spec : specs) {
+        if (!spec.required) continue;
+
+        const auto it = params.find(spec.key);
+        if (it == params.end()) {
+            return spec.key;
+        }
+
+        if (spec.type == ParamType::FilePath || spec.type == ParamType::DirPath) {
+            const auto* str = std::get_if<std::string>(&it->second);
+            if (!str || str->empty()) {
+                return spec.key;
+            }
+
+            const bool isOutput = spec.key.find("output") != std::string::npos;
+            if (!isOutput) {
+                const QFileInfo fi(QString::fromStdString(*str));
+                if (!fi.exists()) {
+                    return spec.key;
+                }
+            } else {
+                const QFileInfo fi(QString::fromStdString(*str));
+                const QFileInfo parentDir(fi.absolutePath());
+                if (!parentDir.exists() || !parentDir.isDir()) {
+                    return spec.key;
+                }
+            }
+        }
+
+        if (spec.type == ParamType::FilePath && spec.key.find("model") != std::string::npos) {
+            const auto* str = std::get_if<std::string>(&it->second);
+            if (str && !str->empty()) {
+                const QFileInfo fi(QString::fromStdString(*str));
+                if (!fi.exists()) {
+                    return spec.key;
+                }
+            }
+        }
+    }
+    return {};
+}
+
+}
+
+std::string resolveHighlightedParamKey(
+    bool hasSelection,
+    const std::vector<ParamSpec>& specs,
+    const std::map<std::string, ParamValue>& params,
+    const std::optional<ActionValidationIssue>& actionIssue) {
+    if (!hasSelection) {
+        return {};
+    }
+    const std::string invalidKey = findFirstInvalidParamKeyLocal(specs, params);
+    if (!invalidKey.empty()) {
+        return invalidKey;
+    }
+    if (actionIssue.has_value()) {
+        return actionIssue->key;
+    }
+    return {};
 }
 
 }

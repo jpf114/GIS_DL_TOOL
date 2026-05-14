@@ -3,6 +3,7 @@
 #include "execute_worker.h"
 #include "qt_progress_reporter.h"
 #include "task_manager.h"
+#include "gui_data_support.h"
 
 #include <QThread>
 
@@ -98,8 +99,12 @@ void TaskRunner::startTask(const QueuedTask& task) {
                     ? it.value()->reporter->isCancelled()
                     : false;
 
+                const std::string localizedMsg = localizeResultMessage(message.toStdString());
+                const QString localizedQMsg = QString::fromStdString(localizedMsg);
+
                 TaskManager::instance().finishTask(
-                    task.displayGroup, task.taskId, success, cancelled, message, message, {});
+                    task.displayGroup, task.taskId, success, cancelled,
+                    localizedQMsg, message, {});
                 emit taskFinished(task.displayGroup, task.taskId, success, cancelled);
 
                 activeTasks_.remove(task.taskId);

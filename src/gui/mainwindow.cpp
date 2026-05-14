@@ -531,6 +531,7 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
 
     auto specs = buildEffectiveParamSpecs(pluginName, actionKey);
     paramWidget_->setParamSpecs(specs);
+    paramWidget_->setUiContext(pluginName, actionKey);
     if (taskCenterPage_) {
         taskCenterPage_->setCurrentGroup(QString::fromStdString(currentDisplayGroupKey_));
     }
@@ -552,38 +553,67 @@ void MainWindow::onParamsChanged() {
 void MainWindow::syncDerivedParams() {
     if (currentPluginName_.empty() || currentActionKey_.empty()) return;
 
-    auto trySetOutput = [&](const std::string& outputKey, const QString& ext) {
+    QString primaryInputPath;
+    std::string primaryInputKey;
+    if (paramWidget_->hasParam("input_raster")) {
+        primaryInputKey = "input_raster";
+        primaryInputPath = QString::fromStdString(paramWidget_->stringValue("input_raster"));
+    } else if (paramWidget_->hasParam("input_vector")) {
+        primaryInputKey = "input_vector";
+        primaryInputPath = QString::fromStdString(paramWidget_->stringValue("input_vector"));
+    }
+
+    if (!primaryInputPath.isEmpty()) {
+        DataAutoFillInfo autoFillInfo = inspectDataForAutoFill(primaryInputPath.toStdString());
+
+        if (autoFillInfo.hasExtent && paramWidget_->hasParam("clip_extent")) {
+            auto currentExtentStr = paramWidget_->stringValue("clip_extent");
+            auto lastIt = lastAutoExtent_.find("clip_extent");
+            std::optional<std::array<double, 4>> currentExtent;
+            std::optional<std::array<double, 4>> lastAutoExtent;
+
+            if (!currentExtentStr.empty()) {
+                QStringList parts = QString::fromStdString(currentExtentStr).split(',', Qt::SkipEmptyParts);
+                if (parts.size() == 4) {
+                    std::array<double, 4> arr = {parts[0].trimmed().toDouble(),
+                                                  parts[1].trimmed().toDouble(),
+                                                  parts[2].trimmed().toDouble(),
+                                                  parts[3].trimmed().toDouble()};
+                    currentExtent = arr;
+                }
+            }
+            if (lastIt != lastAutoExtent_.end()) lastAutoExtent = lastIt->second;
+
+            if (shouldAutoFillExtentValue(currentExtent, lastAutoExtent, true)) {
+                paramWidget_->setExtentValue("clip_extent", autoFillInfo.extent);
+                lastAutoExtent_["clip_extent"] = autoFillInfo.extent;
+            }
+        }
+    }
+
+    auto trySetOutput = [&](const std::string& outputKey) {
         if (!paramWidget_->hasParam(outputKey)) return;
 
         auto currentOutput = paramWidget_->stringValue(outputKey);
         auto autoIt = lastAutoOutputPath_.find(outputKey);
 
-        if (!currentOutput.empty()) {
-            if (autoIt != lastAutoOutputPath_.end() && currentOutput == autoIt->second.toStdString()) {
-            } else {
-                return;
-            }
-        }
+        std::string lastAuto = (autoIt != lastAutoOutputPath_.end())
+            ? autoIt->second.toStdString() : std::string{};
 
-        QString inputPath;
-        if (paramWidget_->hasParam("input_raster")) {
-            inputPath = QString::fromStdString(paramWidget_->stringValue("input_raster"));
-        } else if (paramWidget_->hasParam("input_vector")) {
-            inputPath = QString::fromStdString(paramWidget_->stringValue("input_vector"));
-        }
+        DerivedOutputUpdate update = computeDerivedOutputUpdate(
+            currentOutput, lastAuto,
+            primaryInputPath.toStdString(),
+            currentPluginName_, currentActionKey_, outputKey);
 
-        if (inputPath.isEmpty()) return;
-
-        QString suggested = buildSuggestedOutputPath(inputPath, ext);
-        if (!suggested.isEmpty()) {
-            paramWidget_->setStringValue(outputKey, suggested.toStdString());
-            lastAutoOutputPath_[outputKey] = suggested;
+        if (update.shouldApply) {
+            paramWidget_->setStringValue(outputKey, update.value);
+            lastAutoOutputPath_[outputKey] = QString::fromStdString(update.autoValue);
         }
     };
 
-    trySetOutput("output_tif", QStringLiteral(".tif"));
-    trySetOutput("output_path", QStringLiteral(".tif"));
-    trySetOutput("output_shp", QStringLiteral(".shp"));
+    trySetOutput("output_tif");
+    trySetOutput("output_path");
+    trySetOutput("output_shp");
 }
 
 QString MainWindow::buildSuggestedOutputPath(const QString& inputPath,

@@ -121,6 +121,7 @@ private:
     QMap<QString, QString> pendingResultTaskIds_;
 
     std::map<std::string, QString> lastAutoOutputPath_;
+    std::map<std::string, std::array<double, 4>> lastAutoExtent_;
     std::string currentDisplayGroupKey_{"default"};
     bool lastExecutionSuccess_ = false;
     bool lastExecutionCancelled_ = false;

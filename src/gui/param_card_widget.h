@@ -71,6 +71,8 @@ public:
 
     void markFieldError(const std::string& key, bool error) const;
 
+    void setUiContext(const std::string& pluginName, const std::string& actionKey);
+
 signals:
     void paramChanged(const std::string& key);
 
@@ -87,6 +89,8 @@ private:
     QWidget* createCrsWidget(const ParamSpec& spec, ParamWidgetEntry& entry);
 
     CardType cardType_;
+    std::string pluginName_;
+    std::string actionKey_;
     QFrame* cardFrame_ = nullptr;
     QLabel* titleLabel_ = nullptr;
     QLabel* iconLabel_ = nullptr;

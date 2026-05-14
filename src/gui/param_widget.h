@@ -27,6 +27,7 @@ public:
     void setExtentValue(const std::string& key, const std::array<double, 4>& value);
     std::string stringValue(const std::string& key) const;
     bool validate() const;
+    void setUiContext(const std::string& pluginName, const std::string& actionKey);
 
 signals:
     void paramsChanged();

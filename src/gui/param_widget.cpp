@@ -216,4 +216,10 @@ bool ParamWidget::validate() const {
     return valid;
 }
 
+void ParamWidget::setUiContext(const std::string& pluginName, const std::string& actionKey) {
+    if (inputCard_) inputCard_->setUiContext(pluginName, actionKey);
+    if (outputCard_) outputCard_->setUiContext(pluginName, actionKey);
+    if (advancedCard_) advancedCard_->setUiContext(pluginName, actionKey);
+}
+
 }

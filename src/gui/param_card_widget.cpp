@@ -2,6 +2,7 @@
 #include "crs_dialog.h"
 #include "style_constants.h"
 #include "icon_manager.h"
+#include "gui_data_support.h"
 
 #include <QApplication>
 #include <QPainter>
@@ -263,10 +264,19 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
     layout->setSpacing(4);
 
     auto* lineEdit = new QLineEdit;
-    lineEdit->setPlaceholderText(
-        spec.type == ParamType::DirPath
-            ? QStringLiteral("请选择目录或输入路径")
-            : QStringLiteral("请选择文件或输入路径"));
+
+    FileParamUiConfig uiConfig = buildFileParamUiConfig(
+        pluginName_, actionKey_, spec.key, spec.type);
+
+    if (!uiConfig.placeholder.isEmpty()) {
+        lineEdit->setPlaceholderText(uiConfig.placeholder);
+    } else {
+        lineEdit->setPlaceholderText(
+            spec.type == ParamType::DirPath
+                ? QStringLiteral("请选择目录或输入路径")
+                : QStringLiteral("请选择文件或输入路径"));
+    }
+
     if (auto* defStr = std::get_if<std::string>(&spec.defaultValue); defStr && !defStr->empty()) {
         lineEdit->setText(QString::fromUtf8(*defStr));
     }
@@ -282,61 +292,27 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
     browseBtn->setIconSize(QSize(14, 14));
     entry.browseButton = browseBtn;
 
-    bool isDir = (spec.type == ParamType::DirPath);
-    bool isOutput = spec.key.find("output") != std::string::npos;
+    bool isDir = uiConfig.selectDirectory || (spec.type == ParamType::DirPath);
+    bool isOutput = uiConfig.isOutput;
 
-    auto keyContains = [&spec](const std::vector<std::string>& keywords) -> bool {
-        for (const auto& kw : keywords) {
-            if (spec.key.find(kw) != std::string::npos) return true;
-        }
-        return false;
-    };
-
-    static const QString kRasterInputFilter =
-        QStringLiteral("栅格文件 (*.tif *.tiff *.img *.vrt *.png *.jpg *.jpeg *.bmp);;GeoTIFF (*.tif *.tiff);;所有文件 (*)");
-    static const QString kRasterOutputFilter =
-        QStringLiteral("GeoTIFF (*.tif *.tiff);;Cloud Optimized GeoTIFF (*.cog);;所有文件 (*)");
-    static const QString kVectorInputFilter =
-        QStringLiteral("矢量文件 (*.gpkg *.shp *.geojson *.json *.kml);;GeoPackage (*.gpkg);;Shapefile (*.shp);;GeoJSON (*.geojson *.json);;所有文件 (*)");
-    static const QString kVectorOutputFilter =
-        QStringLiteral("GeoPackage (*.gpkg);;GeoJSON (*.geojson *.json);;Shapefile (*.shp);;所有文件 (*)");
-    static const QString kModelFilter =
-        QStringLiteral("ONNX 模型 (*.onnx);;所有文件 (*)");
-    static const QString kAllFilter =
-        QStringLiteral("所有文件 (*)");
-
-    QString filter;
+    QString filter = isDir ? QString() : uiConfig.openFilter;
+    QString saveFilter = uiConfig.saveFilter;
     QString defaultSuffix;
-
-    if (isDir) {
-        filter.clear();
-    } else if (keyContains({"model"})) {
-        filter = kModelFilter;
-        if (isOutput) defaultSuffix = QStringLiteral("onnx");
-    } else if (keyContains({"output_tif", "output_raster"})) {
-        filter = kRasterOutputFilter;
-        defaultSuffix = QStringLiteral("tif");
-    } else if (keyContains({"raster", "input_raster", "input_tif"})) {
-        filter = kRasterInputFilter;
-    } else if (keyContains({"output_shp", "output_vector"})) {
-        filter = kVectorOutputFilter;
-        defaultSuffix = QStringLiteral("shp");
-    } else if (keyContains({"vector", "shp"})) {
-        filter = kVectorInputFilter;
-    } else if (isOutput) {
-        filter = kRasterOutputFilter;
-        defaultSuffix = QStringLiteral("tif");
-    } else {
-        filter = kAllFilter;
+    if (!uiConfig.suggestedSuffix.empty()) {
+        defaultSuffix = QString::fromStdString(uiConfig.suggestedSuffix);
+        if (defaultSuffix.startsWith('.')) {
+            defaultSuffix = defaultSuffix.mid(1);
+        }
     }
 
     connect(browseBtn, &QPushButton::clicked, this,
-            [lineEdit, isDir, isOutput, filter, defaultSuffix]() {
+            [lineEdit, isDir, isOutput, filter, saveFilter, defaultSuffix]() {
         QString filePath;
         if (isDir) {
             filePath = QFileDialog::getExistingDirectory(nullptr, QStringLiteral("选择目录"));
         } else if (isOutput) {
-            QFileDialog dlg(nullptr, QStringLiteral("保存文件"), QString(), filter);
+            QString effectiveFilter = saveFilter.isEmpty() ? filter : saveFilter;
+            QFileDialog dlg(nullptr, QStringLiteral("保存文件"), QString(), effectiveFilter);
             dlg.setAcceptMode(QFileDialog::AcceptSave);
             if (!defaultSuffix.isEmpty()) {
                 dlg.setDefaultSuffix(defaultSuffix);
@@ -767,6 +743,11 @@ void ParamCardWidget::setExtentValue(const std::string& key, const std::array<do
     for (int i = 0; i < 4; ++i) {
         spins[i]->setValue(value[static_cast<size_t>(i)]);
     }
+}
+
+void ParamCardWidget::setUiContext(const std::string& pluginName, const std::string& actionKey) {
+    pluginName_ = pluginName;
+    actionKey_ = actionKey;
 }
 
 }

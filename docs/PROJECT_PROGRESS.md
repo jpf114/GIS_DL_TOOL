@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 ## Summary
 
@@ -8,22 +8,29 @@ Last updated: 2026-05-13
 
 ## What Is Verified Now
 
-Verified on 2026-05-13 in this workspace:
+Verified on 2026-05-14 in this workspace:
 
 - Release configure: `cmake --preset release`
 - Release build: `cmake --build --preset release`
-- GUI queue regression: `ctest --test-dir build/release -C Release -R test_gui_queue`
-- GUI smoke automation: `ctest --test-dir build/release -C Release -R gui_smoke_test`
+- Release install-tree regression: `ctest --test-dir build/release -C Release --output-on-failure -R release_install_tree_test`
 - Release install: `cmake --install build/release --config Release`
 - Installed CLI smoke: `install\bin\gis_ai_cli.exe help`
 - Installed GUI smoke: `install\bin\gis-ai-gui.exe --self-test`
+- Installed GUI startup survival check: launch `install\bin\gis-ai-gui.exe`, wait 3 seconds, confirm the process stays alive, then stop it intentionally
+- Downstream `find_package` consumer verification: `powershell -ExecutionPolicy Bypass -File tests\verify_release_package_consumer.ps1 -RepoRoot <repo> -BuildDir <repo>\build\release`
 
 ## Recent Completed Work
 
-- Task-center result area now surfaces structured execution details instead of leaving users to infer everything from logs
-- GUI smoke verification now exercises automation hooks instead of only checking that the app can start
-- Windows release build and install tree were re-verified end to end
-- Installed `platforms/`, `sqldrivers/`, `share/proj`, `share/gdal`, and `share/icons` layout was confirmed workable in the current release flow
+- Main-window execution summary now resets correctly when history is cleared, the last task is deleted, or the user switches groups
+- Background completion from another task group no longer overwrites the currently visible group's summary or status text
+- Execution-state updates and function-panel state updates were consolidated into shared helpers to reduce UI drift
+- GUI object names used by regression tests were de-duplicated where they previously pointed at multiple unrelated labels
+- Startup/runtime initialization was aligned more closely with `GIS_TOOL` by resolving runtime data paths before Qt application construction
+- Result-summary wording and selection-state prompts were reviewed side by side with `GIS_TOOL` and updated toward the same shell language
+- Release install-tree verification is now an explicit CTest regression instead of a manual-only check
+- Release package export now declares the transitive `nlohmann_json` dependency needed by downstream consumers
+- A standalone downstream package-consumer verification script was added under `tests/verify_release_package_consumer.ps1`
+- Release build, install tree, installed CLI, installed GUI self-test, installed GUI startup, and downstream consumer build/run were re-verified end to end
 
 ## Current Strengths
 
@@ -31,6 +38,7 @@ Verified on 2026-05-13 in this workspace:
 - Shared/static library outputs, CLI, and Qt GUI all build from the same repo
 - Task queue, persistence, rerun flow, and structured task results in the GUI
 - Working Windows install layout with runnable installed binaries
+- Downstream `find_package` consumption from the installed release tree now works in this workspace
 
 ## Open Areas
 
@@ -38,6 +46,7 @@ Verified on 2026-05-13 in this workspace:
 - Wider verification beyond the current Windows-focused checks
 - Additional documentation cleanup and removal of older overstated claims in secondary docs
 - More representative install/export validation for downstream consumers
+- Broader side-by-side shell review beyond startup and execution-summary areas
 
 ## Packaging Status
 
@@ -50,16 +59,18 @@ Current Windows release packaging has been validated for:
 - `install/share/gdal`
 - `install/share/icons`
 
-During install verification on 2026-05-13, the install script was improved to locate Visual Studio's `dumpbin.exe` through `vswhere` when it is not on `PATH`. After that change, runtime dependency scanning succeeded without the previous warning-only fallback, and the installed binaries remained runnable.
+During install verification on 2026-05-14, the release install tree was re-checked after the latest GUI state-sync fixes. Runtime dependency scanning succeeded, the installed CLI remained runnable, the installed GUI self-test returned successfully, and a normal GUI process stayed alive for at least 3 seconds before being intentionally stopped.
+
+Downstream package verification on 2026-05-14 also confirmed that a separate consumer CMake project can `find_package(gis_ai CONFIG REQUIRED)`, link both shared and static imported targets, build successfully, and run against the installed release tree when launched through the standalone verification script.
 
 ## Honest Boundaries
 
 - This document does not claim full cross-platform readiness.
-- This document does not claim that every historical test target was re-run in this session.
+- This document does not claim the entire current release CTest sweep is green; an unrelated timing-sensitive `test_gui_queue` failure was still observed while doing packaging follow-up work.
 - This document does not treat cross-tool alignment as finished.
 
 ## Next Practical Moves
 
-1. Re-run `test_gui_task_database` and `test_io_integration` inside the same release verification sweep
-2. Decide whether the install-time fallback path should stay as-is or be covered by an explicit packaging regression check
+1. Continue side-by-side shell review for more UI/status areas beyond startup and execution summary
+2. Broaden install/export validation for downstream consumers beyond the current Windows release tree assertions
 3. Keep updating repo docs so they match the newest verified state instead of older intent

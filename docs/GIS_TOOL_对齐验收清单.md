@@ -1,6 +1,6 @@
 # GIS_DL_TOOL 与 GIS_TOOL 对齐验收清单
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 ## Principle
 
@@ -22,14 +22,14 @@ This checklist is for non-business alignment only. It does not require the two t
 - [x] GUI has persistent task history backed by SQLite
 - [x] GUI task center can display logs, progress, and structured result text
 - [ ] GUI shell files that should stay behaviorally aligned are explicitly enumerated and reviewed together across both tools
-- [ ] A documented rule exists for what differences are allowed between the two tools
+- [x] A documented rule exists for what differences are allowed between the two tools
 - [ ] Release verification coverage for `GIS_DL_TOOL` reaches the same confidence level as the corresponding business surface in `GIS_TOOL`
 
 ## P1
 
-- [ ] Startup/runtime initialization policy is reviewed side by side with `GIS_TOOL`
-- [ ] Install tree layout is compared against `GIS_TOOL` as part of verification, not only by inspection
-- [ ] GUI result-summary wording and task-state presentation are checked for consistency with `GIS_TOOL`
+- [x] Startup/runtime initialization policy is reviewed side by side with `GIS_TOOL`
+- [x] Install tree layout is compared against `GIS_TOOL` as part of verification, not only by inspection
+- [x] GUI result-summary wording and task-state presentation are checked for consistency with `GIS_TOOL`
 - [ ] `gui_data_support.cpp` is reviewed as a data-driven business layer, with shell behavior kept aligned
 - [ ] Error handling and invalid-parameter fast-fail flows are covered by GUI regression checks
 - [ ] Installed-tree smoke checks are supplemented by business-action GUI regression checks
@@ -58,4 +58,4 @@ This checklist is for non-business alignment only. It does not require the two t
 
 ## Current Assessment
 
-As of 2026-05-13, `GIS_DL_TOOL` is already close to the target in core Windows build/install shape and in the task-oriented GUI shell. The main remaining gap is not the presence of the shell, but proving that the shell stays consistently aligned with `GIS_TOOL` over time and across regression coverage.
+As of 2026-05-14, `GIS_DL_TOOL` is already close to the target in core Windows build/install shape and in the task-oriented GUI shell. In this workspace, the release install tree was regenerated and verified by an explicit CTest install-tree regression, installed CLI and GUI smoke checks passed, the installed GUI process survived a normal startup check, and a separate downstream consumer project successfully consumed the installed package through `find_package(gis_ai CONFIG REQUIRED)`. Startup/runtime initialization and execution-summary wording were both reviewed side by side against `GIS_TOOL` and tightened toward the same shell behavior. The main remaining gap is not the presence of the shell, but proving that broader shell areas stay consistently aligned with `GIS_TOOL` over time and lifting release verification confidence across the remaining shell-facing regressions.

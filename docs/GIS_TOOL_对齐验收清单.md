@@ -1,6 +1,6 @@
 # GIS_DL_TOOL 与 GIS_TOOL 对齐验收清单
 
-Last updated: 2026-05-14 (Phase 1 update)
+Last updated: 2026-05-14 (Phase 2+ update)
 
 ## Principle
 
@@ -21,7 +21,7 @@ This checklist is for non-business alignment only. It does not require the two t
 - [x] GUI has queue-based task execution
 - [x] GUI has persistent task history backed by SQLite
 - [x] GUI task center can display logs, progress, and structured result text
-- [ ] GUI shell files that should stay behaviorally aligned are explicitly enumerated and reviewed together across both tools
+- [x] GUI shell files that should stay behaviorally aligned are explicitly enumerated and reviewed together across both tools
 - [x] A documented rule exists for what differences are allowed between the two tools
 - [ ] Release verification coverage for `GIS_DL_TOOL` reaches the same confidence level as the corresponding business surface in `GIS_TOOL`
 
@@ -58,4 +58,4 @@ This checklist is for non-business alignment only. It does not require the two t
 
 ## Current Assessment
 
-As of 2026-05-14 (Phase 2 update), `GIS_DL_TOOL` has closed the most critical alignment gaps. All P1 items are now complete: `gui_data_support.cpp` has been reviewed and 4 platform-level capabilities have been ported (result message localization, action-specific parameter validation, execute button state management, invalid param highlighting). GUI regression coverage includes invalid-parameter fast-fail and installed-tree business-action tests. The GUI shell file cross-tool review enumerated 27 files and documented structural differences (namespace, type system, plugin reference mechanism, result model). The remaining gaps are: (1) porting additional `gui_data_support` capabilities (data auto-fill, output path derivation, file dialog config, text placeholder config, drag-drop binding), (2) P2 items (shared shell pieces, cross-tool alignment in CI, consistent sibling documentation), and (3) fixing `test_gui_queue` timing sensitivity.
+As of 2026-05-14 (Phase 2+ update), `GIS_DL_TOOL` has closed all P0 and P1 alignment gaps. All platform-level `gui_data_support` capabilities have been ported from GIS_TOOL: data detection, data auto-fill, output path derivation, file dialog config, param text, result message localization, action-specific parameter validation, execute button state management, and invalid param highlighting. The `test_gui_queue` timing sensitivity has been fully resolved via a mock delay mechanism. A cross-tool alignment check has been added as a CTest regression (`cross_tool_alignment_check`), enabled via `-DGIS_TOOL_SOURCE_DIR=...`. All 13 CTest regressions pass (100%). The remaining gaps are: (1) integrating the new `gui_data_support` capabilities into MainWindow/ParamCardWidget (auto-fill on input change, derived output sync, file dialog filters), (2) P2 items (shared shell pieces, consistent sibling documentation), and (3) reaching the same release verification confidence level as GIS_TOOL.

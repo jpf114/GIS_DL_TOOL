@@ -37,6 +37,10 @@ Verified on 2026-05-14 in this workspace:
 - Task runner now localizes result messages before displaying them in the task center
 - MainWindow now uses `buildExecuteButtonState` for unified button state logic and `validateActionSpecificParams` for secondary validation
 - GUI shell file cross-tool review completed: 27 files enumerated and compared against GIS_TOOL, with structural differences documented
+- `gui_data_support` fully ported with all platform-level capabilities: data detection (`detectDataKind`, `isSupportedDataPath`), data auto-fill (`inspectDataForAutoFill`, `shouldAutoFillLayerValue`, `shouldAutoFillExtentValue`), output path derivation (`buildSuggestedOutputPath`, `computeDerivedOutputUpdate`, `defaultSuffixForOutput`), file dialog config (`buildFileParamUiConfig`, `FileParamUiConfig`), param text (`findCommonParamText`, `actionDisplayName`, `ParamText`)
+- `test_gui_queue` timing sensitivity fully resolved via `TaskRunner::setTaskStartDelayForTesting()` mock delay mechanism (8/8 consecutive runs passing)
+- Cross-tool alignment check added as a CTest regression (`cross_tool_alignment_check`), enabled via `-DGIS_TOOL_SOURCE_DIR=...`
+- All 13 CTest regressions now passing (100%)
 
 ## Current Strengths
 
@@ -44,16 +48,18 @@ Verified on 2026-05-14 in this workspace:
 - Shared/static library outputs, CLI, and Qt GUI all build from the same repo
 - Task queue, persistence, rerun flow, and structured task results in the GUI
 - GUI result message localization and action-specific parameter validation
+- Full `gui_data_support` platform-level capabilities: data detection, auto-fill, output path derivation, file dialog config, param text
 - Working Windows install layout with runnable installed binaries
 - Downstream `find_package` consumption from the installed release tree now works in this workspace
 - GUI regression coverage includes smoke, invalid-param fast-fail, and installed-tree business-action tests
+- Cross-tool alignment check as a CTest regression
+- 13/13 CTest regressions passing (100%)
 
 ## Open Areas
 
-- Remaining `gui_data_support` platform-level capabilities not yet ported: data auto-fill, output path derivation, file dialog config, text placeholder config, drag-drop binding
+- Integrating `gui_data_support` new capabilities into MainWindow/ParamCardWidget (auto-fill on input change, derived output sync, file dialog filters)
 - Wider verification beyond the current Windows-focused checks
 - Additional documentation cleanup and removal of older overstated claims in secondary docs
-- `test_gui_queue` timing sensitivity still causes occasional failures
 
 ## Packaging Status
 
@@ -78,6 +84,5 @@ Downstream package verification on 2026-05-14 also confirmed that a separate con
 
 ## Next Practical Moves
 
-1. Port remaining `gui_data_support` platform-level capabilities (data auto-fill, output path derivation, file dialog config)
-2. Fix `test_gui_queue` timing sensitivity
-3. Keep updating repo docs so they match the newest verified state instead of older intent
+1. Integrate `gui_data_support` new capabilities into MainWindow/ParamCardWidget (auto-fill on input change, derived output sync, file dialog filters)
+2. Keep updating repo docs so they match the newest verified state instead of older intent

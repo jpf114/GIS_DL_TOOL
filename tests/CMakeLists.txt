@@ -8,7 +8,11 @@ function(gis_ai_configure_test_environment test_name)
     endif()
 
     if(EXISTS "${_proj_dir}/proj.db")
-        set_property(TEST ${test_name} PROPERTY ENVIRONMENT "PROJ_LIB=${_proj_dir}")
+        set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT "PROJ_LIB=${_proj_dir}")
+    endif()
+
+    if(WIN32)
+        set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT "QT_QPA_FONTDIR=C:/Windows/Fonts")
     endif()
 endfunction()
 
@@ -138,8 +142,8 @@ target_link_libraries(test_cli
 add_test(NAME test_cli COMMAND test_cli WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 set_tests_properties(test_cli PROPERTIES TIMEOUT 60)
 if(TARGET gis_ai_cli)
-    set_tests_properties(test_cli PROPERTIES ENVIRONMENT
-        "GIS_AI_CLI_PATH=$<TARGET_FILE:gis_ai_cli>"
+    set_tests_properties(test_cli PROPERTIES
+        ENVIRONMENT "GIS_AI_CLI_PATH=$<TARGET_FILE:gis_ai_cli>"
     )
 endif()
 
@@ -299,6 +303,48 @@ if(GIS_AI_BUILD_GUI)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
     gis_ai_configure_test_environment(release_installed_gui_segment_test)
+
+    add_test(NAME release_installed_gui_inference_test
+        COMMAND ${CMAKE_COMMAND}
+            -DREPO_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_installed_gui_inference_regression.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(release_installed_gui_inference_test PROPERTIES
+        TIMEOUT 240
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(release_installed_gui_inference_test)
+
+    add_test(NAME release_installed_gui_preprocess_test
+        COMMAND ${CMAKE_COMMAND}
+            -DREPO_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_installed_gui_preprocess_regression.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(release_installed_gui_preprocess_test PROPERTIES
+        TIMEOUT 240
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(release_installed_gui_preprocess_test)
+
+    add_test(NAME release_installed_gui_vector_test
+        COMMAND ${CMAKE_COMMAND}
+            -DREPO_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_installed_gui_vector_regression.cmake
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties(release_installed_gui_vector_test PROPERTIES
+        TIMEOUT 240
+        FIXTURES_REQUIRED "gis_test_data;ai_test_model"
+        RESOURCE_LOCK gis_test_data_resource
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(release_installed_gui_vector_test)
 endif()
 
 include("${CMAKE_SOURCE_DIR}/cmake/cross_tool_alignment_check.cmake")

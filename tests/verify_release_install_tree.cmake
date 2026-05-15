@@ -8,15 +8,25 @@ endif()
 
 set(INSTALL_ROOT "${REPO_ROOT}/install")
 
+if(NOT DEFINED INSTALL_CONFIG)
+    if(EXISTS "${BUILD_DIR}/bin/Release/gis-ai-gui.exe")
+        set(INSTALL_CONFIG "Release")
+    elseif(EXISTS "${BUILD_DIR}/bin/Debug/gis-ai-gui.exe")
+        set(INSTALL_CONFIG "Debug")
+    else()
+        set(INSTALL_CONFIG "Release")
+    endif()
+endif()
+
 execute_process(
-    COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}" --config Release
+    COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}" --config ${INSTALL_CONFIG}
     WORKING_DIRECTORY "${REPO_ROOT}"
     RESULT_VARIABLE INSTALL_EXIT_CODE
     TIMEOUT 180
 )
 
 if(NOT INSTALL_EXIT_CODE EQUAL 0)
-    message(FATAL_ERROR "Release install failed with exit code ${INSTALL_EXIT_CODE}")
+    message(FATAL_ERROR "${INSTALL_CONFIG} install failed with exit code ${INSTALL_EXIT_CODE}")
 endif()
 
 function(require_path path_label path_value)
@@ -33,9 +43,17 @@ require_path("share directory" "${INSTALL_ROOT}/share")
 
 require_path("GUI executable" "${INSTALL_ROOT}/bin/gis-ai-gui.exe")
 require_path("CLI executable" "${INSTALL_ROOT}/bin/gis_ai_cli.exe")
-require_path("Qt windows platform plugin" "${INSTALL_ROOT}/bin/platforms/qwindows.dll")
-require_path("Qt offscreen platform plugin" "${INSTALL_ROOT}/bin/platforms/qoffscreen.dll")
-require_path("Qt SQLite driver" "${INSTALL_ROOT}/bin/sqldrivers/qsqlite.dll")
+
+if(INSTALL_CONFIG STREQUAL "Debug")
+    require_path("Qt windows platform plugin (debug)" "${INSTALL_ROOT}/bin/platforms/qwindowsd.dll")
+    require_path("Qt offscreen platform plugin (debug)" "${INSTALL_ROOT}/bin/platforms/qoffscreend.dll")
+    require_path("Qt SQLite driver (debug)" "${INSTALL_ROOT}/bin/sqldrivers/qsqlited.dll")
+else()
+    require_path("Qt windows platform plugin" "${INSTALL_ROOT}/bin/platforms/qwindows.dll")
+    require_path("Qt offscreen platform plugin" "${INSTALL_ROOT}/bin/platforms/qoffscreen.dll")
+    require_path("Qt SQLite driver" "${INSTALL_ROOT}/bin/sqldrivers/qsqlite.dll")
+endif()
+
 require_path("public header" "${INSTALL_ROOT}/include/gis_ai/gis_ai.h")
 require_path("package config" "${INSTALL_ROOT}/lib/cmake/gis_ai/gis_aiConfig.cmake")
 require_path("PROJ database" "${INSTALL_ROOT}/share/proj/proj.db")

@@ -27,12 +27,24 @@ if(EXISTS "${_gis_ai_install_platform_dir}/qwindows.dll")
     list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qwindows.dll")
 endif()
 
+if(EXISTS "${_gis_ai_install_platform_dir}/qwindowsd.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qwindowsd.dll")
+endif()
+
 if(EXISTS "${_gis_ai_install_platform_dir}/qoffscreen.dll")
     list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qoffscreen.dll")
 endif()
 
+if(EXISTS "${_gis_ai_install_platform_dir}/qoffscreend.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_platform_dir}/qoffscreend.dll")
+endif()
+
 if(EXISTS "${_gis_ai_install_sqldrivers_dir}/qsqlite.dll")
     list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_sqldrivers_dir}/qsqlite.dll")
+endif()
+
+if(EXISTS "${_gis_ai_install_sqldrivers_dir}/qsqlited.dll")
+    list(APPEND _gis_ai_runtime_libraries "${_gis_ai_install_sqldrivers_dir}/qsqlited.dll")
 endif()
 
 set(_gis_ai_can_scan_runtime_deps TRUE)
@@ -98,6 +110,11 @@ if(WIN32)
     endif()
 endif()
 
+set(_gis_ai_vcpkg_bin_dir "@GIS_AI_VCPKG_RELEASE_BIN_DIR@")
+if(EXISTS "${_gis_ai_install_platform_dir}/qwindowsd.dll")
+    set(_gis_ai_vcpkg_bin_dir "@GIS_AI_VCPKG_DEBUG_BIN_DIR@")
+endif()
+
 if(_gis_ai_can_scan_runtime_deps)
     file(GET_RUNTIME_DEPENDENCIES
         EXECUTABLES ${_gis_ai_runtime_executables}
@@ -105,8 +122,7 @@ if(_gis_ai_can_scan_runtime_deps)
         RESOLVED_DEPENDENCIES_VAR _gis_ai_resolved_deps
         UNRESOLVED_DEPENDENCIES_VAR _gis_ai_unresolved_deps
         DIRECTORIES
-            "@GIS_AI_VCPKG_RELEASE_BIN_DIR@"
-            "@GIS_AI_VCPKG_DEBUG_BIN_DIR@"
+            "${_gis_ai_vcpkg_bin_dir}"
         PRE_EXCLUDE_REGEXES
             "api-ms-"
             "ext-ms-"
@@ -161,8 +177,21 @@ else()
         Qt6Widgets.dll
     )
 
+    set(_gis_ai_fallback_bin_dir "@GIS_AI_VCPKG_RELEASE_BIN_DIR@")
+    if(_gis_ai_vcpkg_bin_dir STREQUAL "@GIS_AI_VCPKG_DEBUG_BIN_DIR@")
+        set(_gis_ai_fallback_bin_dir "@GIS_AI_VCPKG_DEBUG_BIN_DIR@")
+        set(_gis_ai_minimal_dlls
+            @GIS_AI_RUNTIME_DLLS_INSTALL_ENTRIES@
+            Qt6Cored.dll
+            Qt6Guid.dll
+            Qt6Sqld.dll
+            Qt6Svgd.dll
+            Qt6Widgetsd.dll
+        )
+    endif()
+
     foreach(_gis_ai_dll_name IN LISTS _gis_ai_minimal_dlls)
-        set(_gis_ai_dll_path "@GIS_AI_VCPKG_RELEASE_BIN_DIR@/${_gis_ai_dll_name}")
+        set(_gis_ai_dll_path "${_gis_ai_fallback_bin_dir}/${_gis_ai_dll_name}")
         if(EXISTS "${_gis_ai_dll_path}")
             file(INSTALL
                 DESTINATION "${_gis_ai_install_bin_dir}"

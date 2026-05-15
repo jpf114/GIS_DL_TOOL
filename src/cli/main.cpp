@@ -5,6 +5,10 @@
 #include <string>
 #include <cstdlib>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 static void PrintUsage() {
     std::cout << "GIS AI 算法库 - 命令行工具 v0.1.0\n\n"
               << "用法:\n"
@@ -141,6 +145,11 @@ static int GenerateConfig(const std::string& output_path) {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+
     if (argc < 2) {
         PrintUsage();
         return 0;

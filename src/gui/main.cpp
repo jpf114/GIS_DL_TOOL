@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -58,6 +59,16 @@ void initGdalRuntime(const QString& applicationDirPath) {
 int main(int argc, char* argv[])
 {
     const QString applicationDirPath = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
+
+#ifdef Q_OS_WIN
+    if (!qEnvironmentVariableIsSet("QT_QPA_FONTDIR")) {
+        const QString sysFontsDir = QStringLiteral("C:/Windows/Fonts");
+        if (QDir(sysFontsDir).exists()) {
+            qputenv("QT_QPA_FONTDIR", sysFontsDir.toUtf8());
+        }
+    }
+#endif
+
     initGdalRuntime(applicationDirPath);
 
     QApplication::setHighDpiScaleFactorRoundingPolicy(
@@ -153,6 +164,30 @@ int main(int argc, char* argv[])
     }
 
     gis_ai::gui::MainWindow window;
+    {
+        QDir iconDir(applicationDirPath);
+        QString iconPath;
+        for (int i = 0; i < 6; ++i) {
+            QString candidate = iconDir.absoluteFilePath(QStringLiteral("share/icons/bold/brain-bold.svg"));
+            if (QFile::exists(candidate)) {
+                iconPath = candidate;
+                break;
+            }
+            if (!iconDir.cdUp()) break;
+        }
+        if (iconPath.isEmpty()) {
+            QDir devDir(applicationDirPath);
+            if (devDir.cdUp()) {
+                QString candidate = devDir.absoluteFilePath(QStringLiteral("resources/icons/bold/brain-bold.svg"));
+                if (QFile::exists(candidate)) {
+                    iconPath = candidate;
+                }
+            }
+        }
+        if (!iconPath.isEmpty()) {
+            window.setWindowIcon(QIcon(iconPath));
+        }
+    }
     if (selectedPlugin.has_value()) {
         window.selectPluginByName(selectedPlugin.value());
     }

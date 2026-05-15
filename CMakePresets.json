@@ -25,7 +25,8 @@
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
                 "GIS_AI_BUILD_GUI": "ON",
-                "GIS_AI_BUILD_TESTS": "ON"
+                "GIS_AI_BUILD_TESTS": "ON",
+                "GIS_AI_BUILD_TOOLS": "ON"
             }
         },
         {

@@ -6,8 +6,7 @@
 #include <vector>
 #include <functional>
 #include <mutex>
-#include "io/raster_io.h"
-#include "fusion/raster_seg.h"
+#include "fusion/large_image_seg.h"
 #include "core/export.h"
 
 namespace gis_ai {
@@ -39,10 +38,14 @@ public:
 
     void SetProgressCallback(std::function<void(int, int, const std::string&)> callback);
 
+    void SetSegConfig(const LargeImageSegConfig& config);
+
+    LargeImageSegConfig& SegConfig() { return seg_config_; }
+
 private:
     std::string model_path_;
-    std::unique_ptr<RasterSeg> raster_seg_;
     int num_threads_;
+    LargeImageSegConfig seg_config_;
     std::function<void(int, int, const std::string&)> progress_callback_;
     std::mutex callback_mutex_;
 };

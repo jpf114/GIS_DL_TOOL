@@ -69,6 +69,10 @@ public:
     std::unique_ptr<VectorData> SegmentToPolygon(const RasterData& input,
                                                    const LargeImageSegConfig& config = LargeImageSegConfig());
 
+    std::unique_ptr<VectorData> SegmentToPolygon(const RasterData& input,
+                                                   const RasterData& mask_raster,
+                                                   const LargeImageSegConfig& config = LargeImageSegConfig());
+
     int SegmentToFile(const std::string& input_path,
                        const std::string& output_tif,
                        const std::string& output_shp = "",
@@ -111,7 +115,8 @@ private:
                                                  double tolerance, bool fix_topology) const;
 
     std::unique_ptr<VectorData> AddAttributes(std::unique_ptr<VectorData> polygons,
-                                                const RasterData& source_raster);
+                                                const RasterData& source_raster,
+                                                uint8_t target_class = 1);
 
     ModelManager model_manager_;
     std::unique_ptr<InferenceEngine> engine_;

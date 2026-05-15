@@ -13,11 +13,14 @@ namespace gis_ai {
 BatchProcessor::BatchProcessor(const std::string& model_path, int num_threads)
     : model_path_(model_path),
       num_threads_(std::max(1, num_threads)) {
-    raster_seg_ = std::make_unique<RasterSeg>(model_path);
     LOG_INFO("BatchProcessor initialized with " + std::to_string(num_threads_) + " threads");
 }
 
 BatchProcessor::~BatchProcessor() = default;
+
+void BatchProcessor::SetSegConfig(const LargeImageSegConfig& config) {
+    seg_config_ = config;
+}
 
 std::vector<BatchResult> BatchProcessor::ProcessDirectory(const std::string& input_dir,
                                                             const std::string& output_dir,
@@ -33,17 +36,17 @@ std::vector<BatchResult> BatchProcessor::ProcessDirectory(const std::string& inp
         if (!entry.is_regular_file()) continue;
         std::string ext = entry.path().extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        if (ext == ".tif" || ext == ".tiff") {
+        if (ext == ".tif" || ext == ".tiff" || ext == ".img" || ext == ".png") {
             input_files.push_back(entry.path().string());
         }
     }
 
     if (input_files.empty()) {
-        LOG_WARN("No TIFF files found in " + input_dir);
+        LOG_WARN("No raster files found in " + input_dir);
         return {};
     }
 
-    LOG_INFO("Found " + std::to_string(input_files.size()) + " TIFF files in " + input_dir);
+    LOG_INFO("Found " + std::to_string(input_files.size()) + " raster files in " + input_dir);
     return ProcessFiles(input_files, output_dir, generate_shp);
 }
 
@@ -60,7 +63,7 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
     std::atomic<size_t> next_index{0};
     std::atomic<int> completed{0};
 
-    auto process_one = [&](RasterSeg& segmenter, size_t index) {
+    auto process_one = [&](LargeImageSeg& segmenter, size_t index) {
         const auto& input_path = input_files[index];
         BatchResult result;
         result.input_path = input_path;
@@ -75,10 +78,10 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
             }
 
             int ret = segmenter.SegmentToFile(input_path, result.output_tif_path,
-                generate_shp ? result.output_shp_path : "");
+                generate_shp ? result.output_shp_path : "", seg_config_);
 
             result.success = (ret == 0);
-            result.inference_time_ms = segmenter.GetLastInferenceTimeMs();
+            result.inference_time_ms = segmenter.GetLastStats().total_inference_time_ms;
         } catch (const std::exception& e) {
             result.success = false;
             result.error_message = e.what();
@@ -97,8 +100,9 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 
     const int worker_count = std::min(num_threads_, total);
     if (worker_count == 1) {
+        LargeImageSeg segmenter(model_path_);
         for (size_t i = 0; i < input_files.size(); ++i) {
-            process_one(*raster_seg_, i);
+            process_one(segmenter, i);
         }
     } else {
         std::vector<std::thread> workers;
@@ -106,7 +110,7 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 
         for (int worker = 0; worker < worker_count; ++worker) {
             workers.emplace_back([&, worker]() {
-                RasterSeg segmenter(model_path_);
+                LargeImageSeg segmenter(model_path_);
                 while (true) {
                     size_t index = next_index.fetch_add(1);
                     if (index >= input_files.size()) {

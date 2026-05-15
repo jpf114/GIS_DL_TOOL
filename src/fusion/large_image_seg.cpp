@@ -236,15 +236,52 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
         int64_t out_w = out_shape[3];
 
         Postprocess postprocess;
-        auto mask = postprocess.SigmoidArgmax(output, out_h, out_w, num_classes);
+        auto sigmoid_output = postprocess.Sigmoid(output);
 
-        for (auto v : mask) {
-            if (v < 256) last_stats_.class_counts[v]++;
+        size_t out_pixels = static_cast<size_t>(out_h) * out_w;
+        std::vector<uint8_t> mask(out_pixels, 0);
+        for (size_t i = 0; i < out_pixels; ++i) {
+            float best_prob = -1.0f;
+            uint8_t best_class = 0;
+            for (int64_t c = 0; c < num_classes; ++c) {
+                float prob = sigmoid_output[static_cast<size_t>(c) * out_pixels + i];
+                if (prob > best_prob) {
+                    best_prob = prob;
+                    best_class = static_cast<uint8_t>(c);
+                }
+            }
+            if (best_prob < config.mask_threshold) {
+                best_class = 0;
+            }
+            mask[i] = best_class;
+            if (best_class < 256) last_stats_.class_counts[best_class]++;
+        }
+
+        bool has_input_nodata = !input.band_infos.empty() && input.band_infos[0].nodata_value.has_value();
+        if (has_input_nodata && out_w == input.width && out_h == input.height) {
+            float input_nodata = input.band_infos[0].nodata_value.value();
+            for (size_t i = 0; i < out_pixels; ++i) {
+                bool is_nodata = false;
+                for (int b = 0; b < input.band_count; ++b) {
+                    float val = input.bands[b][i];
+                    if (!std::isnan(input_nodata) && std::abs(val - input_nodata) < 1e-6f) {
+                        is_nodata = true; break;
+                    }
+                    if (std::isnan(input_nodata) && std::isnan(val)) {
+                        is_nodata = true; break;
+                    }
+                }
+                if (is_nodata) mask[i] = 255;
+            }
         }
 
         auto raster = std::make_unique<RasterData>();
         *raster = postprocess.MaskToRaster(mask, static_cast<int>(out_w), static_cast<int>(out_h),
             input.geotransform, input.projection);
+
+        if (has_input_nodata && out_w == input.width && out_h == input.height) {
+            raster->band_infos[0].nodata_value = 255.0f;
+        }
 
         auto total_end = std::chrono::high_resolution_clock::now();
         last_stats_.total_time_ms = std::chrono::duration<double, std::milli>(total_end - total_start).count();
@@ -315,22 +352,18 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
         int64_t out_w = out_shape[3];
 
         if (config.blend_mode == BlendMode::None) {
-            auto mask = postprocess.SigmoidArgmax(output, out_h, out_w, out_nc);
-
+            auto sigmoid_output = postprocess.Sigmoid(output);
             for (int64_t py = 0; py < out_h; ++py) {
                 int dst_y = tile.src_y + static_cast<int>(py);
                 if (dst_y < 0 || dst_y >= input.height) continue;
                 for (int64_t px = 0; px < out_w; ++px) {
                     int dst_x = tile.src_x + static_cast<int>(px);
                     if (dst_x < 0 || dst_x >= input.width) continue;
-
                     size_t src_idx = static_cast<size_t>(py * out_w + px);
-                    uint8_t cls = mask[src_idx];
-                    if (cls < 256) last_stats_.class_counts[cls]++;
-
                     for (int64_t c = 0; c < out_nc; ++c) {
+                        size_t sig_idx = static_cast<size_t>(c) * out_h * out_w + src_idx;
                         size_t dst_idx = static_cast<size_t>(c) * mosaic_pixels + dst_y * input.width + dst_x;
-                        accumulated[dst_idx] = static_cast<float>(cls == c ? 1 : 0);
+                        accumulated[dst_idx] = sigmoid_output[sig_idx];
                         weight_sum[dst_idx] = 1.0f;
                     }
                 }
@@ -359,13 +392,38 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
                 best_class = static_cast<uint8_t>(c);
             }
         }
+        if (best_score < config.mask_threshold) {
+            best_class = 0;
+        }
         final_mask[i] = best_class;
         if (best_class < 256) last_stats_.class_counts[best_class]++;
+    }
+
+    bool has_input_nodata = !input.band_infos.empty() && input.band_infos[0].nodata_value.has_value();
+    if (has_input_nodata) {
+        float input_nodata = input.band_infos[0].nodata_value.value();
+        for (size_t i = 0; i < mosaic_pixels; ++i) {
+            bool is_nodata = false;
+            for (int b = 0; b < input.band_count; ++b) {
+                float val = input.bands[b][i];
+                if (!std::isnan(input_nodata) && std::abs(val - input_nodata) < 1e-6f) {
+                    is_nodata = true; break;
+                }
+                if (std::isnan(input_nodata) && std::isnan(val)) {
+                    is_nodata = true; break;
+                }
+            }
+            if (is_nodata) final_mask[i] = 255;
+        }
     }
 
     auto result_raster = std::make_unique<RasterData>();
     *result_raster = postprocess.MaskToRaster(final_mask, input.width, input.height,
         input.geotransform, input.projection);
+
+    if (has_input_nodata) {
+        result_raster->band_infos[0].nodata_value = 255.0f;
+    }
 
     auto total_end = std::chrono::high_resolution_clock::now();
     last_stats_.total_time_ms = std::chrono::duration<double, std::milli>(total_end - total_start).count();
@@ -463,7 +521,7 @@ std::unique_ptr<VectorData> LargeImageSeg::SimplifyAndFix(std::unique_ptr<Vector
     return polygons;
 }
 
-std::unique_ptr<VectorData> LargeImageSeg::AddAttributes(std::unique_ptr<VectorData> polygons, const RasterData& source_raster) {
+std::unique_ptr<VectorData> LargeImageSeg::AddAttributes(std::unique_ptr<VectorData> polygons, const RasterData& source_raster, uint8_t target_class) {
     double pixel_area = std::abs(source_raster.geotransform[1] * source_raster.geotransform[5]);
 
     geos_utils::GeosContext geos_ctx;
@@ -473,7 +531,7 @@ std::unique_ptr<VectorData> LargeImageSeg::AddAttributes(std::unique_ptr<VectorD
     double total_area = 0.0;
     int idx = 0;
     for (auto& feat : polygons->features) {
-        feat.attributes["class_id"] = static_cast<int>(1);
+        feat.attributes["class_id"] = static_cast<int>(target_class);
         feat.attributes["feature_id"] = idx;
 
         if (feat.type == FeatureType::Polygon) {
@@ -506,9 +564,24 @@ std::unique_ptr<VectorData> LargeImageSeg::SegmentToPolygon(const RasterData& in
 
     polygons = FilterSmallPolygons(std::move(polygons), config.min_polygon_area);
     polygons = SimplifyAndFix(std::move(polygons), config.simplify_tolerance, config.fix_topology);
-    polygons = AddAttributes(std::move(polygons), input);
+    polygons = AddAttributes(std::move(polygons), input, config.target_class);
 
     LOG_INFO("SegmentToPolygon completed: " + std::to_string(last_stats_.polygon_count) +
+        " polygons, total area=" + std::to_string(last_stats_.total_polygon_area));
+    return polygons;
+}
+
+std::unique_ptr<VectorData> LargeImageSeg::SegmentToPolygon(const RasterData& input,
+                                                              const RasterData& mask_raster,
+                                                              const LargeImageSegConfig& config) {
+    MaskToPolygon m2p;
+    auto polygons = m2p.ExecuteFromRaster(mask_raster, config.target_class);
+
+    polygons = FilterSmallPolygons(std::move(polygons), config.min_polygon_area);
+    polygons = SimplifyAndFix(std::move(polygons), config.simplify_tolerance, config.fix_topology);
+    polygons = AddAttributes(std::move(polygons), input, config.target_class);
+
+    LOG_INFO("SegmentToPolygon (from mask) completed: " + std::to_string(last_stats_.polygon_count) +
         " polygons, total area=" + std::to_string(last_stats_.total_polygon_area));
     return polygons;
 }
@@ -524,7 +597,7 @@ int LargeImageSeg::SegmentToFile(const std::string& input_path,
     rio.Save(*result_raster, output_tif);
 
     if (!output_shp.empty()) {
-        auto vector_data = SegmentToPolygon(*raster_data, config);
+        auto vector_data = SegmentToPolygon(*raster_data, *result_raster, config);
         VectorIO vio;
         vio.Save(*vector_data, output_shp);
     }

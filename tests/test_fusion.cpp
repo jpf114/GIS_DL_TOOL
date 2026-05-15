@@ -235,9 +235,9 @@ class LargeImageSegIntegrationTest : public ::testing::Test {
 protected:
     static std::string FindTestModel() {
         std::vector<std::string> candidates = {
-            "scripts/test_e2e_data/test_seg_model.onnx",
-            "../scripts/test_e2e_data/test_seg_model.onnx",
-            "../../scripts/test_e2e_data/test_seg_model.onnx",
+            "test_data/models/test_seg_model.onnx",
+            "../test_data/models/test_seg_model.onnx",
+            "../../test_data/models/test_seg_model.onnx",
         };
         for (const auto& c : candidates) {
             if (fs::exists(c)) return c;
@@ -247,9 +247,9 @@ protected:
 
     static std::string FindTestTiff() {
         std::vector<std::string> candidates = {
-            "scripts/test_e2e_data/test_input.tif",
-            "../scripts/test_e2e_data/test_input.tif",
-            "../../scripts/test_e2e_data/test_input.tif",
+            "test_data/raster/test_100x100.tif",
+            "../test_data/raster/test_100x100.tif",
+            "../../test_data/raster/test_100x100.tif",
         };
         for (const auto& c : candidates) {
             if (fs::exists(c)) return c;

@@ -25,7 +25,7 @@ protected:
 
     static std::string MissingDataMessage(const std::string& path) {
         return "未找到测试数据文件: " + path +
-               "，请先运行 scripts/generate_test_data.ps1 或 scripts/generate_test_data.sh";
+               "，请先构建 generate_test_data 工具并运行以生成测试数据";
     }
 
     static std::string ModelPath() { return "test_data/models/test_seg_model.onnx"; }

@@ -2,7 +2,7 @@ if(NOT DEFINED REPO_ROOT)
     message(FATAL_ERROR "REPO_ROOT is required")
 endif()
 
-set(SOURCE_MODEL "${REPO_ROOT}/scripts/test_e2e_data/test_seg_model.onnx")
+set(SOURCE_MODEL "${REPO_ROOT}/test_data/models/test_seg_model.onnx")
 set(TARGET_DIR "${REPO_ROOT}/test_data/models")
 set(TARGET_MODEL "${TARGET_DIR}/test_seg_model.onnx")
 

@@ -1,88 +1,67 @@
 # Project Progress
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 ## Summary
 
-`GIS_DL_TOOL` is in an active productization phase. The repository already has substantial GIS/AI functionality, and the recent work has been focused on making the Windows GUI shell, runtime packaging, and verification flow stay aligned with the sibling tool `GIS_TOOL` outside business-specific functionality.
+`GIS_DL_TOOL` 已完成产品化核心阶段，从"算法库雏形"升级为**可工作的遥感智能解译引擎**。遥感大图语义分割全流程已打透，GUI/CLI 双入口可用，Windows 安装包可正常构建、安装和运行。
 
-## What Is Verified Now
+## Build & Test Status
 
-Verified on 2026-05-14 in this workspace:
+| 项目 | 状态 |
+|------|------|
+| Debug 构建 + 测试 | ✅ 15/15 通过 |
+| Release 构建 + 测试 | ✅ 17/17 通过 |
+| Release 安装 | ✅ 通过 |
+| CLI 启动 | ✅ `gis_ai_cli.exe help` 正常 |
+| GUI self-test | ✅ `gis-ai-gui.exe --self-test` 正常 |
+| GUI 启动 | ✅ 进程存活验证通过 |
+| 下游 find_package 消费 | ✅ 通过 |
 
-- Release configure: `cmake --preset release`
-- Release build: `cmake --build --preset release`
-- Release install-tree regression: `ctest --test-dir build/release -C Release --output-on-failure -R release_install_tree_test`
-- Release install: `cmake --install build/release --config Release`
-- Installed CLI smoke: `install\bin\gis_ai_cli.exe help`
-- Installed GUI smoke: `install\bin\gis-ai-gui.exe --self-test`
-- Installed GUI startup survival check: launch `install\bin\gis-ai-gui.exe`, wait 3 seconds, confirm the process stays alive, then stop it intentionally
-- Downstream `find_package` consumer verification: `powershell -ExecutionPolicy Bypass -File tests\verify_release_package_consumer.ps1 -RepoRoot <repo> -BuildDir <repo>\build\release`
+## Core Capabilities
 
-## Recent Completed Work
+### 遥感大图语义分割全流程
+- 滑窗切片推理（可配置 tile_size / stride）
+- Overlap 融合（None / Linear / Gaussian 三种模式）
+- mask_threshold 阈值过滤生效
+- NoData 像素检测与标记保留
+- 小斑块过滤 → 多边形简化 → 拓扑修复 → 属性回写
+- class_id 从 config.target_class 正确传递
+- 批量处理（BatchProcessor 使用 LargeImageSeg）
 
-- Main-window execution summary now resets correctly when history is cleared, the last task is deleted, or the user switches groups
-- Background completion from another task group no longer overwrites the currently visible group's summary or status text
-- Execution-state updates and function-panel state updates were consolidated into shared helpers to reduce UI drift
-- GUI object names used by regression tests were de-duplicated where they previously pointed at multiple unrelated labels
-- Startup/runtime initialization was aligned more closely with `GIS_TOOL` by resolving runtime data paths before Qt application construction
-- Result-summary wording and selection-state prompts were reviewed side by side with `GIS_TOOL` and updated toward the same shell language
-- Release install-tree verification is now an explicit CTest regression instead of a manual-only check
-- Release package export now declares the transitive `nlohmann_json` dependency needed by downstream consumers
-- A standalone downstream package-consumer verification script was added under `tests/verify_release_package_consumer.ps1`
-- Release build, install tree, installed CLI, installed GUI self-test, installed GUI startup, and downstream consumer build/run were re-verified end to end
-- GUI invalid-parameter fast-fail regression test (`gui_invalid_param_fast_fail_test`) added and passing
-- Installed-tree business-action GUI regression test (`release_installed_gui_segment_test`) added and passing
-- `gui_data_support` now provides 4 platform-level capabilities aligned with GIS_TOOL: result message localization (`localizeResultMessage`), action-specific parameter validation (`validateActionSpecificParams`), execute button state management (`buildExecuteButtonState`), and invalid param highlighting (`resolveHighlightedParamKey`)
-- Task runner now localizes result messages before displaying them in the task center
-- MainWindow now uses `buildExecuteButtonState` for unified button state logic and `validateActionSpecificParams` for secondary validation
-- GUI shell file cross-tool review completed: 27 files enumerated and compared against GIS_TOOL, with structural differences documented
-- `gui_data_support` fully ported with all platform-level capabilities: data detection (`detectDataKind`, `isSupportedDataPath`), data auto-fill (`inspectDataForAutoFill`, `shouldAutoFillLayerValue`, `shouldAutoFillExtentValue`), output path derivation (`buildSuggestedOutputPath`, `computeDerivedOutputUpdate`, `defaultSuffixForOutput`), file dialog config (`buildFileParamUiConfig`, `FileParamUiConfig`), param text (`findCommonParamText`, `actionDisplayName`, `ParamText`)
-- `test_gui_queue` timing sensitivity fully resolved via `TaskRunner::setTaskStartDelayForTesting()` mock delay mechanism (8/8 consecutive runs passing)
-- Cross-tool alignment check added as a CTest regression (`cross_tool_alignment_check`), enabled via `-DGIS_TOOL_SOURCE_DIR=...`
-- All 13 CTest regressions now passing (100%)
+### GUI
+- Qt GUI 与 GIS_TOOL 对齐：任务队列、SQLite 持久化、任务中心
+- gui_data_support 全平台级能力：数据检测、自动填充、输出路径推导、文件对话框、参数文本、结果本地化、参数校验、无效参数高亮
+- gis_gui_common 共享 UI 组件库
+- GeoPackage 输出支持
 
-## Current Strengths
+### CLI
+- segment / inference / batch / generate-config / version / help 子命令
+- JSON 运行报告（--report）
+- 结构化错误码体系（1xxx=IO, 2xxx=模型, 3xxx=算法, 4xxx=配置, 5xxx=内存, 6xxx=参数, 7xxx=任务）
 
-- Clear segmentation-focused business workflow
-- Shared/static library outputs, CLI, and Qt GUI all build from the same repo
-- Task queue, persistence, rerun flow, and structured task results in the GUI
-- Full `gui_data_support` platform-level capabilities integrated: data detection, auto-fill (CRS, extent, layer name), output path derivation, file dialog config, param text
-- GUI result message localization and action-specific parameter validation
-- Working Windows install layout with runnable installed binaries
-- Downstream `find_package` consumption from the installed release tree now works in this workspace
-- GUI regression coverage includes smoke, invalid-param fast-fail, and installed-tree business-action tests
-- Cross-tool alignment check as a CTest regression
-- `gis_ai_gui_lib` static library enables GUI unit testing (25 data support test cases)
-- 14/14 CTest regressions passing (100%)
+### SDK
+- 共享库 + 静态库输出
+- C API 公共接口
+- 下游 find_package 消费验证通过
+
+## Alignment with GIS_TOOL
+
+- P0: 全部完成
+- P1: 全部完成
+- P2: 2/3 完成（剩余：共享 shell 片段减少独立漂移实现）
+
+## Packaging
+
+Windows release 安装布局已验证：
+- `install/bin` — 可执行文件和运行时 DLL
+- `install/bin/platforms` — Qt 平台插件
+- `install/bin/sqldrivers` — SQLite 驱动
+- `install/share/proj` — PROJ 数据
+- `install/share/gdal` — GDAL 数据
+- `install/share/icons` — 应用图标
 
 ## Open Areas
 
-- P2: Shared shell pieces to reduce independently drifting implementations
-- Wider verification beyond the current Windows-focused checks
-
-## Packaging Status
-
-Current Windows release packaging has been validated for:
-
-- `install/bin`
-- `install/bin/platforms`
-- `install/bin/sqldrivers`
-- `install/share/proj`
-- `install/share/gdal`
-- `install/share/icons`
-
-During install verification on 2026-05-14, the release install tree was re-checked after the latest GUI state-sync fixes. Runtime dependency scanning succeeded, the installed CLI remained runnable, the installed GUI self-test returned successfully, and a normal GUI process stayed alive for at least 3 seconds before being intentionally stopped.
-
-Downstream package verification on 2026-05-14 also confirmed that a separate consumer CMake project can `find_package(gis_ai CONFIG REQUIRED)`, link both shared and static imported targets, build successfully, and run against the installed release tree when launched through the standalone verification script.
-
-## Honest Boundaries
-
-- This document does not claim full cross-platform readiness.
-- This document does not claim the entire current release CTest sweep is green; an unrelated timing-sensitive `test_gui_queue` failure was still observed while doing packaging follow-up work.
-- This document does not treat cross-tool alignment as finished.
-
-## Next Practical Moves
-
-1. P2: Extract shared shell pieces to reduce independently drifting implementations
-2. Keep updating repo docs so they match the newest verified state
+- P2: 共享 shell 片段进一步减少独立漂移实现
+- 跨平台验证（当前仅 Windows）

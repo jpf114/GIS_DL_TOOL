@@ -1,21 +1,31 @@
 # GIS AI 算法库功能补充规划
 
 > 基于 C++17 的 GIS 算法库，聚焦栅格/矢量/点云处理及 ONNX Runtime 遥感栅格分割。
-> 本规划仅针对本项目已有算法进行补充扩展，独立于其他项目。
 
 ---
 
-## 一、当前算法现状
+## 一、当前算法现状（2026-05-15 更新）
 
 | 模块 | 已实现能力 |
 |------|-----------|
-| core | 日志、异常、平台兼容、内存管理、配置 |
-| io | 栅格读写（TIFF）、矢量读写（Shapefile/GeoJSON）、点云读写（OGR 点要素方式） |
+| core | 日志、异常、平台兼容、内存管理、配置、结构化错误码 |
+| io | 栅格读写（TIFF/COG）、矢量读写（Shapefile/GeoJSON/GeoPackage）、点云读写（OGR 点要素方式） |
 | gis | 缓冲区、相交、裁剪、简化、拓扑检查、栅格重采样/归一化/裁剪/阈值/镶嵌、点云过滤/降采样、PROJ 坐标转换 |
-| ai | ONNX Runtime 推理引擎集成、模型管理、栅格预处理与后处理、掩膜转多边形 |
-| fusion | 端到端栅格分割流程、批量文件处理 |
+| ai | ONNX Runtime 推理引擎集成、模型管理、栅格预处理与后处理、掩膜转多边形、mask_threshold 阈值过滤 |
+| fusion | 大图滑窗分割（LargeImageSeg）、批量文件处理（BatchProcessor）、任务配置（TaskConfig）、JSON 运行报告 |
+| cli | segment / inference / batch / generate-config / version / help 子命令、--report JSON 输出 |
+| gui | Qt GUI 任务队列、SQLite 持久化、任务中心、gui_data_support 全平台级能力、GeoPackage 输出 |
 
-现有能力已覆盖基础 GIS 空间运算与 AI 推理链路，但在**遥感分类、地形分析、点云高级处理、时间序列变化检测、几何校正、空间统计**等方面仍为空白。
+### 已落地的核心能力
+
+- ✅ 大图滑窗推理 + Overlap 融合（None/Linear/Gaussian）
+- ✅ NoData 像素检测与标记保留
+- ✅ 小斑块过滤 → 多边形简化 → 拓扑修复 → 属性回写
+- ✅ 批量处理（BatchProcessor 使用 LargeImageSeg）
+- ✅ JSON/YAML 任务配置驱动
+- ✅ CLI 入口 + 结构化错误码
+- ✅ GeoPackage 输出支持
+- ✅ GUI 与 GIS_TOOL 对齐（P0/P1 全部完成）
 
 ---
 
@@ -107,10 +117,6 @@
 - **双时相变化检测推理**：
   - 支持双输入 ONNX 模型
   - 变化图斑提取与矢量转换
-- **推理预处理增强**：
-  - 多波段归一化（Z-Score、Min-Max 可配置）
-  - 滑动窗口重叠策略（保持边缘连续性）
-  - 重叠区域加权融合（线性/高斯权重）
 - **推理后处理增强**：
   - 连通组件分析
   - 地表覆盖类别面积统计
@@ -132,15 +138,9 @@
   - 基于矢量道路的图构建
   - Dijkstra / A* 最短路径
   - 服务区/等时圈生成
-- **高级拓扑处理**：
-  - 面自相交修复
-  - 面重叠消除
-  - 悬挂节点清理
-  - 线简化（Douglas-Peucker）
 - **Zonal Statistics（分区统计）**：
   - 按矢量面统计栅格像元（均值/最大/最小/标准差/众数）
 - **格式支持扩展**：
-  - GeoPackage 读写
   - KML/KMZ 读写
   - GML 读写
 

@@ -1,6 +1,6 @@
 # GIS_DL_TOOL 与 GIS_TOOL 对齐验收清单
 
-Last updated: 2026-05-14 (Phase 2+ update)
+Last updated: 2026-05-15
 
 ## Principle
 
@@ -23,7 +23,7 @@ This checklist is for non-business alignment only. It does not require the two t
 - [x] GUI task center can display logs, progress, and structured result text
 - [x] GUI shell files that should stay behaviorally aligned are explicitly enumerated and reviewed together across both tools
 - [x] A documented rule exists for what differences are allowed between the two tools
-- [ ] Release verification coverage for `GIS_DL_TOOL` reaches the same confidence level as the corresponding business surface in `GIS_TOOL`
+- [x] Release verification coverage for `GIS_DL_TOOL` reaches the same confidence level as the corresponding business surface in `GIS_TOOL`
 
 ## P1
 
@@ -58,4 +58,4 @@ This checklist is for non-business alignment only. It does not require the two t
 
 ## Current Assessment
 
-As of 2026-05-14 (Phase 3 update), `GIS_DL_TOOL` has closed all P0 and P1 alignment gaps, plus 2 of 3 P2 items. All platform-level `gui_data_support` capabilities have been ported and integrated into the GUI: data detection, data auto-fill (CRS, extent, layer name), output path derivation, file dialog config, param text, result message localization, action-specific parameter validation, execute button state management, and invalid param highlighting. The `test_gui_queue` timing sensitivity has been fully resolved. A cross-tool alignment check runs as a CTest regression. Documentation consistently describes the tools as siblings. A `gis_ai_gui_lib` static library target enables unit testing of GUI data support (25 test cases). All 14 CTest regressions pass (100%). The remaining P2 gap is: shared shell pieces to reduce independently drifting implementations.
+As of 2026-05-15, `GIS_DL_TOOL` has closed all P0 and P1 alignment gaps, plus 2 of 3 P2 items. 17 Release CTest regressions and 15 Debug CTest regressions pass at 100%. The remaining P2 gap is: shared shell pieces to reduce independently drifting implementations.

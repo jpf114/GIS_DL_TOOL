@@ -38,29 +38,28 @@ void IconManager::loadMapping() {
     pluginMap_["raster"]     = {"grid",     IconWeight::Bold, QColor("#FFFFFF")};
     pluginMap_["batch"]      = {"layers",   IconWeight::Bold, QColor("#FFFFFF")};
 
-    actionMap_["tile_split"]     = {"layout",          IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["tile_merge"]     = {"merge",           IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["overlap_split"]  = {"copy",            IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["segment_full"]    = {"scissors",        IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["segment_raster"]  = {"grid-four",       IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["segment_vector"]  = {"polygon",         IconWeight::Regular, QColor("#9AA8B8")};
 
-    actionMap_["single_infer"]   = {"brain",           IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["batch_infer"]    = {"images",          IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["model_info"]     = {"info",            IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["inference_single"] = {"brain",          IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["inference_batch"]  = {"images",         IconWeight::Regular, QColor("#9AA8B8")};
 
-    actionMap_["normalize"]      = {"chart-line-up",   IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["resample"]       = {"arrows-clockwise",IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["clip"]           = {"scissors",        IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["preprocess_resample"]  = {"arrows-clockwise", IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["preprocess_normalize"] = {"chart-line-up",    IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["preprocess_clip"]      = {"scissors",         IconWeight::Regular, QColor("#9AA8B8")};
 
-    actionMap_["mask_to_polygon"] = {"polygon",        IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["vector_clip"]     = {"scissors",       IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["vector_buffer"]   = {"circle",         IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["vector_simplify"] = {"funnel",           IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["vector_buffer"]   = {"circle",           IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["vector_clip"]     = {"scissors",         IconWeight::Regular, QColor("#9AA8B8")};
 
-    actionMap_["raster_clip"]      = {"scissors",      IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["raster_mosaic"]    = {"squares-four",  IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["raster_threshold"] = {"chart-line-up", IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["raster_mosaic"]    = {"squares-four",    IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["raster_threshold"] = {"chart-line-up",   IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["raster_resample"]  = {"arrows-clockwise",IconWeight::Regular, QColor("#9AA8B8")};
 
-    actionMap_["batch_segment"]  = {"layers",          IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["batch_inference"]= {"brain",           IconWeight::Regular, QColor("#9AA8B8")};
-    actionMap_["task_queue"]     = {"stack",           IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["batch_segment"]  = {"layers",            IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["batch_inference"]= {"brain",             IconWeight::Regular, QColor("#9AA8B8")};
+    actionMap_["task_queue"]     = {"stack",             IconWeight::Regular, QColor("#9AA8B8")};
 
     cardMap_["input"]    = {"arrow-down",  IconWeight::Regular, QColor("#2F7CF6")};
     cardMap_["output"]   = {"arrow-up",    IconWeight::Regular, QColor("#2F7CF6")};

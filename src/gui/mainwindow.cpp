@@ -796,7 +796,9 @@ void MainWindow::applyFunctionPanelState(const QString& title,
     statusAlgorithmLabel_->setText(algorithmText);
 
     auto& mgr = IconManager::instance();
-    if (!pluginName.empty() && mgr.hasPluginIcon(pluginName)) {
+    if (!currentActionKey_.empty() && mgr.hasActionIcon(pluginName, currentActionKey_)) {
+        functionIconLabel_->setPixmap(mgr.pixmapForAction(pluginName, currentActionKey_, 38, QColor("#2F7CF6")));
+    } else if (!pluginName.empty() && mgr.hasPluginIcon(pluginName)) {
         functionIconLabel_->setPixmap(mgr.pixmapForPlugin(pluginName, 38, QColor("#2F7CF6")));
     } else {
         functionIconLabel_->setPixmap(defaultBadgePixmap());

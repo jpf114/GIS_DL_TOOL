@@ -65,8 +65,8 @@ std::array<double, 4> getExtentParam(const std::map<std::string, ParamValue>& pa
 }
 
 BlendMode parseBlendMode(const std::string& s) {
-    if (s == "Linear") return BlendMode::Linear;
-    if (s == "Gaussian") return BlendMode::Gaussian;
+    if (s.find("Linear") != std::string::npos) return BlendMode::Linear;
+    if (s.find("Gaussian") != std::string::npos) return BlendMode::Gaussian;
     return BlendMode::None;
 }
 
@@ -92,7 +92,7 @@ std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
         specs.push_back({"output_shp", "输出矢量", "分割结果矢量输出路径", ParamType::FilePath, false, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
         specs.push_back({"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
-        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian"}, int{0}, int{0}, {"None", "Linear", "Gaussian"}});
+        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian"}, int{0}, int{0}, {"None（无融合）", "Linear（线性融合）", "Gaussian（高斯融合）"}});
         specs.push_back({"target_class", "目标类别", "分割目标类别编号", ParamType::Int, false, int{1}, int{0}, int{255}, {}});
         specs.push_back({"skip_nodata", "跳过无数据", "是否跳过无数据区域", ParamType::Bool, false, bool{true}, int{0}, int{0}, {}});
     } else if (pluginName == "inference") {
@@ -103,8 +103,8 @@ std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
     } else if (pluginName == "preprocess") {
         specs.push_back({"input_raster", "输入影像", "待预处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"output_path", "输出路径", "预处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back({"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"Nearest"}, int{0}, int{0}, {"Nearest", "Bilinear", "Cubic"}});
-        specs.push_back({"normalize_mode", "归一化方式", "影像归一化处理方式", ParamType::Enum, false, std::string{"None"}, int{0}, int{0}, {"MinMax", "ZScore", "None"}});
+        specs.push_back({"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"Nearest（最邻近）"}, int{0}, int{0}, {"Nearest（最邻近）", "Bilinear（双线性）"}});
+        specs.push_back({"normalize_mode", "归一化方式", "影像归一化处理方式", ParamType::Enum, false, std::string{"None（不处理）"}, int{0}, int{0}, {"MinMax（最小最大）", "ZScore（标准差）", "None（不处理）"}});
         specs.push_back({"clip_extent", "裁剪范围", "影像裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
     } else if (pluginName == "vector") {
         specs.push_back({"input_vector", "输入矢量", "待处理的矢量文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
@@ -115,16 +115,16 @@ std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
     } else if (pluginName == "raster") {
         specs.push_back({"input_raster", "输入栅格", "待处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"output_path", "输出路径", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
-        specs.push_back({"mosaic_strategy", "镶嵌策略", "栅格镶嵌合并策略", ParamType::Enum, false, std::string{"First"}, int{0}, int{0}, {"First", "Overwrite", "Mean", "Max", "Min"}});
+        specs.push_back({"mosaic_strategy", "镶嵌策略", "栅格镶嵌合并策略", ParamType::Enum, false, std::string{"First（首个）"}, int{0}, int{0}, {"First（首个）", "Overwrite（覆盖）", "Mean（均值）", "Max（最大值）", "Min（最小值）"}});
         specs.push_back({"threshold_value", "阈值", "栅格阈值分割的阈值", ParamType::Double, false, double{128.0}, double{0.0}, double{65535.0}, {}});
-        specs.push_back({"resample_method", "重采样方式", "栅格重采样方法", ParamType::Enum, false, std::string{"Nearest"}, int{0}, int{0}, {"Nearest", "Bilinear", "Cubic"}});
+        specs.push_back({"resample_method", "重采样方式", "栅格重采样方法", ParamType::Enum, false, std::string{"Nearest（最邻近）"}, int{0}, int{0}, {"Nearest（最邻近）", "Bilinear（双线性）"}});
     } else if (pluginName == "batch") {
         specs.push_back({"input_dir", "输入目录", "批量处理的输入目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"output_dir", "输出目录", "批量处理的输出目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"tile_size", "分块大小", "大图分块推理的块尺寸", ParamType::Int, false, int{512}, int{64}, int{4096}, {}});
         specs.push_back({"stride", "步长", "分块推理的滑动步长", ParamType::Int, false, int{256}, int{32}, int{2048}, {}});
-        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian"}, int{0}, int{0}, {"None", "Linear", "Gaussian"}});
+        specs.push_back({"blend_mode", "融合方式", "分块重叠区域的融合方式", ParamType::Enum, false, std::string{"Gaussian（高斯融合）"}, int{0}, int{0}, {"None（无融合）", "Linear（线性融合）", "Gaussian（高斯融合）"}});
     }
 
     return specs;
@@ -329,7 +329,7 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 reporter.onMessage("重采样: " + method_str);
 
                 ResampleMethod method = ResampleMethod::Nearest;
-                if (method_str == "Bilinear") method = ResampleMethod::Bilinear;
+                if (method_str.find("Bilinear") != std::string::npos) method = ResampleMethod::Bilinear;
 
                 int new_size = std::max(raster_data->width, raster_data->height);
                 RasterResample resample;
@@ -438,10 +438,10 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 reporter.onMessage("镶嵌策略: " + strategy_str);
 
                 MosaicStrategy strategy = MosaicStrategy::First;
-                if (strategy_str == "Overwrite") strategy = MosaicStrategy::Overwrite;
-                else if (strategy_str == "Mean") strategy = MosaicStrategy::Mean;
-                else if (strategy_str == "Max") strategy = MosaicStrategy::Max;
-                else if (strategy_str == "Min") strategy = MosaicStrategy::Min;
+                if (strategy_str.find("Overwrite") != std::string::npos) strategy = MosaicStrategy::Overwrite;
+                else if (strategy_str.find("Mean") != std::string::npos) strategy = MosaicStrategy::Mean;
+                else if (strategy_str.find("Max") != std::string::npos) strategy = MosaicStrategy::Max;
+                else if (strategy_str.find("Min") != std::string::npos) strategy = MosaicStrategy::Min;
 
                 MosaicConfig mosaic_config;
                 mosaic_config.strategy = strategy;
@@ -467,7 +467,7 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 reporter.onMessage("重采样: " + method_str);
 
                 ResampleMethod method = ResampleMethod::Nearest;
-                if (method_str == "Bilinear") method = ResampleMethod::Bilinear;
+                if (method_str.find("Bilinear") != std::string::npos) method = ResampleMethod::Bilinear;
 
                 int new_size = std::max(raster_data->width, raster_data->height);
                 RasterResample resample;

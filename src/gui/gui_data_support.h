@@ -123,6 +123,8 @@ FileParamUiConfig buildFileParamUiConfig(const std::string& pluginName,
 
 const ParamText* findCommonParamText(const std::string& paramKey);
 
+QString enumDisplayText(const std::string& paramKey, const std::string& rawValue);
+
 QString actionDisplayName(const std::string& pluginName, const std::string& actionKey);
 
 }

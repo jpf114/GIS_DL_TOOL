@@ -20,6 +20,7 @@
 #include <QLabel>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFileDialog>
 #include <QMimeData>
 #include <QPainter>
 #include <QPixmap>
@@ -31,6 +32,7 @@
 #include <QVBoxLayout>
 #include <QCheckBox>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <algorithm>
 
 namespace gis_ai::gui {
@@ -328,6 +330,19 @@ void MainWindow::setupUi() {
     batchDirEdit_->setEnabled(false);
     batchLayout->addWidget(batchDirEdit_, 1);
 
+    batchDirButton_ = new QPushButton(QStringLiteral("..."));
+    batchDirButton_->setObjectName(QStringLiteral("browseButton"));
+    batchDirButton_->setFixedWidth(36);
+    batchDirButton_->setEnabled(false);
+    batchDirButton_->setToolTip(QStringLiteral("浏览选择批量输入目录"));
+    connect(batchDirButton_, &QPushButton::clicked, this, [this]() {
+        QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择批量输入目录"));
+        if (!dir.isEmpty()) {
+            batchDirEdit_->setText(dir);
+        }
+    });
+    batchLayout->addWidget(batchDirButton_);
+
     batchFilterEdit_ = new QLineEdit;
     batchFilterEdit_->setPlaceholderText(QStringLiteral("*.tif"));
     batchFilterEdit_->setText(QStringLiteral("*.tif"));
@@ -344,6 +359,7 @@ void MainWindow::setupUi() {
 
     connect(batchCheckBox_, &QCheckBox::toggled, this, [this](bool checked) {
         batchDirEdit_->setEnabled(checked);
+        batchDirButton_->setEnabled(checked);
         batchFilterEdit_->setEnabled(checked);
         if (!checked) {
             batchCountLabel_->clear();
@@ -940,11 +956,46 @@ void MainWindow::onExecuteClicked() {
 
     if (!paramWidget_->validate()) {
         resultSummaryLabel_->setText(QStringLiteral("参数验证失败，请检查必填参数。"));
+        auto values = paramWidget_->getParamValues();
+        auto specs = buildEffectiveParamSpecs(currentPluginName_, currentActionKey_);
+        for (const auto& spec : specs) {
+            if (!spec.required) continue;
+            auto it = values.find(spec.key);
+            if (it == values.end()) {
+                paramWidget_->setHighlightedParam(spec.key);
+            } else if (auto* str = std::get_if<std::string>(&it->second); str && str->empty()) {
+                paramWidget_->setHighlightedParam(spec.key);
+            }
+        }
         return;
     }
 
     const bool hadRunningTask = TaskRunner::instance().isRunning();
     auto params = paramWidget_->getParamValues();
+
+    if (!hadRunningTask) {
+        QStringList existingOutputs;
+        for (const auto& [key, value] : params) {
+            if (key.find("output") == std::string::npos) continue;
+            auto* str = std::get_if<std::string>(&value);
+            if (!str || str->empty()) continue;
+            if (QFileInfo::exists(QString::fromStdString(*str))) {
+                existingOutputs << QString::fromStdString(*str);
+            }
+        }
+        if (!existingOutputs.isEmpty()) {
+            QMessageBox::StandardButton reply = QMessageBox::warning(
+                this,
+                QStringLiteral("文件覆盖确认"),
+                QStringLiteral("以下输出文件已存在，是否覆盖？\n\n%1\n\n点击「是」覆盖，点击「否」取消执行。")
+                    .arg(existingOutputs.join(QStringLiteral("\n"))),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No);
+            if (reply != QMessageBox::Yes) {
+                return;
+            }
+        }
+    }
 
     QString pluginDisp = QString::fromStdString(pluginDisplayName(currentPluginName_));
     auto uiConfig = getActionUiConfig(currentPluginName_, currentActionKey_);

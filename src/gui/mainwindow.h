@@ -110,6 +110,7 @@ private:
 
     QCheckBox* batchCheckBox_ = nullptr;
     QLineEdit* batchDirEdit_ = nullptr;
+    QPushButton* batchDirButton_ = nullptr;
     QLineEdit* batchFilterEdit_ = nullptr;
     QLabel* batchCountLabel_ = nullptr;
 

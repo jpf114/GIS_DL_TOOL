@@ -222,4 +222,18 @@ void ParamWidget::setUiContext(const std::string& pluginName, const std::string&
     if (advancedCard_) advancedCard_->setUiContext(pluginName, actionKey);
 }
 
+void ParamWidget::setHighlightedParam(const std::string& key) {
+    auto tryHighlight = [&](ParamCardWidget* card) {
+        if (card && card->hasParam(key)) {
+            card->markFieldError(key, true);
+            return true;
+        }
+        return false;
+    };
+
+    if (tryHighlight(inputCard_)) return;
+    if (tryHighlight(outputCard_)) return;
+    if (tryHighlight(advancedCard_)) return;
+}
+
 }

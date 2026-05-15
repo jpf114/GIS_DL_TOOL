@@ -1132,6 +1132,60 @@ const ParamText* findCommonParamText(const std::string& paramKey) {
     return &it->second;
 }
 
+QString enumDisplayText(const std::string& paramKey, const std::string& rawValue) {
+    static const std::map<std::string, std::map<std::string, QString>> translations = {
+        {"method", {
+            {"basic", QStringLiteral("basic (基础)")},
+            {"otsu", QStringLiteral("otsu (大津法)")},
+            {"adaptive", QStringLiteral("adaptive (自适应)")},
+        }},
+        {"match_method", {
+            {"exact", QStringLiteral("exact (精确匹配)")},
+            {"partial", QStringLiteral("partial (部分匹配)")},
+            {"fuzzy", QStringLiteral("fuzzy (模糊匹配)")},
+        }},
+        {"transform", {
+            {"identity", QStringLiteral("identity (无变换)")},
+            {"normalize", QStringLiteral("normalize (归一化)")},
+            {"standardize", QStringLiteral("standardize (标准化)")},
+        }},
+        {"resample", {
+            {"nearest", QStringLiteral("nearest (最近邻)")},
+            {"bilinear", QStringLiteral("bilinear (双线性)")},
+            {"cubic", QStringLiteral("cubic (三次卷积)")},
+            {"lanczos", QStringLiteral("lanczos (兰佐斯)")},
+            {"average", QStringLiteral("average (平均值)")},
+            {"mode", QStringLiteral("mode (众数)")},
+        }},
+        {"blend", {
+            {"none", QStringLiteral("none (无融合)")},
+            {"linear", QStringLiteral("linear (线性融合)")},
+            {"gaussian", QStringLiteral("gaussian (高斯融合)")},
+        }},
+        {"simplify_method", {
+            {"douglas_peucker", QStringLiteral("douglas_peucker (道格拉斯-普克)")},
+            {"visvalingam", QStringLiteral("visvalingam (维斯瓦林甘)")},
+        }},
+        {"output_format", {
+            {"shp", QStringLiteral("shp (Shapefile)")},
+            {"geojson", QStringLiteral("geojson (GeoJSON)")},
+            {"gpkg", QStringLiteral("gpkg (GeoPackage)")},
+        }},
+    };
+
+    auto paramIt = translations.find(paramKey);
+    if (paramIt == translations.end()) {
+        return QString::fromStdString(rawValue);
+    }
+
+    auto valIt = paramIt->second.find(rawValue);
+    if (valIt == paramIt->second.end()) {
+        return QString::fromStdString(rawValue);
+    }
+
+    return valIt->second;
+}
+
 QString actionDisplayName(const std::string& pluginName, const std::string& actionKey) {
     auto cfg = getActionUiConfig(pluginName, actionKey);
     if (!cfg.displayName.isEmpty()) return cfg.displayName;

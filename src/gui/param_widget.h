@@ -28,6 +28,7 @@ public:
     std::string stringValue(const std::string& key) const;
     bool validate() const;
     void setUiContext(const std::string& pluginName, const std::string& actionKey);
+    void setHighlightedParam(const std::string& key);
 
 signals:
     void paramsChanged();

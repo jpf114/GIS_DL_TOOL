@@ -395,7 +395,8 @@ QWidget* ParamCardWidget::createEnumWidget(const ParamSpec& spec,
     comboBox->setView(listView);
 
     for (const auto& val : spec.enumValues) {
-        comboBox->addItem(QString::fromUtf8(val), QString::fromUtf8(val));
+        QString displayText = enumDisplayText(spec.key, val);
+        comboBox->addItem(displayText, QString::fromUtf8(val));
     }
     if (auto* defStr = std::get_if<std::string>(&spec.defaultValue); defStr && !defStr->empty()) {
         int idx = comboBox->findData(QString::fromUtf8(*defStr));

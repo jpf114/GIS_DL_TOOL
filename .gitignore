@@ -4,9 +4,19 @@ test_data/
 !test_data/
 test_data/*
 !test_data/README.md
+!test_data/real/
+test_data/real/*
+!test_data/real/test_remote_sensing_1024x1024.tif
 vcpkg_installed/
 *.log
 install
+
+models/
+!models/.gitkeep
+!models/unet_building/
+!models/segformer_landcover/
+
+output/
 
 # Python caches
 __pycache__/

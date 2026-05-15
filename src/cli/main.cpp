@@ -1,5 +1,6 @@
 #include "fusion/task_config.h"
 #include "core/logger.h"
+#include "core/exception.h"
 
 #include <iostream>
 #include <string>
@@ -17,18 +18,27 @@ static void PrintUsage() {
               << "  run <config.json>            使用 JSON 配置文件执行任务\n"
               << "  segment <model> <input> [output_tif] [output_shp]\n"
               << "                               单图分割\n"
+              << "  inference <model> <input> [output]\n"
+              << "                               单图推理\n"
               << "  batch <model> <input_dir> <output_dir>\n"
               << "                               批量分割\n"
               << "  generate-config <output>     生成默认配置文件模板\n"
               << "  version                      显示版本信息\n"
               << "  help                         显示帮助信息\n\n"
+              << "配置文件任务类型:\n"
+              << "  segment / segment_to_polygon / batch_segment\n"
+              << "  inference / preprocess / vector_simplify\n"
+              << "  vector_buffer / raster_mosaic / raster_resample\n\n"
               << "选项:\n"
               << "  --tile-size <int>            切片大小 (默认: 512)\n"
               << "  --stride <int>               滑窗步长 (默认: 384)\n"
               << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
               << "  --threads <int>              线程数 (默认: 1)\n"
               << "  --no-shp                     不输出矢量文件\n"
-              << "  --verbose                    详细日志\n"
+              << "  --verbose                    详细日志\n\n"
+              << "错误码:\n"
+              << "  0=成功 1xxx=IO 2xxx=模型 3xxx=算法 4xxx=配置\n"
+              << "  5xxx=内存 6xxx=参数 7xxx=任务 9999=未知\n"
               << std::endl;
 }
 
@@ -47,9 +57,14 @@ static int RunWithConfig(const std::string& config_path) {
 
         std::cout << report.ToString() << std::endl;
         return report.success ? 0 : 1;
+    } catch (const gis_ai::GisAiException& e) {
+        std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
+                  << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
+                  << e.what() << std::endl;
+        return gis_ai::ErrorCodeToInt(e.GetCode());
     } catch (const std::exception& e) {
-        std::cerr << "错误: " << e.what() << std::endl;
-        return 1;
+        std::cerr << "[E9999] 未知错误: " << e.what() << std::endl;
+        return 9999;
     }
 }
 
@@ -85,12 +100,22 @@ static int RunSegment(int argc, char* argv[]) {
         }
     }
 
-    gis_ai::Logger::Instance().Initialize(config.log_file,
-        config.verbose ? spdlog::level::debug : spdlog::level::info);
+    try {
+        gis_ai::Logger::Instance().Initialize(config.log_file,
+            config.verbose ? spdlog::level::debug : spdlog::level::info);
 
-    auto report = gis_ai::TaskRunner::Execute(config);
-    std::cout << report.ToString() << std::endl;
-    return report.success ? 0 : 1;
+        auto report = gis_ai::TaskRunner::Execute(config);
+        std::cout << report.ToString() << std::endl;
+        return report.success ? 0 : 1;
+    } catch (const gis_ai::GisAiException& e) {
+        std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
+                  << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
+                  << e.what() << std::endl;
+        return gis_ai::ErrorCodeToInt(e.GetCode());
+    } catch (const std::exception& e) {
+        std::cerr << "[E9999] 未知错误: " << e.what() << std::endl;
+        return 9999;
+    }
 }
 
 static int RunBatch(int argc, char* argv[]) {
@@ -118,12 +143,22 @@ static int RunBatch(int argc, char* argv[]) {
         }
     }
 
-    gis_ai::Logger::Instance().Initialize(config.log_file,
-        config.verbose ? spdlog::level::debug : spdlog::level::info);
+    try {
+        gis_ai::Logger::Instance().Initialize(config.log_file,
+            config.verbose ? spdlog::level::debug : spdlog::level::info);
 
-    auto report = gis_ai::TaskRunner::Execute(config);
-    std::cout << report.ToString() << std::endl;
-    return report.success ? 0 : 1;
+        auto report = gis_ai::TaskRunner::Execute(config);
+        std::cout << report.ToString() << std::endl;
+        return report.success ? 0 : 1;
+    } catch (const gis_ai::GisAiException& e) {
+        std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
+                  << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
+                  << e.what() << std::endl;
+        return gis_ai::ErrorCodeToInt(e.GetCode());
+    } catch (const std::exception& e) {
+        std::cerr << "[E9999] 未知错误: " << e.what() << std::endl;
+        return 9999;
+    }
 }
 
 static int GenerateConfig(const std::string& output_path) {
@@ -165,6 +200,35 @@ int main(int argc, char* argv[]) {
         return RunWithConfig(argv[2]);
     } else if (command == "segment") {
         return RunSegment(argc, argv);
+    } else if (command == "inference") {
+        if (argc < 4) {
+            std::cerr << "用法: gis_ai_cli inference <model> <input> [output]" << std::endl;
+            return 1;
+        }
+        try {
+            gis_ai::TaskConfig config;
+            config.task_type = gis_ai::TaskType::Inference;
+            config.model_path = argv[2];
+            config.input_path = argv[3];
+            if (argc >= 5) config.output_path = argv[4];
+            for (int i = 4; i < argc; ++i) {
+                std::string arg = argv[i];
+                if (arg == "--verbose") config.verbose = true;
+            }
+            gis_ai::Logger::Instance().Initialize(config.log_file,
+                config.verbose ? spdlog::level::debug : spdlog::level::info);
+            auto report = gis_ai::TaskRunner::Execute(config);
+            std::cout << report.ToString() << std::endl;
+            return report.success ? 0 : 1;
+        } catch (const gis_ai::GisAiException& e) {
+            std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
+                      << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
+                      << e.what() << std::endl;
+            return gis_ai::ErrorCodeToInt(e.GetCode());
+        } catch (const std::exception& e) {
+            std::cerr << "[E9999] 未知错误: " << e.what() << std::endl;
+            return 9999;
+        }
     } else if (command == "batch") {
         return RunBatch(argc, argv);
     } else if (command == "generate-config") {

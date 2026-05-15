@@ -11,7 +11,13 @@ namespace gis_ai {
 enum class GIS_AI_API TaskType {
     Segment,
     SegmentToPolygon,
-    BatchSegment
+    BatchSegment,
+    Inference,
+    Preprocess,
+    VectorSimplify,
+    VectorBuffer,
+    RasterMosaic,
+    RasterResample
 };
 
 struct GIS_AI_API TaskConfig {
@@ -26,7 +32,16 @@ struct GIS_AI_API TaskConfig {
     std::string input_dir;
     std::string output_dir;
 
+    std::string output_path;
+
     LargeImageSegConfig seg_config;
+
+    double resample_resolution = 0.0;
+    std::string resample_method = "nearest";
+
+    double simplify_tolerance = 1.0;
+
+    double buffer_distance = 0.0;
 
     int num_threads = 1;
     bool verbose = false;

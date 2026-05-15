@@ -11,14 +11,25 @@ namespace gis_ai {
 enum class GIS_AI_API ErrorCode {
     Success = 0,
     IO = 1001,
+    FileNotFound = 1002,
+    FileReadError = 1003,
+    FileWriteError = 1004,
     ModelLoad = 2001,
     Inference = 2002,
     Algorithm = 3001,
     Config = 4001,
+    ConfigParseError = 4002,
+    ConfigValidationError = 4003,
     Memory = 5001,
     InvalidParam = 6001,
+    MissingRequiredParam = 6002,
+    TaskExecution = 7001,
+    TaskCancelled = 7002,
     Unknown = 9999
 };
+
+GIS_AI_API std::string ErrorCodeToString(ErrorCode code);
+GIS_AI_API int ErrorCodeToInt(ErrorCode code);
 
 class GIS_AI_API GisAiException : public std::runtime_error {
 public:

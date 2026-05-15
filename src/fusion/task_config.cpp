@@ -37,6 +37,18 @@ TaskConfig TaskConfig::LoadFromString(const std::string& json_str) {
         config.task_type = TaskType::SegmentToPolygon;
     } else if (type_str == "batch_segment") {
         config.task_type = TaskType::BatchSegment;
+    } else if (type_str == "inference") {
+        config.task_type = TaskType::Inference;
+    } else if (type_str == "preprocess") {
+        config.task_type = TaskType::Preprocess;
+    } else if (type_str == "vector_simplify") {
+        config.task_type = TaskType::VectorSimplify;
+    } else if (type_str == "vector_buffer") {
+        config.task_type = TaskType::VectorBuffer;
+    } else if (type_str == "raster_mosaic") {
+        config.task_type = TaskType::RasterMosaic;
+    } else if (type_str == "raster_resample") {
+        config.task_type = TaskType::RasterResample;
     }
 
     config.model_path = j.value("model_path", "");
@@ -45,9 +57,15 @@ TaskConfig TaskConfig::LoadFromString(const std::string& json_str) {
     config.output_shp_path = j.value("output_shp_path", "");
     config.input_dir = j.value("input_dir", "");
     config.output_dir = j.value("output_dir", "");
+    config.output_path = j.value("output_path", "");
     config.num_threads = j.value("num_threads", 1);
     config.verbose = j.value("verbose", false);
     config.log_file = j.value("log_file", "gis_ai.log");
+
+    config.resample_resolution = j.value("resample_resolution", 0.0);
+    config.resample_method = j.value("resample_method", "nearest");
+    config.simplify_tolerance = j.value("simplify_tolerance", 1.0);
+    config.buffer_distance = j.value("buffer_distance", 0.0);
 
     if (j.contains("segment")) {
         auto& s = j["segment"];
@@ -122,6 +140,12 @@ std::string TaskConfig::ToString() const {
         case TaskType::Segment: j["task_type"] = "segment"; break;
         case TaskType::SegmentToPolygon: j["task_type"] = "segment_to_polygon"; break;
         case TaskType::BatchSegment: j["task_type"] = "batch_segment"; break;
+        case TaskType::Inference: j["task_type"] = "inference"; break;
+        case TaskType::Preprocess: j["task_type"] = "preprocess"; break;
+        case TaskType::VectorSimplify: j["task_type"] = "vector_simplify"; break;
+        case TaskType::VectorBuffer: j["task_type"] = "vector_buffer"; break;
+        case TaskType::RasterMosaic: j["task_type"] = "raster_mosaic"; break;
+        case TaskType::RasterResample: j["task_type"] = "raster_resample"; break;
     }
 
     j["model_path"] = model_path;
@@ -130,9 +154,15 @@ std::string TaskConfig::ToString() const {
     j["output_shp_path"] = output_shp_path;
     j["input_dir"] = input_dir;
     j["output_dir"] = output_dir;
+    j["output_path"] = output_path;
     j["num_threads"] = num_threads;
     j["verbose"] = verbose;
     j["log_file"] = log_file;
+
+    j["resample_resolution"] = resample_resolution;
+    j["resample_method"] = resample_method;
+    j["simplify_tolerance"] = simplify_tolerance;
+    j["buffer_distance"] = buffer_distance;
 
     auto& s = j["segment"];
     s["tile_size"] = seg_config.tile_size;

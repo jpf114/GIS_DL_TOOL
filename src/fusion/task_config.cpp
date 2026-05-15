@@ -216,9 +216,71 @@ std::string TaskReport::ToString() const {
     return j.dump(2);
 }
 
+std::string TaskReport::ToJson() const {
+    nlohmann::json j;
+    j["success"] = success;
+    j["task_type"] = task_type_name;
+    j["error_code"] = error_code;
+
+    if (!input_path.empty()) j["input_path"] = input_path;
+    if (!start_time.empty()) j["start_time"] = start_time;
+    if (!end_time.empty()) j["end_time"] = end_time;
+    j["total_time_ms"] = total_time_ms;
+
+    if (!error_message.empty()) j["error_message"] = error_message;
+    j["output_files"] = output_files;
+
+    if (seg_stats.total_tiles > 0 || seg_stats.inferred_tiles > 0) {
+        auto& stats = j["segment_stats"];
+        stats["total_tiles"] = seg_stats.total_tiles;
+        stats["skipped_tiles"] = seg_stats.skipped_tiles;
+        stats["inferred_tiles"] = seg_stats.inferred_tiles;
+        stats["total_inference_time_ms"] = seg_stats.total_inference_time_ms;
+        stats["polygon_count"] = seg_stats.polygon_count;
+        stats["total_polygon_area"] = seg_stats.total_polygon_area;
+    }
+
+    return j.dump(2);
+}
+
+void TaskReport::SaveReport(const std::string& path) const {
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        throw GisAiIOException("Cannot open report file for writing: " + path);
+    }
+    file << ToJson() << "\n";
+}
+
 TaskReport TaskRunner::Execute(const TaskConfig& config) {
     TaskReport report;
     auto start = std::chrono::high_resolution_clock::now();
+
+    static const char* taskTypeNames[] = {
+        "segment", "segment_to_polygon", "batch_segment",
+        "inference", "preprocess",
+        "vector_simplify", "vector_buffer",
+        "raster_mosaic", "raster_resample"
+    };
+    int typeIdx = static_cast<int>(config.task_type);
+    if (typeIdx >= 0 && typeIdx < 9) {
+        report.task_type_name = taskTypeNames[typeIdx];
+    }
+    report.input_path = config.input_path.empty() ? config.input_dir : config.input_path;
+
+    auto now_to_string = []() -> std::string {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        char buf[32];
+        struct tm tm_buf;
+#ifdef _WIN32
+        localtime_s(&tm_buf, &time_t);
+#else
+        localtime_r(&time_t, &tm_buf);
+#endif
+        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
+        return std::string(buf);
+    };
+    report.start_time = now_to_string();
 
     try {
         if (config.model_path.empty()) {
@@ -282,14 +344,21 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 break;
             }
         }
+    } catch (const GisAiException& e) {
+        report.success = false;
+        report.error_message = e.what();
+        report.error_code = ErrorCodeToInt(e.GetCode());
+        LOG_ERROR("Task execution failed: " + std::string(e.what()));
     } catch (const std::exception& e) {
         report.success = false;
         report.error_message = e.what();
+        report.error_code = 9999;
         LOG_ERROR("Task execution failed: " + std::string(e.what()));
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     report.total_time_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    report.end_time = now_to_string();
 
     return report;
 }

@@ -35,7 +35,8 @@ static void PrintUsage() {
               << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
               << "  --threads <int>              线程数 (默认: 1)\n"
               << "  --no-shp                     不输出矢量文件\n"
-              << "  --verbose                    详细日志\n\n"
+              << "  --verbose                    详细日志\n"
+              << "  --report <path>              输出 JSON 运行报告\n\n"
               << "错误码:\n"
               << "  0=成功 1xxx=IO 2xxx=模型 3xxx=算法 4xxx=配置\n"
               << "  5xxx=内存 6xxx=参数 7xxx=任务 9999=未知\n"
@@ -46,7 +47,15 @@ static void PrintVersion() {
     std::cout << "GIS AI 算法库 v0.1.0" << std::endl;
 }
 
-static int RunWithConfig(const std::string& config_path) {
+static int RunWithConfig(const std::string& config_path, int argc, char* argv[]) {
+    std::string report_path;
+    for (int i = 3; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--report" && i + 1 < argc) {
+            report_path = argv[++i];
+        }
+    }
+
     try {
         auto config = gis_ai::TaskConfig::LoadFromFile(config_path);
         gis_ai::Logger::Instance().Initialize(config.log_file,
@@ -56,7 +65,13 @@ static int RunWithConfig(const std::string& config_path) {
         auto report = gis_ai::TaskRunner::Execute(config);
 
         std::cout << report.ToString() << std::endl;
-        return report.success ? 0 : 1;
+
+        if (!report_path.empty()) {
+            report.SaveReport(report_path);
+            std::cout << "运行报告已保存: " << report_path << std::endl;
+        }
+
+        return report.success ? 0 : report.error_code;
     } catch (const gis_ai::GisAiException& e) {
         std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
                   << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
@@ -197,7 +212,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "用法: gis_ai_cli run <config.json>" << std::endl;
             return 1;
         }
-        return RunWithConfig(argv[2]);
+        return RunWithConfig(argv[2], argc, argv);
     } else if (command == "segment") {
         return RunSegment(argc, argv);
     } else if (command == "inference") {

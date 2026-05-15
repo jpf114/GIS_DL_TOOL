@@ -642,8 +642,10 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
             return ActionValidationIssue{"output_tif", QString::fromUtf8("参数「输出栅格」应使用 .tif 或 .tiff")};
         }
         const std::string outputShp = stringParam("output_shp");
-        if (!outputShp.empty() && outputShp.find(".shp") == std::string::npos) {
-            return ActionValidationIssue{"output_shp", QString::fromUtf8("参数「输出矢量」应使用 .shp")};
+        if (!outputShp.empty() && outputShp.find(".shp") == std::string::npos &&
+            outputShp.find(".gpkg") == std::string::npos &&
+            outputShp.find(".geojson") == std::string::npos) {
+            return ActionValidationIssue{"output_shp", QString::fromUtf8("参数「输出矢量」应使用 .shp、.gpkg 或 .geojson")};
         }
     }
 
@@ -1075,8 +1077,8 @@ FileParamUiConfig buildFileParamUiConfig(const std::string& pluginName,
             config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .tif");
             config.saveFilter = QStringLiteral("GeoTIFF (*.tif *.tiff);;所有文件 (*)");
         } else if (config.suggestedSuffix == ".shp") {
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .shp");
-            config.saveFilter = QStringLiteral("Shapefile (*.shp);;所有文件 (*)");
+            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .shp、.gpkg 或 .geojson");
+            config.saveFilter = QStringLiteral("Shapefile (*.shp);;GeoPackage (*.gpkg);;GeoJSON (*.geojson);;所有文件 (*)");
         } else if (config.suggestedSuffix == ".gpkg") {
             config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .gpkg");
             config.saveFilter = QStringLiteral("GeoPackage (*.gpkg);;所有文件 (*)");

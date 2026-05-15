@@ -59,7 +59,16 @@ struct GIS_AI_API TaskReport {
     double total_time_ms = 0.0;
     SegmentationStats seg_stats;
     std::vector<std::string> output_files;
+
+    std::string task_type_name;
+    std::string input_path;
+    std::string start_time;
+    std::string end_time;
+    int error_code = 0;
+
     std::string ToString() const;
+    std::string ToJson() const;
+    void SaveReport(const std::string& path) const;
 };
 
 class GIS_AI_API TaskRunner {

@@ -1,6 +1,6 @@
 #include "gdal_config.h"
 
-#include <QApplication>
+#include <QCoreApplication>
 #include <QDir>
 #include <gdal_priv.h>
 #include <cpl_conv.h>
@@ -10,7 +10,7 @@ namespace gis_ai::gui {
 namespace {
 
 QString findDataDir(const QString& relativePath) {
-    QDir appDir(QApplication::applicationDirPath());
+    QDir appDir(QCoreApplication::applicationDirPath());
 
     QDir dir = appDir;
     for (int i = 0; i < 6; ++i) {

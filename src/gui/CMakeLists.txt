@@ -1,17 +1,42 @@
 cmake_minimum_required(VERSION 3.20)
 
+add_library(gis_gui_common STATIC
+    style_constants.h
+    icon_manager.cpp
+    crs_dialog.cpp
+    settings_manager.cpp
+    progress_dialog.cpp
+    gdal_config.cpp
+)
+
+find_package(Qt6 COMPONENTS Core Gui Widgets Svg REQUIRED)
+find_package(PROJ REQUIRED)
+
+target_link_libraries(gis_gui_common PUBLIC
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Svg
+    PROJ::proj
+)
+
+target_include_directories(gis_gui_common PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+set_target_properties(gis_gui_common PROPERTIES
+    AUTOMOC ON
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+
 add_library(gis_ai_gui_lib STATIC
     mainwindow.cpp
     nav_panel.cpp
-    icon_manager.cpp
     param_card_widget.cpp
     param_widget.cpp
-    crs_dialog.cpp
-    gdal_config.cpp
-    settings_manager.cpp
     qt_progress_reporter.cpp
     execute_worker.cpp
-    progress_dialog.cpp
     task_database.cpp
     task_manager.cpp
     task_center_page.cpp
@@ -24,13 +49,9 @@ find_package(SQLite3 REQUIRED)
 
 target_link_libraries(gis_ai_gui_lib PUBLIC
     gis_ai_static
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
-    Qt6::Svg
+    gis_gui_common
     Qt6::Sql
     SQLite3::SQLite3
-    PROJ::proj
 )
 
 set_target_properties(gis_ai_gui_lib PROPERTIES

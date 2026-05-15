@@ -41,6 +41,7 @@ set_target_properties(gis_ai_gui_lib PROPERTIES
 
 add_executable(gis-ai-gui
     main.cpp
+    "${CMAKE_SOURCE_DIR}/resources/app.rc"
 )
 
 target_link_libraries(gis-ai-gui PRIVATE gis_ai_gui_lib)
@@ -128,13 +129,25 @@ if(GIS_AI_COPY_QT_PLATFORM_DLL)
         CONFIGURATIONS Release
         DESTINATION ${GIS_AI_INSTALL_PLATFORM_DIR}
     )
+    install(FILES
+        "${GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR}/qwindowsd.dll"
+        "${GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR}/qoffscreend.dll"
+        CONFIGURATIONS Debug
+        DESTINATION ${GIS_AI_INSTALL_PLATFORM_DIR}
+    )
 endif()
 
 set(GIS_AI_VCPKG_RELEASE_QT_SQLDRIVERS_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/Qt6/plugins/sqldrivers")
+set(GIS_AI_VCPKG_DEBUG_QT_SQLDRIVERS_DIR "${GIS_AI_VCPKG_INSTALLED_DIR}/debug/Qt6/plugins/sqldrivers")
 
 install(FILES
     "${GIS_AI_VCPKG_RELEASE_QT_SQLDRIVERS_DIR}/qsqlite.dll"
     CONFIGURATIONS Release
+    DESTINATION ${GIS_AI_INSTALL_SQLDRIVERS_DIR}
+)
+install(FILES
+    "${GIS_AI_VCPKG_DEBUG_QT_SQLDRIVERS_DIR}/qsqlited.dll"
+    CONFIGURATIONS Debug
     DESTINATION ${GIS_AI_INSTALL_SQLDRIVERS_DIR}
 )
 

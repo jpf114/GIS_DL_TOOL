@@ -34,7 +34,10 @@
             "displayName": "Debug",
             "description": "Debug 构建配置",
             "inherits": "base",
-            "binaryDir": "${sourceDir}/build/debug"
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-debug"
+            }
         },
         {
             "name": "release",

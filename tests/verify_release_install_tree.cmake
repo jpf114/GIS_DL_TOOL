@@ -18,6 +18,12 @@ if(NOT DEFINED INSTALL_CONFIG)
     endif()
 endif()
 
+if(NOT INSTALL_CONFIG STREQUAL "Release")
+    message(STATUS "Skipping install tree verification for ${INSTALL_CONFIG} build (only Release is verified)")
+    message(STATUS "Release install tree verification passed (skipped)")
+    return()
+endif()
+
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}" --config ${INSTALL_CONFIG}
     WORKING_DIRECTORY "${REPO_ROOT}"

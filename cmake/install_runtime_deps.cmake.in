@@ -146,6 +146,23 @@ if(_gis_ai_can_scan_runtime_deps)
     )
 
     if(_gis_ai_unresolved_deps)
+        if(NOT _gis_ai_is_debug_build)
+            set(_gis_ai_filtered_unresolved_deps)
+            foreach(_gis_ai_udep IN LISTS _gis_ai_unresolved_deps)
+                string(TOLOWER "${_gis_ai_udep}" _gis_ai_udep_lower)
+                if(_gis_ai_udep_lower MATCHES "qwindowsd\\.dll$"
+                   OR _gis_ai_udep_lower MATCHES "qoffscreend\\.dll$"
+                   OR _gis_ai_udep_lower MATCHES "qsqlited\\.dll$"
+                   OR _gis_ai_udep_lower MATCHES "qt6[a-z]+d\\.dll$")
+                    continue()
+                endif()
+                list(APPEND _gis_ai_filtered_unresolved_deps "${_gis_ai_udep}")
+            endforeach()
+            set(_gis_ai_unresolved_deps "${_gis_ai_filtered_unresolved_deps}")
+        endif()
+    endif()
+
+    if(_gis_ai_unresolved_deps)
         list(JOIN _gis_ai_unresolved_deps "\n  " _gis_ai_unresolved_text)
         message(WARNING "未解析的运行时依赖（可能需要手动安装）:\n  ${_gis_ai_unresolved_text}")
     endif()
@@ -157,6 +174,16 @@ if(_gis_ai_can_scan_runtime_deps)
         file(TO_CMAKE_PATH "${_gis_ai_install_bin_dir}" _gis_ai_install_bin_dir_norm)
         if(_gis_ai_dep_dir_norm STREQUAL _gis_ai_install_bin_dir_norm)
             continue()
+        endif()
+        if(NOT _gis_ai_is_debug_build)
+            get_filename_component(_gis_ai_dep_name "${_gis_ai_dep}" NAME)
+            string(TOLOWER "${_gis_ai_dep_name}" _gis_ai_dep_name_lower)
+            if(_gis_ai_dep_name_lower MATCHES "qwindowsd\\.dll$"
+               OR _gis_ai_dep_name_lower MATCHES "qoffscreend\\.dll$"
+               OR _gis_ai_dep_name_lower MATCHES "qsqlited\\.dll$"
+               OR _gis_ai_dep_name_lower MATCHES "qt6[a-z]+d\\.dll$")
+                continue()
+            endif()
         endif()
         list(APPEND _gis_ai_filtered_resolved_deps "${_gis_ai_dep}")
     endforeach()
@@ -178,6 +205,29 @@ if(_gis_ai_can_scan_runtime_deps)
             TYPE SHARED_LIBRARY
             FILES "${_gis_ai_dep}"
         )
+    endforeach()
+
+    set(_gis_ai_supplement_dlls
+        @GIS_AI_RUNTIME_DLLS_INSTALL_ENTRIES@
+    )
+    if(_gis_ai_is_debug_build)
+        set(_gis_ai_supplement_dlls
+            @GIS_AI_RUNTIME_DLLS_DEBUG_INSTALL_ENTRIES@
+        )
+    endif()
+
+    foreach(_gis_ai_dll_name IN LISTS _gis_ai_supplement_dlls)
+        set(_gis_ai_dll_dest "${_gis_ai_install_bin_dir}/${_gis_ai_dll_name}")
+        if(NOT EXISTS "${_gis_ai_dll_dest}")
+            set(_gis_ai_dll_src "${_gis_ai_vcpkg_bin_dir}/${_gis_ai_dll_name}")
+            if(EXISTS "${_gis_ai_dll_src}")
+                file(INSTALL
+                    DESTINATION "${_gis_ai_install_bin_dir}"
+                    TYPE SHARED_LIBRARY
+                    FILES "${_gis_ai_dll_src}"
+                )
+            endif()
+        endif()
     endforeach()
 else()
     set(_gis_ai_minimal_dlls

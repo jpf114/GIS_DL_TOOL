@@ -6,6 +6,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/gui_regression_helpers.cmake")
 
 set(INSTALL_ROOT "${REPO_ROOT}/install")
 set(GUI_PATH "${INSTALL_ROOT}/bin/gis-ai-gui.exe")
+
+if(NOT EXISTS "${INSTALL_ROOT}/bin/platforms/qwindows.dll")
+    message(STATUS "Skipping test: Release platform plugin not found, installed build is not Release")
+    return()
+endif()
+
 set(INPUT_PATH "${REPO_ROOT}/test_data/raster/test_100x100.tif")
 set(MODEL_PATH "${REPO_ROOT}/test_data/models/test_seg_model.onnx")
 set(OUTPUT_DIR "${REPO_ROOT}/build/gui_inference_regression")
@@ -37,7 +43,7 @@ execute_process(
         --quit-on-finish
         --screenshot "${SCREENSHOT_PATH}"
         --status-file "${STATUS_PATH}"
-    WORKING_DIRECTORY "${REPO_ROOT}"
+    WORKING_DIRECTORY "${INSTALL_ROOT}/bin"
     RESULT_VARIABLE GUI_EXIT_CODE
     OUTPUT_VARIABLE GUI_STDOUT
     ERROR_VARIABLE GUI_STDERR

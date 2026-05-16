@@ -88,6 +88,7 @@ set(GIS_AI_VCPKG_QT_PLATFORMS_DIR "$<$<CONFIG:Debug>:${GIS_AI_VCPKG_DEBUG_QT_PLA
 # ── 运行时 DLL 复制 ──
 include("${CMAKE_SOURCE_DIR}/cmake/gis_ai_runtime_dlls.cmake")
 string(REPLACE ";" "\n        " GIS_AI_RUNTIME_DLLS_INSTALL_ENTRIES "${GIS_AI_RUNTIME_DLLS}")
+string(REPLACE ";" "\n        " GIS_AI_RUNTIME_DLLS_DEBUG_INSTALL_ENTRIES "${GIS_AI_RUNTIME_DLLS_DEBUG}")
 
 # 配置安装时运行时依赖脚本
 configure_file(

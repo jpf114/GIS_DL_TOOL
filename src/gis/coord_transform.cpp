@@ -4,6 +4,7 @@
 
 #include <proj.h>
 #include <mutex>
+#include <memory>
 #include <unordered_map>
 
 namespace gis_ai {
@@ -16,8 +17,12 @@ struct ProjContextDeleter {
     void operator()(PJ_CONTEXT* c) const { if (c) proj_context_destroy(c); }
 };
 
-using ProjTransformPtr = std::unique_ptr<PJ, ProjTransformDeleter>;
+using ProjTransformPtr = std::shared_ptr<PJ>;
 using ProjContextPtr = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>;
+
+struct ProjTransformDeleterForShared {
+    void operator()(PJ* p) const { if (p) proj_destroy(p); }
+};
 
 class ProjCache {
 public:
@@ -26,7 +31,7 @@ public:
         return instance;
     }
 
-    PJ* GetTransform(const std::string& src_crs, const std::string& dst_crs) {
+    std::shared_ptr<PJ> GetTransform(const std::string& src_crs, const std::string& dst_crs) {
         std::string key = src_crs + " -> " + dst_crs;
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -36,7 +41,8 @@ public:
 
         auto it = cache_.find(key);
         if (it != cache_.end()) {
-            return it->second.get();
+            auto locked = it->second.lock();
+            if (locked) return locked;
         }
 
         PJ_CONTEXT* ctx = ctx_.get();
@@ -52,10 +58,9 @@ public:
             transform = normalized;
         }
 
-        auto ptr = ProjTransformPtr(transform);
-        PJ* raw = ptr.get();
-        cache_[key] = std::move(ptr);
-        return raw;
+        auto ptr = std::shared_ptr<PJ>(transform, ProjTransformDeleterForShared());
+        cache_[key] = ptr;
+        return ptr;
     }
 
     void Clear() {
@@ -68,18 +73,18 @@ private:
     ProjCache() = default;
     std::mutex mutex_;
     ProjContextPtr ctx_;
-    std::unordered_map<std::string, ProjTransformPtr> cache_;
+    std::unordered_map<std::string, std::weak_ptr<PJ>> cache_;
 };
 
 CoordPair CoordTransform::Transform(double x, double y, double z, const std::string& src_crs, const std::string& dst_crs) {
-    PJ* transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
+    auto transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
 
     PJ_COORD coord;
     coord.xyz.x = x;
     coord.xyz.y = y;
     coord.xyz.z = z;
 
-    PJ_COORD result_coord = proj_trans(transform, PJ_FWD, coord);
+    PJ_COORD result_coord = proj_trans(transform.get(), PJ_FWD, coord);
 
     CoordPair result;
     result.x = result_coord.xyz.x;
@@ -95,7 +100,7 @@ std::vector<CoordPair> CoordTransform::TransformBatch(const std::vector<CoordPai
         return {};
     }
 
-    PJ* transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
+    auto transform = ProjCache::Instance().GetTransform(src_crs, dst_crs);
 
     size_t count = coords.size();
     std::vector<PJ_COORD> pj_coords(count);
@@ -105,7 +110,7 @@ std::vector<CoordPair> CoordTransform::TransformBatch(const std::vector<CoordPai
         pj_coords[i].xyz.z = coords[i].z;
     }
 
-    size_t failed = proj_trans_generic(transform, PJ_FWD,
+    size_t failed = proj_trans_generic(transform.get(), PJ_FWD,
         &(pj_coords[0].xyz.x), sizeof(PJ_COORD), count,
         &(pj_coords[0].xyz.y), sizeof(PJ_COORD), count,
         &(pj_coords[0].xyz.z), sizeof(PJ_COORD), count,

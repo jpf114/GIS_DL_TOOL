@@ -3,6 +3,11 @@
 #include "fusion/batch_processor.h"
 #include "io/raster_io.h"
 #include "io/vector_io.h"
+#include "ai/preprocess.h"
+#include "gis/vector_simplify.h"
+#include "gis/vector_buffer.h"
+#include "gis/raster_mosaic.h"
+#include "gis/raster_resample.h"
 #include "core/logger.h"
 #include "core/exception.h"
 
@@ -10,6 +15,8 @@
 #include <fstream>
 #include <filesystem>
 #include <chrono>
+#include <algorithm>
+#include <cmath>
 
 namespace gis_ai {
 
@@ -283,13 +290,12 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
     report.start_time = now_to_string();
 
     try {
-        if (config.model_path.empty()) {
-            throw GisAiConfigException("model_path is required");
-        }
-
         switch (config.task_type) {
             case TaskType::Segment:
             case TaskType::SegmentToPolygon: {
+                if (config.model_path.empty()) {
+                    throw GisAiConfigException("model_path is required for segment task");
+                }
                 if (config.input_path.empty()) {
                     throw GisAiConfigException("input_path is required for segment task");
                 }
@@ -320,6 +326,9 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 break;
             }
             case TaskType::BatchSegment: {
+                if (config.model_path.empty()) {
+                    throw GisAiConfigException("model_path is required for batch_segment task");
+                }
                 if (config.input_dir.empty()) {
                     throw GisAiConfigException("input_dir is required for batch_segment task");
                 }
@@ -344,6 +353,9 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 break;
             }
             case TaskType::Inference: {
+                if (config.model_path.empty()) {
+                    throw GisAiConfigException("model_path is required for inference task");
+                }
                 if (config.input_path.empty()) {
                     throw GisAiConfigException("input_path is required for inference task");
                 }
@@ -360,13 +372,142 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 report.output_files.push_back(output_tif);
                 break;
             }
-            case TaskType::Preprocess:
-            case TaskType::VectorSimplify:
-            case TaskType::VectorBuffer:
-            case TaskType::RasterMosaic:
-            case TaskType::RasterResample:
-                throw GisAiConfigException("Task type " + std::to_string(static_cast<int>(config.task_type)) +
-                    " is not yet supported in TaskRunner. Use the CLI or GUI instead.");
+            case TaskType::Preprocess: {
+                if (config.input_path.empty()) {
+                    throw GisAiConfigException("input_path is required for preprocess task");
+                }
+                RasterIO rio;
+                auto raster = rio.Load(config.input_path);
+                Preprocess preprocess;
+                PreprocessConfig pp_config;
+                pp_config.target_width = config.seg_config.tile_size;
+                pp_config.target_height = config.seg_config.tile_size;
+                pp_config.target_channels = config.seg_config.target_channels;
+                pp_config.normalize_mode = config.seg_config.normalize_mode;
+                pp_config.input_is_uint8 = config.seg_config.input_is_uint8;
+                pp_config.mean_r = config.seg_config.mean_r;
+                pp_config.mean_g = config.seg_config.mean_g;
+                pp_config.mean_b = config.seg_config.mean_b;
+                pp_config.std_r = config.seg_config.std_r;
+                pp_config.std_g = config.seg_config.std_g;
+                pp_config.std_b = config.seg_config.std_b;
+                auto tensor = preprocess.RasterToTensor(*raster, pp_config);
+                std::string output_path = config.output_path;
+                if (output_path.empty()) {
+                    auto stem = std::filesystem::path(config.input_path).stem().string();
+                    auto parent = std::filesystem::path(config.input_path).parent_path();
+                    output_path = (parent / (stem + "_preprocessed.bin")).string();
+                }
+                std::ofstream ofs(output_path, std::ios::binary);
+                if (!ofs.is_open()) {
+                    throw GisAiIOException("Cannot write preprocessed output: " + output_path);
+                }
+                ofs.write(reinterpret_cast<const char*>(tensor.data()),
+                          static_cast<std::streamsize>(tensor.size() * sizeof(float)));
+                report.success = true;
+                report.output_files.push_back(output_path);
+                break;
+            }
+            case TaskType::VectorSimplify: {
+                if (config.input_path.empty()) {
+                    throw GisAiConfigException("input_path is required for vector_simplify task");
+                }
+                VectorIO vio;
+                auto vec = vio.Load(config.input_path);
+                VectorSimplify simplifier;
+                auto result = simplifier.Execute(*vec, config.simplify_tolerance);
+                std::string output_path = config.output_path;
+                if (output_path.empty()) {
+                    auto stem = std::filesystem::path(config.input_path).stem().string();
+                    auto parent = std::filesystem::path(config.input_path).parent_path();
+                    output_path = (parent / (stem + "_simplified.shp")).string();
+                }
+                vio.Save(*result, output_path);
+                report.success = true;
+                report.output_files.push_back(output_path);
+                break;
+            }
+            case TaskType::VectorBuffer: {
+                if (config.input_path.empty()) {
+                    throw GisAiConfigException("input_path is required for vector_buffer task");
+                }
+                VectorIO vio;
+                auto vec = vio.Load(config.input_path);
+                VectorBuffer buffer;
+                auto result = buffer.Execute(*vec, config.buffer_distance);
+                std::string output_path = config.output_path;
+                if (output_path.empty()) {
+                    auto stem = std::filesystem::path(config.input_path).stem().string();
+                    auto parent = std::filesystem::path(config.input_path).parent_path();
+                    output_path = (parent / (stem + "_buffer.shp")).string();
+                }
+                vio.Save(*result, output_path);
+                report.success = true;
+                report.output_files.push_back(output_path);
+                break;
+            }
+            case TaskType::RasterMosaic: {
+                if (config.input_dir.empty()) {
+                    throw GisAiConfigException("input_dir is required for raster_mosaic task");
+                }
+                RasterIO rio;
+                std::vector<std::unique_ptr<RasterData>> rasters_storage;
+                std::vector<std::reference_wrapper<const RasterData>> raster_refs;
+                for (const auto& entry : std::filesystem::directory_iterator(config.input_dir)) {
+                    auto path = entry.path().string();
+                    auto ext = entry.path().extension().string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    if (ext == ".tif" || ext == ".tiff") {
+                        auto r = rio.Load(path);
+                        raster_refs.push_back(std::cref(*r));
+                        rasters_storage.push_back(std::move(r));
+                    }
+                }
+                if (raster_refs.empty()) {
+                    throw GisAiConfigException("No TIFF files found in input_dir");
+                }
+                RasterMosaic mosaic;
+                auto result = mosaic.Execute(raster_refs);
+                std::string output_path = config.output_path;
+                if (output_path.empty()) {
+                    output_path = (std::filesystem::path(config.input_dir) / "mosaic_output.tif").string();
+                }
+                rio.Save(*result, output_path);
+                report.success = true;
+                report.output_files.push_back(output_path);
+                break;
+            }
+            case TaskType::RasterResample: {
+                if (config.input_path.empty()) {
+                    throw GisAiConfigException("input_path is required for raster_resample task");
+                }
+                if (config.resample_resolution <= 0.0) {
+                    throw GisAiConfigException("resample_resolution must be positive");
+                }
+                RasterIO rio;
+                auto raster = rio.Load(config.input_path);
+                double pixel_size = std::abs(raster->geotransform[1]);
+                if (pixel_size <= 0.0) pixel_size = 1.0;
+                double scale = pixel_size / config.resample_resolution;
+                int new_w = std::max(1, static_cast<int>(std::round(raster->width * scale)));
+                int new_h = std::max(1, static_cast<int>(std::round(raster->height * scale)));
+                ResampleMethod method = ResampleMethod::Nearest;
+                if (config.resample_method == "bilinear") {
+                    method = ResampleMethod::Bilinear;
+                }
+                RasterResample resample;
+                auto result = resample.Execute(*raster, new_w, new_h, method);
+                std::string output_path = config.output_path;
+                if (output_path.empty()) {
+                    auto stem = std::filesystem::path(config.input_path).stem().string();
+                    auto parent = std::filesystem::path(config.input_path).parent_path();
+                    output_path = (parent / (stem + "_resampled.tif")).string();
+                }
+                rio.Save(*result, output_path);
+                report.success = true;
+                report.output_files.push_back(output_path);
+                break;
+            }
             default:
                 throw GisAiConfigException("Unknown task type: " + std::to_string(static_cast<int>(config.task_type)));
         }

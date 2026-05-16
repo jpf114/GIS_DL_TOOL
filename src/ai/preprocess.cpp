@@ -34,20 +34,22 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
             band_min = std::numeric_limits<float>::max();
             band_max = std::numeric_limits<float>::lowest();
             float sum = 0.0f;
+            size_t valid_count = 0;
             for (float v : band) {
                 if (!std::isnan(v)) {
                     band_min = std::min(band_min, v);
                     band_max = std::max(band_max, v);
                     sum += v;
+                    valid_count++;
                 }
             }
             if (config.normalize_mode == NormalizeMode::ZScore) {
-                float mean = sum / static_cast<float>(band.size());
+                float mean = (valid_count > 0) ? sum / static_cast<float>(valid_count) : 0.0f;
                 float sq_sum = 0.0f;
                 for (float v : band) {
                     if (!std::isnan(v)) sq_sum += (v - mean) * (v - mean);
                 }
-                float stddev = std::sqrt(sq_sum / static_cast<float>(band.size()));
+                float stddev = std::sqrt(sq_sum / static_cast<float>(valid_count > 0 ? valid_count : 1));
                 means[c] = mean;
                 stds[c] = stddev > 1e-6f ? stddev : 1.0f;
             }

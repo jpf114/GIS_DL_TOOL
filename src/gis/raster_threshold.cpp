@@ -17,6 +17,10 @@ std::unique_ptr<RasterData> RasterThreshold::Execute(const RasterData& input, do
     result->height = input.height;
     result->band_count = 1;
     result->projection = input.projection;
+    if (band_index < static_cast<int>(input.band_infos.size())) {
+        result->band_infos = {input.band_infos[band_index]};
+        result->band_infos[0].nodata_value = std::nullopt;
+    }
     memcpy(result->geotransform, input.geotransform, sizeof(double) * 6);
 
     size_t total = static_cast<size_t>(input.width) * input.height;
@@ -26,8 +30,14 @@ std::unique_ptr<RasterData> RasterThreshold::Execute(const RasterData& input, do
     const auto& src = input.bands[band_index];
     auto& dst = result->bands[0];
 
+    bool has_nodata = band_index < static_cast<int>(input.band_infos.size()) &&
+                      input.band_infos[band_index].nodata_value.has_value();
+    float nodata_val = has_nodata ? input.band_infos[band_index].nodata_value.value() : 0.0f;
+
     for (size_t i = 0; i < total; ++i) {
         if (std::isnan(src[i])) {
+            dst[i] = 0.0f;
+        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[i] - nodata_val) < 1e-6f) {
             dst[i] = 0.0f;
         } else {
             dst[i] = (src[i] >= static_cast<float>(threshold)) ? 1.0f : 0.0f;
@@ -53,6 +63,10 @@ std::unique_ptr<RasterData> RasterThreshold::ExecuteRange(const RasterData& inpu
     result->height = input.height;
     result->band_count = 1;
     result->projection = input.projection;
+    if (band_index < static_cast<int>(input.band_infos.size())) {
+        result->band_infos = {input.band_infos[band_index]};
+        result->band_infos[0].nodata_value = std::nullopt;
+    }
     memcpy(result->geotransform, input.geotransform, sizeof(double) * 6);
 
     size_t total = static_cast<size_t>(input.width) * input.height;
@@ -65,8 +79,14 @@ std::unique_ptr<RasterData> RasterThreshold::ExecuteRange(const RasterData& inpu
     float fmin = static_cast<float>(min_val);
     float fmax = static_cast<float>(max_val);
 
+    bool has_nodata = band_index < static_cast<int>(input.band_infos.size()) &&
+                      input.band_infos[band_index].nodata_value.has_value();
+    float nodata_val = has_nodata ? input.band_infos[band_index].nodata_value.value() : 0.0f;
+
     for (size_t i = 0; i < total; ++i) {
         if (std::isnan(src[i])) {
+            dst[i] = 0.0f;
+        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[i] - nodata_val) < 1e-6f) {
             dst[i] = 0.0f;
         } else {
             dst[i] = (src[i] >= fmin && src[i] <= fmax) ? 1.0f : 0.0f;

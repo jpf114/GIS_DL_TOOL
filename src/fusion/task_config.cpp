@@ -343,6 +343,32 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 }
                 break;
             }
+            case TaskType::Inference: {
+                if (config.input_path.empty()) {
+                    throw GisAiConfigException("input_path is required for inference task");
+                }
+                LargeImageSeg seg(config.model_path);
+                std::string output_tif = config.output_tif_path;
+                if (output_tif.empty()) {
+                    auto stem = std::filesystem::path(config.input_path).stem().string();
+                    auto parent = std::filesystem::path(config.input_path).parent_path();
+                    output_tif = (parent / (stem + "_infer.tif")).string();
+                }
+                int ret = seg.SegmentToFile(config.input_path, output_tif, "", config.seg_config);
+                report.success = (ret == 0);
+                report.seg_stats = seg.GetLastStats();
+                report.output_files.push_back(output_tif);
+                break;
+            }
+            case TaskType::Preprocess:
+            case TaskType::VectorSimplify:
+            case TaskType::VectorBuffer:
+            case TaskType::RasterMosaic:
+            case TaskType::RasterResample:
+                throw GisAiConfigException("Task type " + std::to_string(static_cast<int>(config.task_type)) +
+                    " is not yet supported in TaskRunner. Use the CLI or GUI instead.");
+            default:
+                throw GisAiConfigException("Unknown task type: " + std::to_string(static_cast<int>(config.task_type)));
         }
     } catch (const GisAiException& e) {
         report.success = false;

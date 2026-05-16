@@ -1,7 +1,5 @@
 build/
 .worktrees/
-test_data/
-!test_data/
 test_data/*
 !test_data/README.md
 !test_data/real/
@@ -35,6 +33,7 @@ CMakeUserPresets.json
 *.obj
 *.pdb
 *.ilk
+*.idb
 *.tlog
 *.vcxproj.user
 *.suo
@@ -45,3 +44,22 @@ CMakeUserPresets.json
 *.bak
 Thumbs.db
 .DS_Store
+*.swp
+*.swo
+*.orig
+*.rej
+
+# Binary artifacts (safety net)
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.exp
+
+# Tool caches
+.cache/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake

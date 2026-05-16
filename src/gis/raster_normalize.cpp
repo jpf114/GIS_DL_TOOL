@@ -18,6 +18,7 @@ std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
     result->height = input.height;
     result->band_count = input.band_count;
     result->projection = input.projection;
+    result->band_infos = input.band_infos;
     memcpy(result->geotransform, input.geotransform, sizeof(double) * 6);
 
     result->bands.resize(input.band_count);
@@ -28,20 +29,34 @@ std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
 
         float min_val = std::numeric_limits<float>::max();
         float max_val = std::numeric_limits<float>::lowest();
+        bool has_valid = false;
 
         for (size_t i = 0; i < total; ++i) {
             if (!std::isnan(src_band[i])) {
                 min_val = std::min(min_val, src_band[i]);
                 max_val = std::max(max_val, src_band[i]);
+                has_valid = true;
             }
         }
 
         result->bands[b].resize(total);
 
+        if (!has_valid) {
+            for (size_t i = 0; i < total; ++i) {
+                result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+            }
+            LOG_WARN("Band " + std::to_string(b) + " is all NaN, preserved as NaN");
+            continue;
+        }
+
         float range = max_val - min_val;
         if (range < 1e-10f) {
             for (size_t i = 0; i < total; ++i) {
-                result->bands[b][i] = 0.0f;
+                if (std::isnan(src_band[i])) {
+                    result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+                } else {
+                    result->bands[b][i] = 0.0f;
+                }
             }
             LOG_WARN("Band " + std::to_string(b) + " has zero range, normalized to 0");
             continue;
@@ -54,6 +69,10 @@ std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
                 result->bands[b][i] = (src_band[i] - min_val) / range;
             }
         }
+    }
+
+    for (int b = 0; b < static_cast<int>(result->band_infos.size()); ++b) {
+        result->band_infos[b].nodata_value = std::nullopt;
     }
 
     LOG_INFO("Normalize completed: " + std::to_string(input.band_count) + " bands normalized to [0,1]");
@@ -73,6 +92,7 @@ std::unique_ptr<RasterData> RasterNormalize::ExecuteMinMax(const RasterData& inp
     result->height = input.height;
     result->band_count = input.band_count;
     result->projection = input.projection;
+    result->band_infos = input.band_infos;
     memcpy(result->geotransform, input.geotransform, sizeof(double) * 6);
 
     result->bands.resize(input.band_count);
@@ -91,6 +111,10 @@ std::unique_ptr<RasterData> RasterNormalize::ExecuteMinMax(const RasterData& inp
                 result->bands[b][i] = (clamped - min_val) / range;
             }
         }
+    }
+
+    for (int b = 0; b < static_cast<int>(result->band_infos.size()); ++b) {
+        result->band_infos[b].nodata_value = std::nullopt;
     }
 
     LOG_INFO("MinMax normalize completed: range [" + std::to_string(min_val) +

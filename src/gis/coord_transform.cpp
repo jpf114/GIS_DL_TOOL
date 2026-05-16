@@ -141,6 +141,11 @@ std::unique_ptr<VectorData> CoordTransform::TransformVector(const VectorData& in
         for (const auto& c : feature.coordinates) {
             coords.push_back({c.x, c.y, c.z});
         }
+        for (const auto& ring : feature.inner_rings) {
+            for (const auto& c : ring) {
+                coords.push_back({c.x, c.y, c.z});
+            }
+        }
     }
 
     auto transformed = TransformBatch(coords, input.projection, dst_crs);
@@ -157,6 +162,18 @@ std::unique_ptr<VectorData> CoordTransform::TransformVector(const VectorData& in
                 new_feature.coordinates.push_back({tc.x, tc.y, tc.z});
                 coord_idx++;
             }
+        }
+
+        for (const auto& ring : feature.inner_rings) {
+            std::vector<Coordinate> new_ring;
+            for (size_t i = 0; i < ring.size(); ++i) {
+                if (coord_idx < transformed.size()) {
+                    const auto& tc = transformed[coord_idx];
+                    new_ring.push_back({tc.x, tc.y, tc.z});
+                    coord_idx++;
+                }
+            }
+            new_feature.inner_rings.push_back(std::move(new_ring));
         }
 
         result->features.push_back(std::move(new_feature));

@@ -21,6 +21,7 @@ std::unique_ptr<RasterData> RasterResample::Execute(const RasterData& input, int
     result->height = new_height;
     result->band_count = input.band_count;
     result->projection = input.projection;
+    result->band_infos = input.band_infos;
 
     double x_scale = static_cast<double>(input.width) / new_width;
     double y_scale = static_cast<double>(input.height) / new_height;
@@ -64,12 +65,20 @@ std::unique_ptr<RasterData> RasterResample::Execute(const RasterData& input, int
                     float v01 = input.bands[b][y1 * input.width + x0];
                     float v11 = input.bands[b][y1 * input.width + x1];
 
-                    value = static_cast<float>(
-                        v00 * (1 - fx) * (1 - fy) +
-                        v10 * fx * (1 - fy) +
-                        v01 * (1 - fx) * fy +
-                        v11 * fx * fy
-                    );
+                    double w00 = (1 - fx) * (1 - fy);
+                    double w10 = fx * (1 - fy);
+                    double w01 = (1 - fx) * fy;
+                    double w11 = fx * fy;
+
+                    double sum_w = 0.0;
+                    double sum_v = 0.0;
+                    if (!std::isnan(v00)) { sum_v += v00 * w00; sum_w += w00; }
+                    if (!std::isnan(v10)) { sum_v += v10 * w10; sum_w += w10; }
+                    if (!std::isnan(v01)) { sum_v += v01 * w01; sum_w += w01; }
+                    if (!std::isnan(v11)) { sum_v += v11 * w11; sum_w += w11; }
+
+                    value = (sum_w > 0.0) ? static_cast<float>(sum_v / sum_w)
+                                          : std::numeric_limits<float>::quiet_NaN();
                 }
 
                 result->bands[b][y * new_width + x] = value;

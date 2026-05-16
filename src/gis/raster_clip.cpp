@@ -64,6 +64,7 @@ std::unique_ptr<RasterData> RasterClip::ExecuteByPixel(const RasterData& input, 
     result->height = height;
     result->band_count = input.band_count;
     result->projection = input.projection;
+    result->band_infos = input.band_infos;
 
     result->geotransform[0] = input.geotransform[0] + x_off * input.geotransform[1] + y_off * input.geotransform[2];
     result->geotransform[1] = input.geotransform[1];

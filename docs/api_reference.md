@@ -80,13 +80,38 @@ GisAiRaster* GisAi_AI_Infer(GisAiModel* model, GisAiRaster* input);
 
 ## 分割流程
 
+### 单图分割（RasterSeg）
+
 ```c
 GisAiRasterSeg* GisAi_RasterSeg_Create(const char* model_path);
 int GisAi_RasterSeg_Run(GisAiRasterSeg* seg, const char* input_tif, const char* output_tif, const char* output_shp);
 void GisAi_RasterSeg_Destroy(GisAiRasterSeg* seg);
 ```
 
-- `output_shp` 允许为 `NULL`，表示只输出栅格结果，不生成矢量结果。
+- `GisAi_RasterSeg_Create`：创建单图分割实例，加载指定路径的 ONNX 模型。
+- `GisAi_RasterSeg_Run`：对输入 TIFF 执行推理，输出分割栅格和可选矢量结果。
+  - `output_shp` 允许为 `NULL`，表示只输出栅格结果，不生成矢量结果。
+  - 返回 0 表示成功，非 0 表示失败。
+- `GisAi_RasterSeg_Destroy`：销毁分割实例，释放资源。
+
+### 大图分割（LargeImageSeg）
+
+```c
+GisAiLargeImageSeg* GisAi_LargeImageSeg_Create(const char* model_path);
+int GisAi_LargeImageSeg_Run(GisAiLargeImageSeg* seg, const char* input_tif,
+                             const char* output_tif, const char* output_shp,
+                             int tile_size, int stride, int blend_mode);
+void GisAi_LargeImageSeg_Destroy(GisAiLargeImageSeg* seg);
+```
+
+- `GisAi_LargeImageSeg_Create`：创建大图分割实例，加载指定路径的 ONNX 模型。适用于影像尺寸超过模型输入分辨率的大幅遥感影像。
+- `GisAi_LargeImageSeg_Run`：对输入 TIFF 执行滑窗推理与结果混合，输出分割栅格和可选矢量结果。
+  - `tile_size`：分块大小（像素），通常与模型输入分辨率一致（如 256、512）。
+  - `stride`：滑窗步长（像素），小于 `tile_size` 时产生重叠区域用于混合。等于 `tile_size` 时无重叠。
+  - `blend_mode`：混合模式。0=None（直接覆盖），1=Linear（线性渐变），2=Gaussian（高斯渐变）。
+  - `output_shp` 允许为 `NULL`，表示只输出栅格结果。
+  - 返回 0 表示成功，非 0 表示失败。
+- `GisAi_LargeImageSeg_Destroy`：销毁大图分割实例，释放资源。
 
 ## 坐标转换
 

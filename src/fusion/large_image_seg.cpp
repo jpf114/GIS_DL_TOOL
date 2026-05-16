@@ -52,12 +52,11 @@ std::vector<LargeImageSeg::TileInfo> LargeImageSeg::ComputeTiles(int img_w, int 
             tile.dst_w = tile_w;
             tile.dst_h = tile_h;
 
-            tile.overlap_left = (x > 0) ? (x - (x - (tile_size - stride))) : 0;
+            int overlap_left = 0;
             if (x > 0 && stride < tile_size) {
-                tile.overlap_left = std::min(stride, tile_w);
-            } else {
-                tile.overlap_left = 0;
+                overlap_left = std::min(stride, tile_w);
             }
+            tile.overlap_left = overlap_left;
 
             tile.overlap_top = (y > 0) ? std::min(stride, tile_h) : 0;
             tile.overlap_right = (x + tile_size < img_w) ? std::min(stride, tile_w) : 0;
@@ -197,7 +196,7 @@ void LargeImageSeg::BlendTileIntoResult(const std::vector<float>& tile_output,
 std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, const LargeImageSegConfig& config) {
     auto total_start = std::chrono::high_resolution_clock::now();
 
-    memset(&last_stats_, 0, sizeof(last_stats_));
+    last_stats_ = SegmentationStats{};
 
     int tile_size = config.tile_size;
     int stride = config.stride;
@@ -351,8 +350,9 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
         int64_t out_h = out_shape[2];
         int64_t out_w = out_shape[3];
 
+        auto sigmoid_output = postprocess.Sigmoid(output);
+
         if (config.blend_mode == BlendMode::None) {
-            auto sigmoid_output = postprocess.Sigmoid(output);
             for (int64_t py = 0; py < out_h; ++py) {
                 int dst_y = tile.src_y + static_cast<int>(py);
                 if (dst_y < 0 || dst_y >= input.height) continue;
@@ -369,7 +369,7 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
                 }
             }
         } else {
-            BlendTileIntoResult(output, out_h, out_w, out_nc, tile,
+            BlendTileIntoResult(sigmoid_output, out_h, out_w, out_nc, tile,
                 weights_h, weights_w, accumulated, weight_sum,
                 input.width, input.height);
         }

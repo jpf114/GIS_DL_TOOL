@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <cstdlib>
 
 #ifdef _WIN32
@@ -49,15 +50,19 @@ static void PrintVersion() {
 
 static int RunWithConfig(const std::string& config_path, int argc, char* argv[]) {
     std::string report_path;
+    bool verbose_override = false;
     for (int i = 3; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--report" && i + 1 < argc) {
             report_path = argv[++i];
+        } else if (arg == "--verbose") {
+            verbose_override = true;
         }
     }
 
     try {
         auto config = gis_ai::TaskConfig::LoadFromFile(config_path);
+        if (verbose_override) config.verbose = true;
         gis_ai::Logger::Instance().Initialize(config.log_file,
             config.verbose ? spdlog::level::debug : spdlog::level::info);
 
@@ -94,10 +99,9 @@ static int RunSegment(int argc, char* argv[]) {
     config.model_path = argv[2];
     config.input_path = argv[3];
 
-    if (argc >= 5) config.output_tif_path = argv[4];
-    if (argc >= 6) config.output_shp_path = argv[5];
-
-    for (int i = 5; i < argc; ++i) {
+    std::vector<std::string> positional;
+    std::string report_path;
+    for (int i = 4; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--tile-size" && i + 1 < argc) {
             config.seg_config.tile_size = std::atoi(argv[++i]);
@@ -112,8 +116,15 @@ static int RunSegment(int argc, char* argv[]) {
             config.task_type = gis_ai::TaskType::Segment;
         } else if (arg == "--verbose") {
             config.verbose = true;
+        } else if (arg == "--report" && i + 1 < argc) {
+            report_path = argv[++i];
+        } else if (arg.substr(0, 2) != "--") {
+            positional.push_back(arg);
         }
     }
+
+    if (positional.size() >= 1) config.output_tif_path = positional[0];
+    if (positional.size() >= 2) config.output_shp_path = positional[1];
 
     try {
         gis_ai::Logger::Instance().Initialize(config.log_file,
@@ -121,7 +132,11 @@ static int RunSegment(int argc, char* argv[]) {
 
         auto report = gis_ai::TaskRunner::Execute(config);
         std::cout << report.ToString() << std::endl;
-        return report.success ? 0 : 1;
+        if (!report_path.empty()) {
+            report.SaveReport(report_path);
+            std::cout << "运行报告已保存: " << report_path << std::endl;
+        }
+        return report.success ? 0 : report.error_code;
     } catch (const gis_ai::GisAiException& e) {
         std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
                   << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
@@ -145,6 +160,7 @@ static int RunBatch(int argc, char* argv[]) {
     config.input_dir = argv[3];
     config.output_dir = argv[4];
 
+    std::string report_path;
     for (int i = 5; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--threads" && i + 1 < argc) {
@@ -153,8 +169,15 @@ static int RunBatch(int argc, char* argv[]) {
             config.seg_config.tile_size = std::atoi(argv[++i]);
         } else if (arg == "--stride" && i + 1 < argc) {
             config.seg_config.stride = std::atoi(argv[++i]);
+        } else if (arg == "--blend" && i + 1 < argc) {
+            std::string mode = argv[++i];
+            if (mode == "none") config.seg_config.blend_mode = gis_ai::BlendMode::None;
+            else if (mode == "linear") config.seg_config.blend_mode = gis_ai::BlendMode::Linear;
+            else config.seg_config.blend_mode = gis_ai::BlendMode::Gaussian;
         } else if (arg == "--verbose") {
             config.verbose = true;
+        } else if (arg == "--report" && i + 1 < argc) {
+            report_path = argv[++i];
         }
     }
 
@@ -164,7 +187,11 @@ static int RunBatch(int argc, char* argv[]) {
 
         auto report = gis_ai::TaskRunner::Execute(config);
         std::cout << report.ToString() << std::endl;
-        return report.success ? 0 : 1;
+        if (!report_path.empty()) {
+            report.SaveReport(report_path);
+            std::cout << "运行报告已保存: " << report_path << std::endl;
+        }
+        return report.success ? 0 : report.error_code;
     } catch (const gis_ai::GisAiException& e) {
         std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
                   << gis_ai::ErrorCodeToString(e.GetCode()) << ": "
@@ -225,16 +252,38 @@ int main(int argc, char* argv[]) {
             config.task_type = gis_ai::TaskType::Inference;
             config.model_path = argv[2];
             config.input_path = argv[3];
-            if (argc >= 5) config.output_path = argv[4];
+
+            std::vector<std::string> positional;
+            std::string report_path;
             for (int i = 4; i < argc; ++i) {
                 std::string arg = argv[i];
-                if (arg == "--verbose") config.verbose = true;
+                if (arg == "--verbose") {
+                    config.verbose = true;
+                } else if (arg == "--report" && i + 1 < argc) {
+                    report_path = argv[++i];
+                } else if (arg == "--tile-size" && i + 1 < argc) {
+                    config.seg_config.tile_size = std::atoi(argv[++i]);
+                } else if (arg == "--stride" && i + 1 < argc) {
+                    config.seg_config.stride = std::atoi(argv[++i]);
+                } else if (arg == "--blend" && i + 1 < argc) {
+                    std::string mode = argv[++i];
+                    if (mode == "none") config.seg_config.blend_mode = gis_ai::BlendMode::None;
+                    else if (mode == "linear") config.seg_config.blend_mode = gis_ai::BlendMode::Linear;
+                    else config.seg_config.blend_mode = gis_ai::BlendMode::Gaussian;
+                } else if (arg.substr(0, 2) != "--") {
+                    positional.push_back(arg);
+                }
             }
+            if (!positional.empty()) config.output_tif_path = positional[0];
             gis_ai::Logger::Instance().Initialize(config.log_file,
                 config.verbose ? spdlog::level::debug : spdlog::level::info);
             auto report = gis_ai::TaskRunner::Execute(config);
             std::cout << report.ToString() << std::endl;
-            return report.success ? 0 : 1;
+            if (!report_path.empty()) {
+                report.SaveReport(report_path);
+                std::cout << "运行报告已保存: " << report_path << std::endl;
+            }
+            return report.success ? 0 : report.error_code;
         } catch (const gis_ai::GisAiException& e) {
             std::cerr << "[E" << gis_ai::ErrorCodeToInt(e.GetCode()) << "] "
                       << gis_ai::ErrorCodeToString(e.GetCode()) << ": "

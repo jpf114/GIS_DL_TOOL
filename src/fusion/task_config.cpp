@@ -34,10 +34,17 @@ TaskConfig TaskConfig::LoadFromFile(const std::string& path) {
 }
 
 TaskConfig TaskConfig::LoadFromString(const std::string& json_str) {
-    nlohmann::json j = nlohmann::json::parse(json_str);
+    nlohmann::json j;
+    try {
+        j = nlohmann::json::parse(json_str);
+    } catch (const nlohmann::json::exception& e) {
+        throw GisAiConfigException(std::string("Invalid task config JSON: ") + e.what());
+    }
+
     TaskConfig config;
 
     std::string type_str = j.value("task_type", "segment");
+    bool matched_task_type = true;
     if (type_str == "segment") {
         config.task_type = TaskType::Segment;
     } else if (type_str == "segment_to_polygon") {
@@ -56,6 +63,11 @@ TaskConfig TaskConfig::LoadFromString(const std::string& json_str) {
         config.task_type = TaskType::RasterMosaic;
     } else if (type_str == "raster_resample") {
         config.task_type = TaskType::RasterResample;
+    } else {
+        matched_task_type = false;
+    }
+    if (!matched_task_type) {
+        throw GisAiConfigException("Unknown task type: " + type_str);
     }
 
     config.model_path = j.value("model_path", "");
@@ -304,6 +316,9 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
 
                 std::string output_tif = config.output_tif_path;
                 if (output_tif.empty()) {
+                    output_tif = config.output_path;
+                }
+                if (output_tif.empty()) {
                     auto stem = std::filesystem::path(config.input_path).stem().string();
                     auto parent = std::filesystem::path(config.input_path).parent_path();
                     output_tif = (parent / (stem + "_seg.tif")).string();
@@ -361,6 +376,9 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 }
                 LargeImageSeg seg(config.model_path);
                 std::string output_tif = config.output_tif_path;
+                if (output_tif.empty()) {
+                    output_tif = config.output_path;
+                }
                 if (output_tif.empty()) {
                     auto stem = std::filesystem::path(config.input_path).stem().string();
                     auto parent = std::filesystem::path(config.input_path).parent_path();

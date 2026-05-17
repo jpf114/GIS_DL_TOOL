@@ -200,6 +200,7 @@ if(GIS_AI_BUILD_GUI)
 
     add_executable(test_gui_queue
         test_gui_queue.cpp
+        test_gui_output_path.cpp
         ../src/gui/mainwindow.cpp
         ../src/gui/nav_panel.cpp
         ../src/gui/icon_manager.cpp

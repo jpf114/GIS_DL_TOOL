@@ -9,6 +9,43 @@
 
 namespace gis_ai::gui {
 
+namespace {
+
+QString stringParamValue(const std::map<std::string, ParamValue>& params,
+                        const std::string& key) {
+    const auto it = params.find(key);
+    if (it == params.end()) {
+        return {};
+    }
+    if (const auto* value = std::get_if<std::string>(&it->second)) {
+        return QString::fromStdString(*value);
+    }
+    return {};
+}
+
+QString primaryOutputPathForTask(const QString& pluginName,
+                                 const QString& actionKey,
+                                 const std::map<std::string, ParamValue>& params) {
+    Q_UNUSED(pluginName);
+    Q_UNUSED(actionKey);
+
+    const std::array<std::string, 4> prioritizedKeys = {
+        "output_tif",
+        "output_path",
+        "output_shp",
+        "output_dir"
+    };
+    for (const auto& key : prioritizedKeys) {
+        const QString value = stringParamValue(params, key);
+        if (!value.isEmpty()) {
+            return value;
+        }
+    }
+    return {};
+}
+
+}  // namespace
+
 int TaskRunner::taskStartDelayMs_ = 0;
 
 TaskRunner& TaskRunner::instance() {
@@ -108,10 +145,12 @@ void TaskRunner::startTask(const QueuedTask& task) {
 
                 const std::string localizedMsg = localizeResultMessage(message.toStdString());
                 const QString localizedQMsg = QString::fromStdString(localizedMsg);
+                const QString outputPath =
+                    primaryOutputPathForTask(task.pluginName, task.actionKey, task.params);
 
                 TaskManager::instance().finishTask(
                     task.displayGroup, task.taskId, success, cancelled,
-                    localizedQMsg, message, {});
+                    localizedQMsg, message, outputPath);
                 emit taskFinished(task.displayGroup, task.taskId, success, cancelled);
 
                 activeTasks_.remove(task.taskId);

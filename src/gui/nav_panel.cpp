@@ -87,7 +87,6 @@ std::vector<NavEntry> buildEntries() {
         }},
         {"inference", QStringLiteral("模型推理"), {
             {"inference", "inference_single", "单图推理"},
-            {"inference", "inference_batch",  "批量推理"},
         }},
         {"preprocess", QStringLiteral("数据预处理"), {
             {"preprocess", "preprocess_resample",  "重采样"},

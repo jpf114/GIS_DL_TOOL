@@ -156,11 +156,6 @@ ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::strin
             cfg.description = QStringLiteral("对单张影像进行模型推理");
             cfg.visibleKeys = {"model_path", "input_raster", "output_path", "target_class"};
             cfg.requiredKeys = {"model_path", "input_raster", "output_path"};
-        } else if (actionKey == "inference_batch") {
-            cfg.displayName = QStringLiteral("批量推理");
-            cfg.description = QStringLiteral("对目录下所有影像进行批量推理");
-            cfg.visibleKeys = {"model_path", "input_raster", "output_path", "target_class"};
-            cfg.requiredKeys = {"model_path", "input_raster", "output_path"};
         }
     } else if (pluginName == "preprocess") {
         if (actionKey == "preprocess_resample") {
@@ -306,11 +301,6 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
 
             if (actionKey == "inference_single") {
                 reporter.onMessage("单图推理: " + input_raster);
-                int ret = seg.SegmentToFile(input_raster, output_path, "", config);
-                reporter.onProgress(1.0);
-                return ret == 0;
-            } else if (actionKey == "inference_batch") {
-                reporter.onMessage("批量推理: " + input_raster);
                 int ret = seg.SegmentToFile(input_raster, output_path, "", config);
                 reporter.onProgress(1.0);
                 return ret == 0;

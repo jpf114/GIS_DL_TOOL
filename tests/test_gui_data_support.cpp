@@ -209,3 +209,19 @@ TEST(GuiDataSupportTest, ActionDisplayName) {
     QString name = actionDisplayName("segment", "segment_raster");
     EXPECT_FALSE(name.isEmpty());
 }
+
+TEST(GuiDataSupportTest, InferencePluginDoesNotExposeBatchActionConfig) {
+    const auto cfg = getActionUiConfig("inference", "inference_batch");
+    EXPECT_TRUE(cfg.visibleKeys.empty());
+    EXPECT_TRUE(cfg.requiredKeys.empty());
+}
+
+TEST(GuiDataSupportTest, BatchInferenceUsesDirectoryInputsAndOutputs) {
+    const auto cfg = getActionUiConfig("batch", "batch_inference");
+    EXPECT_TRUE(cfg.visibleKeys.count("input_dir") > 0);
+    EXPECT_TRUE(cfg.visibleKeys.count("output_dir") > 0);
+    EXPECT_TRUE(cfg.requiredKeys.count("input_dir") > 0);
+    EXPECT_TRUE(cfg.requiredKeys.count("output_dir") > 0);
+    EXPECT_EQ(cfg.visibleKeys.count("input_raster"), 0);
+    EXPECT_EQ(cfg.visibleKeys.count("output_path"), 0);
+}

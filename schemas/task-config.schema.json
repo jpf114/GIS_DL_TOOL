@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gis-ai-tool.local/schemas/task-config.schema.json",
+  "title": "GIS AI Tool 任务配置",
+  "description": "GIS AI Tool CLI 任务配置文件的 JSON Schema，定义了所有支持的任务类型及其参数。",
+  "type": "object",
+  "required": ["task_type"],
+  "properties": {
+    "task_type": {
+      "type": "string",
+      "description": "任务类型，决定执行的处理流程",
+      "enum": [
+        "segment",
+        "segment_to_polygon",
+        "batch_segment",
+        "batch_inference",
+        "inference",
+        "preprocess",
+        "vector_simplify",
+        "vector_buffer",
+        "raster_mosaic",
+        "raster_resample"
+      ]
+    },
+    "model_path": {
+      "type": "string",
+      "description": "ONNX 推理模型文件路径（分割/推理任务必填）",
+      "default": ""
+    },
+    "input_path": {
+      "type": "string",
+      "description": "输入文件路径（栅格或矢量，单文件任务使用）",
+      "default": ""
+    },
+    "input_dir": {
+      "type": "string",
+      "description": "输入目录路径（批量任务或镶嵌任务使用）",
+      "default": ""
+    },
+    "output_tif_path": {
+      "type": "string",
+      "description": "输出栅格文件路径（分割任务使用）",
+      "default": ""
+    },
+    "output_shp_path": {
+      "type": "string",
+      "description": "输出矢量文件路径（分割任务使用）",
+      "default": ""
+    },
+    "output_dir": {
+      "type": "string",
+      "description": "输出目录路径（批量任务使用）",
+      "default": ""
+    },
+    "output_path": {
+      "type": "string",
+      "description": "通用输出文件路径（预处理/矢量/栅格任务使用）",
+      "default": ""
+    },
+    "segment": {
+      "$ref": "#/$defs/segmentConfig"
+    },
+    "resample_resolution": {
+      "type": "number",
+      "description": "重采样目标分辨率（raster_resample 任务必填，必须大于 0）",
+      "default": 0.0,
+      "exclusiveMinimum": 0
+    },
+    "resample_method": {
+      "type": "string",
+      "description": "重采样方法",
+      "enum": ["nearest", "bilinear"],
+      "default": "nearest"
+    },
+    "simplify_tolerance": {
+      "type": "number",
+      "description": "矢量简化容差（vector_simplify 任务使用，必须大于 0）",
+      "default": 1.0,
+      "exclusiveMinimum": 0
+    },
+    "buffer_distance": {
+      "type": "number",
+      "description": "矢量缓冲距离（vector_buffer 任务使用，必须大于 0）",
+      "default": 0.0,
+      "exclusiveMinimum": 0
+    },
+    "num_threads": {
+      "type": "integer",
+      "description": "并行线程数",
+      "default": 1,
+      "minimum": 1
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "是否输出详细日志",
+      "default": false
+    },
+    "log_file": {
+      "type": "string",
+      "description": "日志文件路径",
+      "default": "gis_ai.log"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "segment" }
+        }
+      },
+      "then": {
+        "required": ["model_path", "input_path"],
+        "description": "完整分割：对大图进行分割，同时输出栅格和矢量结果"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "segment_to_polygon" }
+        }
+      },
+      "then": {
+        "required": ["model_path", "input_path"],
+        "description": "分割转矢量：对大图进行分割并输出矢量结果"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "batch_segment" }
+        }
+      },
+      "then": {
+        "required": ["model_path", "input_dir"],
+        "description": "批量分割：对目录下所有影像进行批量分割"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "batch_inference" }
+        }
+      },
+      "then": {
+        "required": ["model_path", "input_dir"],
+        "description": "批量推理：对目录下所有影像进行批量推理"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "inference" }
+        }
+      },
+      "then": {
+        "required": ["model_path", "input_path"],
+        "description": "单图推理：对单张影像进行模型推理"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "preprocess" }
+        }
+      },
+      "then": {
+        "required": ["input_path"],
+        "description": "预处理：对栅格影像进行预处理"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "vector_simplify" }
+        }
+      },
+      "then": {
+        "required": ["input_path"],
+        "description": "矢量简化：简化矢量要素，减少顶点数量"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "vector_buffer" }
+        }
+      },
+      "then": {
+        "required": ["input_path"],
+        "description": "矢量缓冲区：为矢量要素创建缓冲区"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "raster_mosaic" }
+        }
+      },
+      "then": {
+        "required": ["input_dir"],
+        "description": "栅格镶嵌：将多个栅格影像镶嵌合并"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": { "const": "raster_resample" }
+        }
+      },
+      "then": {
+        "required": ["input_path"],
+        "description": "栅格重采样：对栅格影像进行重采样处理"
+      }
+    }
+  ],
+  "$defs": {
+    "segmentConfig": {
+      "type": "object",
+      "description": "分割/推理任务的详细配置",
+      "properties": {
+        "tile_size": {
+          "type": "integer",
+          "description": "大图分块推理的块尺寸（像素）",
+          "default": 512,
+          "minimum": 64,
+          "maximum": 4096
+        },
+        "stride": {
+          "type": "integer",
+          "description": "分块推理的滑动步长（像素），不应大于 tile_size",
+          "default": 384,
+          "minimum": 32,
+          "maximum": 2048
+        },
+        "target_channels": {
+          "type": "integer",
+          "description": "模型输入的目标通道数",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 4
+        },
+        "normalize_mode": {
+          "type": "string",
+          "description": "影像归一化方式",
+          "enum": ["none", "imagenet", "minmax", "zscore", "custom"],
+          "default": "imagenet"
+        },
+        "mean": {
+          "type": "array",
+          "description": "自定义归一化均值（normalize_mode 为 custom 时生效）",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0.485, 0.456, 0.406]
+        },
+        "std": {
+          "type": "array",
+          "description": "自定义归一化标准差（normalize_mode 为 custom 时生效）",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0.229, 0.224, 0.225]
+        },
+        "input_is_uint8": {
+          "type": "boolean",
+          "description": "输入影像是否为 uint8 类型",
+          "default": true
+        },
+        "target_class": {
+          "type": "integer",
+          "description": "分割目标类别编号",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 255
+        },
+        "mask_threshold": {
+          "type": "number",
+          "description": "掩膜二值化阈值",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "blend_mode": {
+          "type": "string",
+          "description": "分块重叠区域的融合方式",
+          "enum": ["none", "linear", "gaussian"],
+          "default": "gaussian"
+        },
+        "skip_nodata": {
+          "type": "boolean",
+          "description": "是否跳过无数据区域",
+          "default": true
+        },
+        "nodata_value": {
+          "type": "number",
+          "description": "无数据区域的像素值",
+          "default": 0.0
+        },
+        "gaussian_sigma": {
+          "type": "number",
+          "description": "高斯融合的 sigma 参数（blend_mode 为 gaussian 时生效）",
+          "default": 0.5,
+          "exclusiveMinimum": 0
+        },
+        "min_polygon_area": {
+          "type": "number",
+          "description": "最小多边形面积（面积小于此值的多边形将被过滤）",
+          "default": 100.0,
+          "minimum": 0
+        },
+        "simplify_tolerance": {
+          "type": "number",
+          "description": "矢量简化容差（后处理阶段使用）",
+          "default": 1.0,
+          "exclusiveMinimum": 0
+        },
+        "fix_topology": {
+          "type": "boolean",
+          "description": "是否修复拓扑错误（重叠/缝隙）",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

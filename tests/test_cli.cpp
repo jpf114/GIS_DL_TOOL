@@ -77,6 +77,11 @@ TEST_F(CliIntegrationTest, BatchReturnsModelErrorCodeForMissingModel) {
               2001);
 }
 
+TEST_F(CliIntegrationTest, BatchInferenceReturnsModelErrorCodeForMissingModel) {
+    EXPECT_EQ(runCli("batch-inference test_data/models/missing_model.onnx test_data/batch_input test_output/batch_infer_cli_probe"),
+              2001);
+}
+
 TEST_F(CliIntegrationTest, RunReturnsConfigErrorCodeForMissingConfigFile) {
     EXPECT_EQ(runCli("run not_exists.json"), 4001);
 }
@@ -94,6 +99,14 @@ TEST_F(CliIntegrationTest, RunRejectsUnknownTaskType) {
               R"({"task_type":"not_real","model_path":"test_data/models/test_seg_model.onnx","input_path":"test_data/raster/test_100x100.tif"})");
 
     EXPECT_EQ(runCli("run test_output/unknown_task_config.json"), 4001);
+}
+
+TEST_F(CliIntegrationTest, RunSupportsBatchInferenceTaskType) {
+    const auto config_path = test_output_dir_ / "batch_inference_missing_model.json";
+    writeFile(config_path,
+              R"({"task_type":"batch_inference","model_path":"test_data/models/missing_model.onnx","input_dir":"test_data/batch_input","output_dir":"test_output/batch_infer_from_config"})");
+
+    EXPECT_EQ(runCli("run test_output/batch_inference_missing_model.json"), 2001);
 }
 
 TEST_F(CliIntegrationTest, RunWritesJsonReportWhenRequested) {

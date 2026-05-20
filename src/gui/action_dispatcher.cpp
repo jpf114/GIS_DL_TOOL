@@ -1,5 +1,6 @@
 #include "action_dispatcher.h"
 #include "qt_progress_reporter.h"
+#include "param_utils.h"
 
 #include "fusion/large_image_seg.h"
 #include "io/raster_io.h"
@@ -16,45 +17,11 @@
 
 #include <filesystem>
 #include <array>
+#include <sstream>
 
 namespace gis_ai::gui {
 
 namespace {
-
-std::string getStringParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
-    auto it = params.find(key);
-    if (it == params.end()) return {};
-    if (auto* v = std::get_if<std::string>(&it->second)) return *v;
-    return {};
-}
-
-int getIntParam(const std::map<std::string, ParamValue>& params, const std::string& key, int def = 0) {
-    auto it = params.find(key);
-    if (it == params.end()) return def;
-    if (auto* v = std::get_if<int>(&it->second)) return *v;
-    return def;
-}
-
-double getDoubleParam(const std::map<std::string, ParamValue>& params, const std::string& key, double def = 0.0) {
-    auto it = params.find(key);
-    if (it == params.end()) return def;
-    if (auto* v = std::get_if<double>(&it->second)) return *v;
-    return def;
-}
-
-bool getBoolParam(const std::map<std::string, ParamValue>& params, const std::string& key, bool def = false) {
-    auto it = params.find(key);
-    if (it == params.end()) return def;
-    if (auto* v = std::get_if<bool>(&it->second)) return *v;
-    return def;
-}
-
-std::array<double, 4> getExtentParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
-    auto it = params.find(key);
-    if (it == params.end()) return {0, 0, 0, 0};
-    if (auto* v = std::get_if<std::array<double, 4>>(&it->second)) return *v;
-    return {0, 0, 0, 0};
-}
 
 BlendMode parseBlendMode(const std::string& s) {
     if (s.find("Linear") != std::string::npos) return BlendMode::Linear;
@@ -166,9 +133,13 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 ResampleMethod method = ResampleMethod::Nearest;
                 if (method_str.find("Bilinear") != std::string::npos) method = ResampleMethod::Bilinear;
 
-                int new_size = std::max(raster_data->width, raster_data->height);
+                int target_width = getIntParam(params, "resample_width", 0);
+                int target_height = getIntParam(params, "resample_height", 0);
+                if (target_width <= 0) target_width = raster_data->width;
+                if (target_height <= 0) target_height = raster_data->height;
+
                 RasterResample resample;
-                auto result = resample.Execute(*raster_data, new_size, new_size, method);
+                auto result = resample.Execute(*raster_data, target_width, target_height, method);
                 rio.Save(*result, output_path);
                 reporter.onProgress(1.0);
                 return true;
@@ -285,9 +256,44 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 MosaicConfig mosaic_config;
                 mosaic_config.strategy = strategy;
 
-                RasterMosaic mosaic;
+                std::vector<std::unique_ptr<RasterData>> loaded;
                 std::vector<std::reference_wrapper<const RasterData>> refs;
-                refs.push_back(std::cref(*raster_data));
+
+                auto addRaster = [&](const std::string& path) -> bool {
+                    if (path.empty()) return true;
+                    auto data = rio.Load(path);
+                    if (!data) {
+                        reporter.onMessage("无法加载影像文件: " + path);
+                        return false;
+                    }
+                    refs.push_back(std::cref(*data));
+                    loaded.push_back(std::move(data));
+                    return true;
+                };
+
+                if (!addRaster(input_raster)) return false;
+
+                std::string extra = getStringParam(params, "extra_rasters");
+                if (!extra.empty()) {
+                    std::istringstream stream(extra);
+                    std::string token;
+                    while (std::getline(stream, token, ';')) {
+                        while (!token.empty() && (token.front() == ' ' || token.front() == '\t'))
+                            token.erase(token.begin());
+                        while (!token.empty() && (token.back() == ' ' || token.back() == '\t'))
+                            token.pop_back();
+                        if (!token.empty() && !addRaster(token)) return false;
+                    }
+                }
+
+                if (refs.size() < 2) {
+                    reporter.onMessage("镶嵌至少需要两个输入栅格，当前仅 " + std::to_string(refs.size()) + " 个");
+                    return false;
+                }
+
+                reporter.onMessage("加载 " + std::to_string(refs.size()) + " 个栅格进行镶嵌");
+
+                RasterMosaic mosaic;
                 auto result = mosaic.Execute(refs, mosaic_config);
                 rio.Save(*result, output_path);
                 reporter.onProgress(1.0);
@@ -308,9 +314,13 @@ bool executeAction(const std::string& pluginName, const std::string& actionKey,
                 ResampleMethod method = ResampleMethod::Nearest;
                 if (method_str.find("Bilinear") != std::string::npos) method = ResampleMethod::Bilinear;
 
-                int new_size = std::max(raster_data->width, raster_data->height);
+                int target_width = getIntParam(params, "resample_width", 0);
+                int target_height = getIntParam(params, "resample_height", 0);
+                if (target_width <= 0) target_width = raster_data->width;
+                if (target_height <= 0) target_height = raster_data->height;
+
                 RasterResample resample;
-                auto result = resample.Execute(*raster_data, new_size, new_size, method);
+                auto result = resample.Execute(*raster_data, target_width, target_height, method);
                 rio.Save(*result, output_path);
                 reporter.onProgress(1.0);
                 return true;

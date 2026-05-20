@@ -45,6 +45,7 @@ add_library(gis_ai_gui_lib STATIC
     gui_data_support.cpp
     data_inspector.cpp
     action_dispatcher.cpp
+    style_constants.cpp
     task_runner.cpp
 )
 

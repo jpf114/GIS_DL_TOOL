@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QByteArray>
 
 namespace gis_ai::gui {
 
@@ -26,6 +27,18 @@ public:
     void setDefaultOutputSrs(const QString& srs);
 
     int maxRecentFiles() const;
+
+    QByteArray windowGeometry() const;
+    void setWindowGeometry(const QByteArray& geometry);
+
+    QByteArray windowState() const;
+    void setWindowState(const QByteArray& state);
+
+    QString lastPluginName() const;
+    void setLastPluginName(const QString& name);
+
+    QString lastActionKey() const;
+    void setLastActionKey(const QString& key);
 
 signals:
     void recentFilesChanged();

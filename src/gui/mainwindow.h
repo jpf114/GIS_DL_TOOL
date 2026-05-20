@@ -57,10 +57,13 @@ private:
     void onParamsChanged();
 
     void syncDerivedParams();
-    void resetExecutionSummary();
-    void syncExecutionSummaryForCurrentGroup();
-    void updateExecuteButtonState();
-    QString validateParams() const;
+            void resetExecutionSummary();
+            void syncExecutionSummaryForCurrentGroup();
+            void updateExecuteButtonState();
+            QString validateParams() const;
+            
+            void saveWindowState();
+            void restoreWindowState();
 
     void showRunningTaskSummary();
     void showQueuedTaskSummary();

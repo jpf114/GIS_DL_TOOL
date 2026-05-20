@@ -9,12 +9,14 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageBox>
 #include <QSaveFile>
 #include <QTimer>
 
 #include <gdal_priv.h>
 #include <cpl_conv.h>
 
+#include <csignal>
 #include <optional>
 #include <string>
 #include <vector>
@@ -54,10 +56,39 @@ void initGdalRuntime(const QString& applicationDirPath) {
     CPLSetConfigOption("CPL_DEBUG", "OFF");
 }
 
+void crashSignalHandler(int signal) {
+    const char* sigName = "UNKNOWN";
+    switch (signal) {
+        case SIGSEGV: sigName = "SIGSEGV (段错误)"; break;
+        case SIGABRT: sigName = "SIGABRT (异常终止)"; break;
+        case SIGFPE:  sigName = "SIGFPE (浮点异常)"; break;
+        case SIGILL:  sigName = "SIGILL (非法指令)"; break;
+        default: break;
+    }
+    fprintf(stderr, "GIS AI Tool 遇到致命错误 (%s)，程序即将退出。\n", sigName);
+    _exit(signal);
+}
+
 }
 
 int main(int argc, char* argv[])
 {
+    std::signal(SIGSEGV, crashSignalHandler);
+    std::signal(SIGABRT, crashSignalHandler);
+    std::signal(SIGFPE,  crashSignalHandler);
+    std::signal(SIGILL,  crashSignalHandler);
+
+    std::set_terminate([]() {
+        try {
+            std::rethrow_exception(std::current_exception());
+        } catch (const std::exception& e) {
+            fprintf(stderr, "GIS AI Tool 未捕获异常: %s\n", e.what());
+        } catch (...) {
+            fprintf(stderr, "GIS AI Tool 未捕获未知异常\n");
+        }
+        _exit(1);
+    });
+
     const QString applicationDirPath = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
 
 #ifdef Q_OS_WIN

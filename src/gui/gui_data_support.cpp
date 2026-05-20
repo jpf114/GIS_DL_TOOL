@@ -1,4 +1,5 @@
 #include "gui_data_support.h"
+#include "param_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -8,35 +9,6 @@
 namespace gis_ai::gui {
 
 namespace {
-
-std::string getStringParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
-    auto it = params.find(key);
-    if (it == params.end()) return {};
-    if (auto* v = std::get_if<std::string>(&it->second)) return *v;
-    return {};
-}
-
-int getIntParam(const std::map<std::string, ParamValue>& params, const std::string& key, int def = 0) {
-    auto it = params.find(key);
-    if (it == params.end()) return def;
-    if (auto* v = std::get_if<int>(&it->second)) return *v;
-    return def;
-}
-
-double getDoubleParam(const std::map<std::string, ParamValue>& params, const std::string& key, double def = 0.0) {
-    auto it = params.find(key);
-    if (it == params.end()) return def;
-    if (auto* v = std::get_if<double>(&it->second)) return *v;
-    if (auto* v = std::get_if<int>(&it->second)) return static_cast<double>(*v);
-    return def;
-}
-
-std::array<double, 4> getExtentParam(const std::map<std::string, ParamValue>& params, const std::string& key) {
-    auto it = params.find(key);
-    if (it == params.end()) return {0, 0, 0, 0};
-    if (auto* v = std::get_if<std::array<double, 4>>(&it->second)) return *v;
-    return {0, 0, 0, 0};
-}
 
 std::string findFirstInvalidParamKeyLocal(
     const std::vector<ParamSpec>& specs,
@@ -133,6 +105,8 @@ std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
         specs.push_back({"input_raster", "输入影像", "待预处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"output_path", "输出路径", "预处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"resample_method", "重采样方式", "影像重采样方法", ParamType::Enum, false, std::string{"Nearest（最邻近）"}, int{0}, int{0}, {"Nearest（最邻近）", "Bilinear（双线性）"}});
+        specs.push_back({"resample_width", "目标宽度", "重采样目标宽度（0表示保持原始）", ParamType::Int, false, int{0}, int{0}, int{100000}, {}});
+        specs.push_back({"resample_height", "目标高度", "重采样目标高度（0表示保持原始）", ParamType::Int, false, int{0}, int{0}, int{100000}, {}});
         specs.push_back({"normalize_mode", "归一化方式", "影像归一化处理方式", ParamType::Enum, false, std::string{"None（不处理）"}, int{0}, int{0}, {"MinMax（最小最大）", "ZScore（标准差）", "None（不处理）"}});
         specs.push_back({"clip_extent", "裁剪范围", "影像裁剪范围 (Xmin, Ymin, Xmax, Ymax)", ParamType::Extent, false, std::array<double, 4>{0, 0, 0, 0}, int{0}, int{0}, {}});
     } else if (pluginName == "vector") {
@@ -144,9 +118,12 @@ std::vector<ParamSpec> getParamSpecsForPlugin(const std::string& pluginName) {
     } else if (pluginName == "raster") {
         specs.push_back({"input_raster", "输入栅格", "待处理的栅格影像文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"output_path", "输出路径", "处理结果输出路径", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
+        specs.push_back({"extra_rasters", "附加栅格", "镶嵌时附加的栅格文件路径（分号分隔）", ParamType::FilePath, false, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"mosaic_strategy", "镶嵌策略", "栅格镶嵌合并策略", ParamType::Enum, false, std::string{"First（首个）"}, int{0}, int{0}, {"First（首个）", "Overwrite（覆盖）", "Mean（均值）", "Max（最大值）", "Min（最小值）"}});
         specs.push_back({"threshold_value", "阈值", "栅格阈值分割的阈值", ParamType::Double, false, double{128.0}, double{0.0}, double{65535.0}, {}});
         specs.push_back({"resample_method", "重采样方式", "栅格重采样方法", ParamType::Enum, false, std::string{"Nearest（最邻近）"}, int{0}, int{0}, {"Nearest（最邻近）", "Bilinear（双线性）"}});
+        specs.push_back({"resample_width", "目标宽度", "重采样目标宽度（0表示保持原始）", ParamType::Int, false, int{0}, int{0}, int{100000}, {}});
+        specs.push_back({"resample_height", "目标高度", "重采样目标高度（0表示保持原始）", ParamType::Int, false, int{0}, int{0}, int{100000}, {}});
     } else if (pluginName == "batch") {
         specs.push_back({"input_dir", "输入目录", "批量处理的输入目录", ParamType::DirPath, true, std::string{}, int{0}, int{0}, {}});
         specs.push_back({"model_path", "模型路径", "ONNX 推理模型文件", ParamType::FilePath, true, std::string{}, int{0}, int{0}, {}});
@@ -191,7 +168,7 @@ ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::strin
         if (actionKey == "preprocess_resample") {
             cfg.displayName = QStringLiteral("重采样");
             cfg.description = QStringLiteral("对栅格影像进行重采样处理");
-            cfg.visibleKeys = {"input_raster", "output_path", "resample_method"};
+            cfg.visibleKeys = {"input_raster", "output_path", "resample_method", "resample_width", "resample_height"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "preprocess_normalize") {
             cfg.displayName = QStringLiteral("归一化");
@@ -225,7 +202,7 @@ ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::strin
         if (actionKey == "raster_mosaic") {
             cfg.displayName = QStringLiteral("镶嵌");
             cfg.description = QStringLiteral("将多个栅格影像镶嵌合并");
-            cfg.visibleKeys = {"input_raster", "output_path", "mosaic_strategy"};
+            cfg.visibleKeys = {"input_raster", "output_path", "extra_rasters", "mosaic_strategy"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "raster_threshold") {
             cfg.displayName = QStringLiteral("阈值分割");
@@ -235,7 +212,7 @@ ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::strin
         } else if (actionKey == "raster_resample") {
             cfg.displayName = QStringLiteral("重采样");
             cfg.description = QStringLiteral("对栅格影像进行重采样处理");
-            cfg.visibleKeys = {"input_raster", "output_path", "resample_method"};
+            cfg.visibleKeys = {"input_raster", "output_path", "resample_method", "resample_width", "resample_height"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         }
     } else if (pluginName == "batch") {

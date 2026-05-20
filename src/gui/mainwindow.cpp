@@ -100,9 +100,12 @@ MainWindow::MainWindow(QWidget* parent)
     setAcceptDrops(true);
     setupUi();
     connectControllerSignals();
+    restoreWindowState();
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow() {
+    saveWindowState();
+}
 
 void MainWindow::selectPluginByName(const std::string& pluginName) {
     if (navPanel_) {
@@ -1042,6 +1045,38 @@ void MainWindow::onExecuteClicked() {
         }
     }
     updateExecuteButtonState();
+}
+
+void MainWindow::saveWindowState() {
+    auto& s = SettingsManager::instance();
+    s.setWindowGeometry(saveGeometry());
+    s.setWindowState(saveState());
+    if (!currentPluginName_.empty()) {
+        s.setLastPluginName(QString::fromStdString(currentPluginName_));
+    }
+    if (!currentActionKey_.empty()) {
+        s.setLastActionKey(QString::fromStdString(currentActionKey_));
+    }
+}
+
+void MainWindow::restoreWindowState() {
+    auto& s = SettingsManager::instance();
+    const QByteArray geometry = s.windowGeometry();
+    if (!geometry.isEmpty()) {
+        restoreGeometry(geometry);
+    }
+    const QByteArray state = s.windowState();
+    if (!state.isEmpty()) {
+        restoreState(state);
+    }
+    const QString lastPlugin = s.lastPluginName();
+    const QString lastAction = s.lastActionKey();
+    if (!lastPlugin.isEmpty()) {
+        selectPluginByName(lastPlugin.toStdString());
+        if (!lastAction.isEmpty()) {
+            selectActionByKey(lastAction.toStdString());
+        }
+    }
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {

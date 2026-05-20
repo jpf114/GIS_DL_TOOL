@@ -58,4 +58,36 @@ int SettingsManager::maxRecentFiles() const {
     return kMaxRecentFiles;
 }
 
+QByteArray SettingsManager::windowGeometry() const {
+    return settings_.value(QStringLiteral("window/geometry")).toByteArray();
+}
+
+void SettingsManager::setWindowGeometry(const QByteArray& geometry) {
+    settings_.setValue(QStringLiteral("window/geometry"), geometry);
+}
+
+QByteArray SettingsManager::windowState() const {
+    return settings_.value(QStringLiteral("window/state")).toByteArray();
+}
+
+void SettingsManager::setWindowState(const QByteArray& state) {
+    settings_.setValue(QStringLiteral("window/state"), state);
+}
+
+QString SettingsManager::lastPluginName() const {
+    return settings_.value(QStringLiteral("session/lastPluginName")).toString();
+}
+
+void SettingsManager::setLastPluginName(const QString& name) {
+    settings_.setValue(QStringLiteral("session/lastPluginName"), name);
+}
+
+QString SettingsManager::lastActionKey() const {
+    return settings_.value(QStringLiteral("session/lastActionKey")).toString();
+}
+
+void SettingsManager::setLastActionKey(const QString& key) {
+    settings_.setValue(QStringLiteral("session/lastActionKey"), key);
+}
+
 }

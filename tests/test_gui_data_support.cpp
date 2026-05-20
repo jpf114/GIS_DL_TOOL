@@ -1,8 +1,37 @@
 #include <gtest/gtest.h>
+#include <QTemporaryDir>
+#include <gdal_priv.h>
+
 #include "gui_data_support.h"
+#include "data_inspector.h"
+#include "action_dispatcher.h"
 #include "param_card_widget.h"
+#include "qt_progress_reporter.h"
+#include "io/vector_io.h"
 
 using namespace gis_ai::gui;
+
+namespace {
+
+gis_ai::VectorData MakePolygon(double minX, double minY, double maxX, double maxY) {
+    gis_ai::VectorData data;
+    data.feature_type = gis_ai::FeatureType::Polygon;
+    data.projection = "EPSG:4326";
+
+    gis_ai::Feature feature;
+    feature.type = gis_ai::FeatureType::Polygon;
+    feature.coordinates = {
+        {minX, minY, 0.0},
+        {maxX, minY, 0.0},
+        {maxX, maxY, 0.0},
+        {minX, maxY, 0.0},
+        {minX, minY, 0.0},
+    };
+    data.features.push_back(feature);
+    return data;
+}
+
+}
 
 TEST(GuiDataSupportTest, DetectDataKindRaster) {
     EXPECT_EQ(detectDataKind("test.tif"), DataKind::Raster);
@@ -130,6 +159,23 @@ TEST(GuiDataSupportTest, ValidateActionVectorBuffer) {
     EXPECT_EQ(issue->key, "buffer_distance");
 }
 
+TEST(GuiDataSupportTest, ValidateBatchInferenceTargetClassRange) {
+    std::map<std::string, ParamValue> params;
+    params["target_class"] = 999;
+    auto issue = validateActionSpecificParams("batch", "batch_inference", params);
+    ASSERT_TRUE(issue.has_value());
+    EXPECT_EQ(issue->key, "target_class");
+}
+
+TEST(GuiDataSupportTest, ValidateBatchInferenceIgnoresSegmentationTilingParams) {
+    std::map<std::string, ParamValue> params;
+    params["tile_size"] = 32;
+    params["stride"] = 999;
+    params["target_class"] = 1;
+    auto issue = validateActionSpecificParams("batch", "batch_inference", params);
+    EXPECT_FALSE(issue.has_value());
+}
+
 TEST(GuiDataSupportTest, BuildExecuteButtonStateNoSelection) {
     auto state = buildExecuteButtonState(false, {});
     EXPECT_FALSE(state.enabled);
@@ -224,4 +270,56 @@ TEST(GuiDataSupportTest, BatchInferenceUsesDirectoryInputsAndOutputs) {
     EXPECT_TRUE(cfg.requiredKeys.count("output_dir") > 0);
     EXPECT_EQ(cfg.visibleKeys.count("input_raster"), 0);
     EXPECT_EQ(cfg.visibleKeys.count("output_path"), 0);
+}
+
+TEST(GuiDataSupportTest, BatchInferenceExposesTargetClassInsteadOfSegmentationControls) {
+    const auto cfg = getActionUiConfig("batch", "batch_inference");
+    EXPECT_TRUE(cfg.visibleKeys.count("target_class") > 0);
+    EXPECT_EQ(cfg.visibleKeys.count("tile_size"), 0);
+    EXPECT_EQ(cfg.visibleKeys.count("stride"), 0);
+    EXPECT_EQ(cfg.visibleKeys.count("blend_mode"), 0);
+
+    const auto specs = buildEffectiveParamSpecs("batch", "batch_inference");
+    bool foundTargetClass = false;
+    for (const auto& spec : specs) {
+        if (spec.key == "target_class") {
+            foundTargetClass = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundTargetClass);
+}
+
+TEST(GuiDataSupportTest, ExecuteActionVectorClipUsesClipExtent) {
+    GDALAllRegister();
+
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+
+    const QString inputPath = tempDir.filePath("input.gpkg");
+    const QString outputPath = tempDir.filePath("output.gpkg");
+
+    gis_ai::VectorIO vectorIo;
+    vectorIo.Save(MakePolygon(0.0, 0.0, 10.0, 10.0), inputPath.toStdString());
+
+    std::map<std::string, ParamValue> params;
+    params["input_vector"] = inputPath.toStdString();
+    params["output_path"] = outputPath.toStdString();
+    params["clip_extent"] = std::array<double, 4>{2.0, 2.0, 4.0, 4.0};
+
+    QtProgressReporter reporter(QStringLiteral("vector_clip_test"));
+    ASSERT_TRUE(executeAction("vector", "vector_clip", params, reporter));
+
+    auto result = vectorIo.Load(outputPath.toStdString());
+    ASSERT_NE(result, nullptr);
+    ASSERT_FALSE(result->features.empty());
+
+    for (const auto& feature : result->features) {
+        for (const auto& coord : feature.coordinates) {
+            EXPECT_GE(coord.x, 2.0);
+            EXPECT_LE(coord.x, 4.0);
+            EXPECT_GE(coord.y, 2.0);
+            EXPECT_LE(coord.y, 4.0);
+        }
+    }
 }

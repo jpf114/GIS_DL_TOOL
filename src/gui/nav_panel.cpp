@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QFrame>
+#include <QFontMetrics>
 #include <QIcon>
 #include <QLabel>
 #include <QPainter>
@@ -151,6 +152,7 @@ void NavPanel::setupUi() {
     auto* descLabel = new QLabel(QStringLiteral("点击主功能后在原位展开子功能，参数配置与执行反馈集中在同一界面。"));
     descLabel->setObjectName(QStringLiteral("sidebarDesc"));
     descLabel->setWordWrap(true);
+    descLabel->setMinimumHeight(QFontMetrics(descLabel->font()).lineSpacing() * 3);
     topLayout->addWidget(descLabel);
     sidebarLayout->addWidget(topCard);
 
@@ -194,9 +196,10 @@ void NavPanel::setupUi() {
     footerTitle->setObjectName(QStringLiteral("sidebarFooterTitle"));
     footerLayout->addWidget(footerTitle);
 
-    auto* footerDesc = new QLabel(QStringLiteral("当前先聚焦算法执行，后续可继续补结果预览、批处理和检查能力。"));
+    auto* footerDesc = new QLabel(QStringLiteral("当前聚焦算法执行，后续补充结果预览与检查能力。"));
     footerDesc->setObjectName(QStringLiteral("sidebarFooterDesc"));
     footerDesc->setWordWrap(true);
+    footerDesc->setMinimumHeight(QFontMetrics(footerDesc->font()).lineSpacing() * 3);
     footerLayout->addWidget(footerDesc);
     sidebarLayout->addWidget(footerCard);
 

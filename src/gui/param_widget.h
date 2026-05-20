@@ -44,6 +44,8 @@ private:
     ParamCardWidget* advancedCard_ = nullptr;
 
     std::vector<ParamSpec> specs_;
+    std::string pluginName_;
+    std::string actionKey_;
 };
 
 }

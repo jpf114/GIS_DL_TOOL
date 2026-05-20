@@ -84,6 +84,7 @@ void ParamWidget::buildCards() {
 
     if (hasInput) {
         inputCard_ = new ParamCardWidget(ParamCardWidget::CardType::Input);
+        inputCard_->setUiContext(pluginName_, actionKey_);
         for (const auto& spec : specs_) {
             if (spec.key == "action") continue;
             if (isInputParam(spec)) inputCard_->addParam(spec);
@@ -96,6 +97,7 @@ void ParamWidget::buildCards() {
 
     if (hasOutput) {
         outputCard_ = new ParamCardWidget(ParamCardWidget::CardType::Output);
+        outputCard_->setUiContext(pluginName_, actionKey_);
         for (const auto& spec : specs_) {
             if (isOutputParam(spec)) outputCard_->addParam(spec);
         }
@@ -107,6 +109,7 @@ void ParamWidget::buildCards() {
 
     if (hasAdvanced) {
         advancedCard_ = new ParamCardWidget(ParamCardWidget::CardType::Advanced);
+        advancedCard_->setUiContext(pluginName_, actionKey_);
         for (const auto& spec : specs_) {
             if (spec.key == "action") continue;
             if (!isInputParam(spec) && !isOutputParam(spec)) advancedCard_->addParam(spec);
@@ -217,6 +220,8 @@ bool ParamWidget::validate() const {
 }
 
 void ParamWidget::setUiContext(const std::string& pluginName, const std::string& actionKey) {
+    pluginName_ = pluginName;
+    actionKey_ = actionKey;
     if (inputCard_) inputCard_->setUiContext(pluginName, actionKey);
     if (outputCard_) outputCard_->setUiContext(pluginName, actionKey);
     if (advancedCard_) advancedCard_->setUiContext(pluginName, actionKey);

@@ -13,6 +13,7 @@
 #include <QDateTime>
 #include <QHeaderView>
 #include <QStringList>
+
 #include <algorithm>
 
 namespace gis_ai::gui {
@@ -191,6 +192,7 @@ void TaskCenterPage::addTaskRow(const QString& taskId, const QString& actionDisp
 
 void TaskCenterPage::updateTaskRow(const QString& taskId, int status,
                                     const QString& endTime, qint64 durationMs) {
+    Q_UNUSED(endTime);
     auto* item = findItemByTaskId(taskId);
     if (!item) return;
 

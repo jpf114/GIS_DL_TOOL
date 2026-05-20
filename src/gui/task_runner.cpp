@@ -4,6 +4,7 @@
 #include "qt_progress_reporter.h"
 #include "task_manager.h"
 #include "gui_data_support.h"
+#include "action_dispatcher.h"
 
 #include <QThread>
 

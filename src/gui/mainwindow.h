@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QMap>
 #include <QString>
 #include <map>
 #include <string>
@@ -17,24 +16,21 @@ class QProgressBar;
 class QScrollArea;
 class QDragEnterEvent;
 class QDropEvent;
-class QThread;
-class QCheckBox;
-class QLineEdit;
 
 namespace gis_ai::gui {
 
 class NavPanel;
 class ParamWidget;
 class TaskCenterPage;
-class ExecuteWorker;
-class QtProgressReporter;
-class ProgressDialog;
+class ExecutionController;
+class BatchModeController;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+
     void selectPluginByName(const std::string& pluginName);
     void selectActionByKey(const std::string& actionKey);
     bool setParamValue(const std::string& key, const std::string& value);
@@ -42,6 +38,7 @@ public:
     bool setBatchInputDirectory(const std::string& directory);
     bool setBatchFilter(const std::string& filter);
     void triggerExecute();
+
     bool lastExecutionSuccess() const;
     bool lastExecutionCancelled() const;
     QString lastExecutionMessage() const;
@@ -52,40 +49,29 @@ signals:
 
 private:
     void setupUi();
+    void connectControllerSignals();
 
     void onPluginSelected(const std::string& pluginName);
     void onSubFunctionSelected(const std::string& pluginName, const std::string& actionKey);
     void onExecuteClicked();
-    void onTaskRunnerStarted(const QString& displayGroup, const QString& taskId);
     void onParamsChanged();
-    void onTaskRunnerFinished(const QString& displayGroup, const QString& taskId,
-                              bool success, bool cancelled);
-    void onTaskProgressChanged(const QString& taskId, double percent);
-    void onTaskLogMessage(const QString& displayGroup, const QString& taskId, const QString& msg);
-    void onRerunTask(const QString& taskId);
-    void onEditTask(const QString& taskId);
 
     void syncDerivedParams();
-    void ensureProgressDialog();
     void resetExecutionSummary();
-    bool currentGroupHasPendingExecution() const;
-    void discardTaskExecutionState(const QStringList& taskIds);
-    void showRunningTaskSummary(const QString& taskId);
-    void showQueuedTaskSummary(const QString& taskId);
+    void syncExecutionSummaryForCurrentGroup();
+    void updateExecuteButtonState();
+    QString validateParams() const;
+
+    void showRunningTaskSummary();
+    void showQueuedTaskSummary();
     void showQueuedBatchSummary(int submittedCount);
-    void showFinishedTaskSummary(const QString& taskId,
-                                 const QString& message,
-                                 bool success,
-                                 bool cancelled);
+    void showFinishedTaskSummary(const QString& message, bool success, bool cancelled);
+
     void applyFunctionPanelState(const QString& title,
                                  const QString& description,
                                  const QString& metaText,
                                  const QString& algorithmText,
                                  const std::string& pluginName);
-    void syncExecutionSummaryForCurrentGroup();
-    void updateExecuteButtonState();
-    QString validateParams() const;
-    void updateBatchCount();
 
     QString buildSuggestedOutputPath(const QString& inputPath,
                                      const QString& ext) const;
@@ -108,26 +94,14 @@ private:
 
     QTabWidget* tabWidget_ = nullptr;
 
-    QCheckBox* batchCheckBox_ = nullptr;
-    QLineEdit* batchDirEdit_ = nullptr;
-    QPushButton* batchDirButton_ = nullptr;
-    QLineEdit* batchFilterEdit_ = nullptr;
-    QLabel* batchCountLabel_ = nullptr;
-
-    ProgressDialog* progressDialog_ = nullptr;
+    ExecutionController* execController_ = nullptr;
+    BatchModeController* batchController_ = nullptr;
 
     std::string currentPluginName_;
     std::string currentActionKey_;
-    QString currentTaskId_;
-    QMap<QString, QString> pendingResultTaskIds_;
 
     std::map<std::string, QString> lastAutoOutputPath_;
     std::map<std::string, std::array<double, 4>> lastAutoExtent_;
-    std::string currentDisplayGroupKey_{"default"};
-    bool lastExecutionSuccess_ = false;
-    bool lastExecutionCancelled_ = false;
-    QString lastExecutionMessage_;
-    QString lastExecutionRawMessage_;
 };
 
 }

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <mutex>
 #include <string>
 
 namespace gis_ai::gui {
@@ -33,6 +34,7 @@ private:
     double m_lastProgressValue{-1.0};
     std::chrono::steady_clock::time_point m_lastProgressTime{};
     bool m_firstProgress{true};
+    mutable std::mutex m_progressMutex;
     QString taskId_;
 
     static constexpr double kProgressDelta = 0.01;

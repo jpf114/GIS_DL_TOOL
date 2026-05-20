@@ -1,6 +1,7 @@
 #include "execute_worker.h"
 #include "qt_progress_reporter.h"
 #include "gui_data_support.h"
+#include "action_dispatcher.h"
 
 #include <QThread>
 #include <exception>

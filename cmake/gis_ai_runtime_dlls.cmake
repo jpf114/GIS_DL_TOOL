@@ -157,24 +157,33 @@ function(gis_ai_copy_minimal_runtime target_name)
         set(_dest "$<TARGET_FILE_DIR:${target_name}>")
     endif()
 
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${_dest}"
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/copy_runtime_dlls.cmake.in"
+        "${CMAKE_BINARY_DIR}/copy_runtime_dlls_${target_name}.cmake"
+        @ONLY
     )
 
-    foreach(_dll IN LISTS GIS_AI_RUNTIME_DLLS)
-        add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${GIS_AI_VCPKG_RELEASE_BIN_DIR}/${_dll}"
-                "${_dest}/${_dll}"
-        )
-    endforeach()
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -D_DEST_DIR="${_dest}" -P "${CMAKE_BINARY_DIR}/copy_runtime_dlls_${target_name}.cmake"
+    )
+endfunction()
 
-    foreach(_dll IN LISTS GIS_AI_RUNTIME_DLLS_DEBUG)
-        add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND ${CMAKE_COMMAND}
-                -D_SRC="${GIS_AI_VCPKG_DEBUG_BIN_DIR}/${_dll}"
-                -D_DST="${_dest}/${_dll}"
-                -P "${CMAKE_SOURCE_DIR}/cmake/copy_if_exists.cmake"
-        )
-    endforeach()
+function(gis_ai_copy_gui_runtime target_name)
+    cmake_parse_arguments(ARG "" "DEST_DIR" "" ${ARGN})
+
+    if(ARG_DEST_DIR)
+        set(_dest "${ARG_DEST_DIR}")
+    else()
+        set(_dest "$<TARGET_FILE_DIR:${target_name}>")
+    endif()
+
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/copy_gui_runtime.cmake.in"
+        "${CMAKE_BINARY_DIR}/copy_gui_runtime_${target_name}.cmake"
+        @ONLY
+    )
+
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -D_DEST_DIR="${_dest}" -P "${CMAKE_BINARY_DIR}/copy_gui_runtime_${target_name}.cmake"
+    )
 endfunction()

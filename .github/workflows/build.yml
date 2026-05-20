@@ -33,15 +33,14 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake --preset=release-windows `
-          -DVCPKG_MANIFEST_FEATURES="cuda"
+        cmake --preset=release
       shell: pwsh
 
     - name: Build
-      run: cmake --build build/release-windows --config Release
+      run: cmake --build build/release --config Release
 
     - name: Test
-      working-directory: ${{github.workspace}}/build/release-windows
+      working-directory: ${{github.workspace}}/build/release
       run: ctest -C Release --output-on-failure
 
     - name: Upload artifacts
@@ -49,8 +48,8 @@ jobs:
       with:
         name: gis-ai-windows
         path: |
-          build/release-windows/lib/*.dll
-          build/release-windows/lib/*.lib
+          build/release/lib/*.dll
+          build/release/lib/*.lib
 
   build-linux:
     name: Linux 扩展构建
@@ -82,13 +81,13 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake --preset=release-linux
+        cmake -B build/release -DCMAKE_BUILD_TYPE=Release -DGIS_AI_BUILD_TESTS=ON
 
     - name: Build
-      run: cmake --build build/release-linux -j$(nproc)
+      run: cmake --build build/release -j$(nproc)
 
     - name: Test
-      working-directory: ${{github.workspace}}/build/release-linux
+      working-directory: ${{github.workspace}}/build/release
       run: ctest --output-on-failure
 
     - name: Upload artifacts
@@ -96,8 +95,8 @@ jobs:
       with:
         name: gis-ai-linux
         path: |
-          build/release-linux/lib/*.so
-          build/release-linux/lib/*.a
+          build/release/lib/*.so
+          build/release/lib/*.a
 
   build-macos:
     name: macOS 扩展构建
@@ -118,13 +117,13 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake --preset=release-macos
+        cmake -B build/release -DCMAKE_BUILD_TYPE=Release -DGIS_AI_BUILD_TESTS=ON
 
     - name: Build
-      run: cmake --build build/release-macos -j$(sysctl -n hw.ncpu)
+      run: cmake --build build/release -j$(sysctl -n hw.ncpu)
 
     - name: Test
-      working-directory: ${{github.workspace}}/build/release-macos
+      working-directory: ${{github.workspace}}/build/release
       run: ctest --output-on-failure
 
     - name: Upload artifacts
@@ -132,8 +131,8 @@ jobs:
       with:
         name: gis-ai-macos
         path: |
-          build/release-macos/lib/*.dylib
-          build/release-macos/lib/*.a
+          build/release/lib/*.dylib
+          build/release/lib/*.a
 
   code-quality:
     name: 代码质量检查

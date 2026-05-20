@@ -1,0 +1,91 @@
+set(_release_bin_dir "@GIS_AI_VCPKG_RELEASE_BIN_DIR@")
+set(_debug_bin_dir "@GIS_AI_VCPKG_DEBUG_BIN_DIR@")
+set(_dest_dir "${_DEST_DIR}")
+set(_copy_qt_platform "@GIS_AI_COPY_QT_PLATFORM_DLL@")
+set(_qt_platforms_release_dir "@GIS_AI_VCPKG_RELEASE_QT_PLATFORMS_DIR@")
+set(_qt_platforms_debug_dir "@GIS_AI_VCPKG_DEBUG_QT_PLATFORMS_DIR@")
+set(_qt_sqldrivers_release_dir "@GIS_AI_VCPKG_RELEASE_QT_DIR@/plugins/sqldrivers")
+set(_qt_sqldrivers_debug_dir "@GIS_AI_VCPKG_DEBUG_QT_DIR@/plugins/sqldrivers")
+set(_icons_src "@CMAKE_SOURCE_DIR@/resources/icons")
+
+file(MAKE_DIRECTORY "${_dest_dir}")
+file(MAKE_DIRECTORY "${_dest_dir}/platforms")
+file(MAKE_DIRECTORY "${_dest_dir}/sqldrivers")
+
+set(_release_dlls @GIS_AI_RUNTIME_DLLS@)
+set(_debug_dlls @GIS_AI_RUNTIME_DLLS_DEBUG@)
+
+foreach(_dll IN LISTS _release_dlls)
+    set(_src "${_release_bin_dir}/${_dll}")
+    if(EXISTS "${_src}")
+        set(_dst "${_dest_dir}/${_dll}")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_src}" "${_dst}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endif()
+endforeach()
+
+foreach(_dll IN LISTS _debug_dlls)
+    set(_src "${_debug_bin_dir}/${_dll}")
+    if(EXISTS "${_src}")
+        set(_dst "${_dest_dir}/${_dll}")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_src}" "${_dst}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endif()
+endforeach()
+
+if(_copy_qt_platform)
+    if(EXISTS "${_qt_platforms_release_dir}")
+        file(GLOB _plat_release_files "${_qt_platforms_release_dir}/*.dll")
+        foreach(_f IN LISTS _plat_release_files)
+            get_filename_component(_fname "${_f}" NAME)
+            execute_process(
+                COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_f}" "${_dest_dir}/platforms/${_fname}"
+                OUTPUT_QUIET ERROR_QUIET
+            )
+        endforeach()
+    endif()
+
+    if(EXISTS "${_qt_platforms_debug_dir}")
+        file(GLOB _plat_debug_files "${_qt_platforms_debug_dir}/*.dll")
+        foreach(_f IN LISTS _plat_debug_files)
+            get_filename_component(_fname "${_f}" NAME)
+            execute_process(
+                COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_f}" "${_dest_dir}/platforms/${_fname}"
+                OUTPUT_QUIET ERROR_QUIET
+            )
+        endforeach()
+    endif()
+endif()
+
+if(EXISTS "${_qt_sqldrivers_release_dir}")
+    file(GLOB _sql_release_files "${_qt_sqldrivers_release_dir}/*.dll")
+    foreach(_f IN LISTS _sql_release_files)
+        get_filename_component(_fname "${_f}" NAME)
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_f}" "${_dest_dir}/sqldrivers/${_fname}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endforeach()
+endif()
+
+if(EXISTS "${_qt_sqldrivers_debug_dir}")
+    file(GLOB _sql_debug_files "${_qt_sqldrivers_debug_dir}/*.dll")
+    foreach(_f IN LISTS _sql_debug_files)
+        get_filename_component(_fname "${_f}" NAME)
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_f}" "${_dest_dir}/sqldrivers/${_fname}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endforeach()
+endif()
+
+if(EXISTS "${_icons_src}")
+    execute_process(
+        COMMAND "@CMAKE_COMMAND@" -E copy_directory "${_icons_src}" "${_dest_dir}/icons"
+        OUTPUT_QUIET ERROR_QUIET
+    )
+endif()

@@ -12,6 +12,7 @@ enum class GIS_AI_API TaskType {
     Segment,
     SegmentToPolygon,
     BatchSegment,
+    BatchInference,
     Inference,
     Preprocess,
     VectorSimplify,

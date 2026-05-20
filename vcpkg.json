@@ -23,6 +23,18 @@
           "features": ["cuda"]
         }
       ]
+    },
+    "gui": {
+      "description": "Build Qt6 GUI application",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "default-features": false,
+          "features": ["widgets", "sql"]
+        },
+        "qtsvg",
+        "sqlite3"
+      ]
     }
   }
 }

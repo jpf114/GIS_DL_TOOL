@@ -1,0 +1,202 @@
+name: 发布与打包
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  BUILD_TYPE: Release
+  VCPKG_COMMIT: 42f37e46d37baf7b218966434b91116bddf73461
+
+jobs:
+  create-release:
+    name: 创建 GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 提取版本号
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: 创建 Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GIS AI Tool v${{ steps.version.outputs.version }}
+          draft: true
+          generate_release_notes: true
+
+  package-windows:
+    name: Windows 打包
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          ninja-version: '1.11.1'
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Configure CMake
+        run: cmake --preset=release
+        shell: pwsh
+
+      - name: Build
+        run: cmake --build build/release --config Release
+
+      - name: Test
+        working-directory: build/release
+        run: ctest -C Release --output-on-failure -E test_ai_integration
+
+      - name: Install
+        run: |
+          cmake --install build/release --prefix install/gis-ai-tool
+        shell: pwsh
+
+      - name: Collect runtime DLLs
+        shell: pwsh
+        run: |
+          $installDir = "install/gis-ai-tool"
+          $vcpkgBin = "build/release/vcpkg_installed/x64-windows/bin"
+          $runtimeDlls = @(
+            "gdal.dll", "geos_c.dll", "geos.dll", "proj.dll",
+            "onnxruntime.dll", "spdlog.dll", "sqlite3.dll",
+            "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "Qt6Svg.dll", "Qt6Sql.dll"
+          )
+          foreach ($dll in $runtimeDlls) {
+            $src = Join-Path $vcpkgBin $dll
+            if (Test-Path $src) {
+              Copy-Item $src (Join-Path $installDir "bin") -Force
+            }
+          }
+          $platformsDir = Join-Path $vcpkgBin "platforms"
+          if (Test-Path $platformsDir) {
+            $destPlatforms = Join-Path $installDir "bin/platforms"
+            New-Item -ItemType Directory -Path $destPlatforms -Force | Out-Null
+            Copy-Item "$platformsDir/qwindows.dll" $destPlatforms -Force
+            Copy-Item "$platformsDir/qoffscreen.dll" $destPlatforms -Force
+          }
+          $sqldriversDir = Join-Path $vcpkgBin "../plugins/sqldrivers"
+          if (Test-Path $sqldriversDir) {
+            $destSql = Join-Path $installDir "bin/sqldrivers"
+            New-Item -ItemType Directory -Path $destSql -Force | Out-Null
+            Copy-Item "$sqldriversDir/qsqlite.dll" $destSql -Force
+          }
+
+      - name: Copy documentation
+        shell: pwsh
+        run: |
+          $installDir = "install/gis-ai-tool"
+          $docsDir = Join-Path $installDir "docs"
+          New-Item -ItemType Directory -Path $docsDir -Force | Out-Null
+          Copy-Item "docs/error_codes.md" $docsDir -ErrorAction SilentlyContinue
+          Copy-Item "docs/third_party_licenses.md" $docsDir -ErrorAction SilentlyContinue
+          Copy-Item "LICENSE" $installDir -ErrorAction SilentlyContinue
+          Copy-Item "schemas/task-config.schema.json" (Join-Path $installDir "schemas") -ErrorAction SilentlyContinue
+
+      - name: Create archive
+        shell: pwsh
+        run: |
+          $version = "${{ needs.create-release.outputs.version }}"
+          Compress-Archive -Path "install/gis-ai-tool/*" -DestinationPath "gis-ai-tool-${version}-windows-x64.zip"
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: gis-ai-tool-${{ needs.create-release.outputs.version }}-windows-x64.zip
+          asset_name: gis-ai-tool-${{ needs.create-release.outputs.version }}-windows-x64.zip
+          asset_content_type: application/zip
+
+  package-linux:
+    name: Linux 打包
+    runs-on: ubuntu-22.04
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            g++-11 \
+            libgdal-dev \
+            libgeos-dev \
+            libproj-dev \
+            libspdlog-dev \
+            libgtest-dev
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Configure CMake
+        run: |
+          cmake -B build/release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGIS_AI_BUILD_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=install/gis-ai-tool
+
+      - name: Build
+        run: cmake --build build/release -j$(nproc)
+
+      - name: Test
+        working-directory: build/release
+        run: ctest --output-on-failure -E test_ai_integration
+
+      - name: Install
+        run: cmake --install build/release
+
+      - name: Copy documentation
+        run: |
+          mkdir -p install/gis-ai-tool/docs
+          cp docs/error_codes.md install/gis-ai-tool/docs/ 2>/dev/null || true
+          cp docs/third_party_licenses.md install/gis-ai-tool/docs/ 2>/dev/null || true
+          cp LICENSE install/gis-ai-tool/ 2>/dev/null || true
+          mkdir -p install/gis-ai-tool/schemas
+          cp schemas/task-config.schema.json install/gis-ai-tool/schemas/ 2>/dev/null || true
+
+      - name: Create archive
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          cd install
+          tar czf ../gis-ai-tool-${VERSION}-linux-x64.tar.gz gis-ai-tool/
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: gis-ai-tool-${{ needs.create-release.outputs.version }}-linux-x64.tar.gz
+          asset_name: gis-ai-tool-${{ needs.create-release.outputs.version }}-linux-x64.tar.gz
+          asset_content_type: application/gzip
+
+  publish-release:
+    name: 发布 Release
+    runs-on: ubuntu-latest
+    needs: [create-release, package-windows, package-linux]
+    steps:
+      - name: 发布 Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

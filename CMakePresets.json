@@ -10,9 +10,6 @@
             "name": "base",
             "hidden": true,
             "generator": "Visual Studio 17 2022",
-            "environment": {
-                "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
-            },
             "architecture": {
                 "value": "x64",
                 "strategy": "set"

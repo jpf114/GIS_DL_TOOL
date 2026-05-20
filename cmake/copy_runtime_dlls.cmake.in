@@ -1,0 +1,30 @@
+set(_release_bin_dir "@GIS_AI_VCPKG_RELEASE_BIN_DIR@")
+set(_debug_bin_dir "@GIS_AI_VCPKG_DEBUG_BIN_DIR@")
+set(_dest_dir "${_DEST_DIR}")
+
+file(MAKE_DIRECTORY "${_dest_dir}")
+
+set(_release_dlls @GIS_AI_RUNTIME_DLLS@)
+set(_debug_dlls @GIS_AI_RUNTIME_DLLS_DEBUG@)
+
+foreach(_dll IN LISTS _release_dlls)
+    set(_src "${_release_bin_dir}/${_dll}")
+    if(EXISTS "${_src}")
+        set(_dst "${_dest_dir}/${_dll}")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_src}" "${_dst}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endif()
+endforeach()
+
+foreach(_dll IN LISTS _debug_dlls)
+    set(_src "${_debug_bin_dir}/${_dll}")
+    if(EXISTS "${_src}")
+        set(_dst "${_dest_dir}/${_dll}")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E copy_if_different "${_src}" "${_dst}"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endif()
+endforeach()

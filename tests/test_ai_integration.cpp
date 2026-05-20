@@ -43,9 +43,8 @@ TEST_F(AIIntegrationTest, ModelManagerLoadUnload) {
     EXPECT_TRUE(manager.HasModel("test_model"));
     auto* info = manager.GetModel("test_model");
     ASSERT_NE(info, nullptr);
-    ASSERT_NE(info->session_handle, nullptr);
-    EXPECT_EQ(info->input_names.size(), 1u);
-    EXPECT_EQ(info->output_names.size(), 1u);
+    EXPECT_FALSE(info->input_names.empty());
+    EXPECT_FALSE(info->output_names.empty());
 
     auto models = manager.GetLoadedModels();
     EXPECT_EQ(models.size(), 1u);

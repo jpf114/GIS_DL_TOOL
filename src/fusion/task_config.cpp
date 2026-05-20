@@ -51,6 +51,8 @@ TaskConfig TaskConfig::LoadFromString(const std::string& json_str) {
         config.task_type = TaskType::SegmentToPolygon;
     } else if (type_str == "batch_segment") {
         config.task_type = TaskType::BatchSegment;
+    } else if (type_str == "batch_inference") {
+        config.task_type = TaskType::BatchInference;
     } else if (type_str == "inference") {
         config.task_type = TaskType::Inference;
     } else if (type_str == "preprocess") {
@@ -159,6 +161,7 @@ std::string TaskConfig::ToString() const {
         case TaskType::Segment: j["task_type"] = "segment"; break;
         case TaskType::SegmentToPolygon: j["task_type"] = "segment_to_polygon"; break;
         case TaskType::BatchSegment: j["task_type"] = "batch_segment"; break;
+        case TaskType::BatchInference: j["task_type"] = "batch_inference"; break;
         case TaskType::Inference: j["task_type"] = "inference"; break;
         case TaskType::Preprocess: j["task_type"] = "preprocess"; break;
         case TaskType::VectorSimplify: j["task_type"] = "vector_simplify"; break;
@@ -275,13 +278,13 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
     auto start = std::chrono::high_resolution_clock::now();
 
     static const char* taskTypeNames[] = {
-        "segment", "segment_to_polygon", "batch_segment",
+        "segment", "segment_to_polygon", "batch_segment", "batch_inference",
         "inference", "preprocess",
         "vector_simplify", "vector_buffer",
         "raster_mosaic", "raster_resample"
     };
     int typeIdx = static_cast<int>(config.task_type);
-    if (typeIdx >= 0 && typeIdx < 9) {
+    if (typeIdx >= 0 && typeIdx < 10) {
         report.task_type_name = taskTypeNames[typeIdx];
     }
     report.input_path = config.input_path.empty() ? config.input_dir : config.input_path;
@@ -349,6 +352,7 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                 }
 
                 BatchProcessor processor(config.model_path, config.num_threads);
+                processor.SetSegConfig(config.seg_config);
                 auto results = processor.ProcessDirectory(
                     config.input_dir, config.output_dir, true);
 
@@ -359,6 +363,31 @@ TaskReport TaskRunner::Execute(const TaskConfig& config) {
                         if (!r.output_shp_path.empty()) {
                             report.output_files.push_back(r.output_shp_path);
                         }
+                    } else {
+                        report.success = false;
+                        if (!report.error_message.empty()) report.error_message += "; ";
+                        report.error_message += r.input_path + ": " + r.error_message;
+                    }
+                }
+                break;
+            }
+            case TaskType::BatchInference: {
+                if (config.model_path.empty()) {
+                    throw GisAiConfigException("model_path is required for batch_inference task");
+                }
+                if (config.input_dir.empty()) {
+                    throw GisAiConfigException("input_dir is required for batch_inference task");
+                }
+
+                BatchProcessor processor(config.model_path, config.num_threads);
+                processor.SetSegConfig(config.seg_config);
+                auto results = processor.ProcessDirectory(
+                    config.input_dir, config.output_dir, false);
+
+                report.success = true;
+                for (const auto& r : results) {
+                    if (r.success) {
+                        report.output_files.push_back(r.output_tif_path);
                     } else {
                         report.success = false;
                         if (!report.error_message.empty()) report.error_message += "; ";

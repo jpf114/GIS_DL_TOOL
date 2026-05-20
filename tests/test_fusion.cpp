@@ -6,6 +6,7 @@
 #include "fusion/raster_seg.h"
 #include "fusion/batch_processor.h"
 #include "fusion/large_image_seg.h"
+#include "fusion/task_config.h"
 #include "ai/preprocess.h"
 #include "ai/postprocess.h"
 #include "ai/mask_to_polygon.h"
@@ -72,6 +73,42 @@ TEST_F(BatchResultTest, SetValues) {
     EXPECT_EQ(result.input_path, "input.tif");
     EXPECT_TRUE(result.success);
     EXPECT_DOUBLE_EQ(result.inference_time_ms, 42.5);
+}
+
+class TaskConfigTest : public ::testing::Test {};
+
+TEST_F(TaskConfigTest, LoadFromStringSupportsBatchInferenceTaskType) {
+    const std::string json = R"({
+        "task_type": "batch_inference",
+        "model_path": "model.onnx",
+        "input_dir": "input_dir",
+        "output_dir": "output_dir",
+        "segment": {
+            "target_class": 7
+        }
+    })";
+
+    const auto config = TaskConfig::LoadFromString(json);
+    EXPECT_EQ(config.task_type, TaskType::BatchInference);
+    EXPECT_EQ(config.model_path, "model.onnx");
+    EXPECT_EQ(config.input_dir, "input_dir");
+    EXPECT_EQ(config.output_dir, "output_dir");
+    EXPECT_EQ(config.seg_config.target_class, 7);
+}
+
+TEST_F(TaskConfigTest, ToStringPreservesBatchInferenceTaskType) {
+    TaskConfig config;
+    config.task_type = TaskType::BatchInference;
+    config.model_path = "model.onnx";
+    config.input_dir = "input_dir";
+    config.output_dir = "output_dir";
+    config.seg_config.target_class = 9;
+
+    const auto roundTrip = TaskConfig::LoadFromString(config.ToString());
+    EXPECT_EQ(roundTrip.task_type, TaskType::BatchInference);
+    EXPECT_EQ(roundTrip.seg_config.target_class, 9);
+    EXPECT_EQ(roundTrip.input_dir, "input_dir");
+    EXPECT_EQ(roundTrip.output_dir, "output_dir");
 }
 
 class FusionDataFlowTest : public ::testing::Test {

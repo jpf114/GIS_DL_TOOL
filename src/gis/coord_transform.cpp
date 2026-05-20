@@ -124,7 +124,9 @@ std::vector<CoordPair> CoordTransform::TransformBatch(const std::vector<CoordPai
     }
 
     if (failed > 0) {
-        LOG_WARN("Coordinate transformation had " + std::to_string(failed) + " failures");
+        throw GisAiAlgorithmException(
+            "Coordinate transformation had " + std::to_string(failed) + " failures out of " + std::to_string(count) + " coordinates",
+            "CoordTransform::TransformBatch");
     }
 
     LOG_INFO("Batch transform completed: " + std::to_string(count) + " coordinates");

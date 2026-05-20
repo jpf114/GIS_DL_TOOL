@@ -1,4 +1,5 @@
 #include "gis_ai/gis_ai.h"
+#include "gis_ai/version.h"
 
 #include "core/logger.h"
 #include "core/exception.h"
@@ -43,12 +44,15 @@ void ClearError() {
     g_last_error_code = 0;
 }
 
-static gis_ai::ModelManager g_model_manager;
+int ClassifyException(const std::exception& e) {
+    const auto* gis_ex = dynamic_cast<const gis_ai::GisAiException*>(&e);
+    if (gis_ex) {
+        return gis_ai::ErrorCodeToInt(gis_ex->GetCode());
+    }
+    return static_cast<int>(gis_ai::ErrorCode::Unknown);
+}
 
-constexpr int VERSION_MAJOR = 0;
-constexpr int VERSION_MINOR = 1;
-constexpr int VERSION_PATCH = 0;
-constexpr const char* VERSION_STRING = "0.1.0";
+static gis_ai::ModelManager g_model_manager;
 
 void ValidateInferenceOutput(const gis_ai::InferenceResult& result, const char* context) {
     if (result.outputs.empty() || result.shapes.empty()) {
@@ -61,7 +65,7 @@ void ValidateInferenceOutput(const gis_ai::InferenceResult& result, const char* 
         throw gis_ai::GisAiModelException("Model output shape must have at least 4 dimensions", context);
     }
 
-    const auto expected = static_cast<size_t>(shape[1] * shape[2] * shape[3]);
+    const auto expected = static_cast<size_t>(shape[1]) * static_cast<size_t>(shape[2]) * static_cast<size_t>(shape[3]);
     if (expected == 0 || output.size() < expected) {
         throw gis_ai::GisAiModelException("Model output tensor size does not match its shape", context);
     }
@@ -103,8 +107,8 @@ GIS_AI_API int GisAi_Init(const char* config_path) {
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-1, e.what());
-        return -1;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -121,10 +125,10 @@ GIS_AI_API int GisAi_GetLastErrorCode() {
     return g_last_error_code;
 }
 
-GIS_AI_API int GisAi_GetVersionMajor() { return VERSION_MAJOR; }
-GIS_AI_API int GisAi_GetVersionMinor() { return VERSION_MINOR; }
-GIS_AI_API int GisAi_GetVersionPatch() { return VERSION_PATCH; }
-GIS_AI_API const char* GisAi_GetVersionString() { return VERSION_STRING; }
+GIS_AI_API int GisAi_GetVersionMajor() { return GIS_AI_VERSION_MAJOR; }
+GIS_AI_API int GisAi_GetVersionMinor() { return GIS_AI_VERSION_MINOR; }
+GIS_AI_API int GisAi_GetVersionPatch() { return GIS_AI_VERSION_PATCH; }
+GIS_AI_API const char* GisAi_GetVersionString() { return GIS_AI_VERSION_STRING; }
 
 GIS_AI_API GisAiRaster* GisAi_Raster_Load(const char* path) {
     if (!path) { SetError(-2, "Null path"); return nullptr; }
@@ -136,7 +140,7 @@ GIS_AI_API GisAiRaster* GisAi_Raster_Load(const char* path) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -149,8 +153,8 @@ GIS_AI_API int GisAi_Raster_Save(GisAiRaster* raster, const char* path) {
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -172,7 +176,9 @@ GIS_AI_API int GisAi_Raster_GetBandCount(GisAiRaster* raster) {
 
 GIS_AI_API int GisAi_Raster_GetGeoTransform(GisAiRaster* raster, double* out_transform) {
     if (!raster || !out_transform) { SetError(-2, "Null argument"); return -2; }
-    std::memcpy(out_transform, raster->data.geotransform, 6 * sizeof(double));
+    for (int i = 0; i < 6; ++i) {
+        out_transform[i] = raster->data.geotransform[i];
+    }
     ClearError();
     return 0;
 }
@@ -203,7 +209,7 @@ GIS_AI_API GisAiVector* GisAi_Vector_Load(const char* path) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -216,8 +222,8 @@ GIS_AI_API int GisAi_Vector_Save(GisAiVector* vector, const char* path) {
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -245,7 +251,7 @@ GIS_AI_API GisAiPointCloud* GisAi_PointCloud_Load(const char* path) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -258,8 +264,8 @@ GIS_AI_API int GisAi_PointCloud_Save(GisAiPointCloud* pc, const char* path) {
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -281,7 +287,7 @@ GIS_AI_API GisAiVector* GisAi_Vector_Buffer(GisAiVector* vector, double distance
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -296,7 +302,7 @@ GIS_AI_API GisAiVector* GisAi_Vector_Intersect(GisAiVector* a, GisAiVector* b) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -311,7 +317,7 @@ GIS_AI_API GisAiVector* GisAi_Vector_Clip(GisAiVector* target, GisAiVector* clip
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -326,7 +332,7 @@ GIS_AI_API GisAiVector* GisAi_Vector_Simplify(GisAiVector* vector, double tolera
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -345,7 +351,7 @@ GIS_AI_API GisAiRaster* GisAi_Raster_Resample(GisAiRaster* raster, int new_width
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -360,7 +366,7 @@ GIS_AI_API GisAiRaster* GisAi_Raster_Normalize(GisAiRaster* raster) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -375,7 +381,7 @@ GIS_AI_API GisAiRaster* GisAi_Raster_Threshold(GisAiRaster* raster, double thres
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -391,7 +397,7 @@ GIS_AI_API GisAiModel* GisAi_Model_Load(const char* model_path) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -432,15 +438,15 @@ GIS_AI_API GisAiRaster* GisAi_AI_Infer(GisAiModel* model, GisAiRaster* input) {
         ClearError();
         return result;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
 
 GIS_AI_API GisAiRasterSeg* GisAi_RasterSeg_Create(const char* model_path) {
     if (!model_path) { SetError(-2, "Null model_path"); return nullptr; }
+    auto* seg = new GisAiRasterSeg();
     try {
-        auto* seg = new GisAiRasterSeg();
         seg->manager = std::make_unique<gis_ai::ModelManager>();
         seg->engine = std::make_unique<gis_ai::InferenceEngine>(*seg->manager);
 
@@ -450,7 +456,8 @@ GIS_AI_API GisAiRasterSeg* GisAi_RasterSeg_Create(const char* model_path) {
         ClearError();
         return seg;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        delete seg;
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -497,8 +504,8 @@ GIS_AI_API int GisAi_RasterSeg_Run(GisAiRasterSeg* seg, const char* input_tif,
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -516,8 +523,8 @@ GIS_AI_API int GisAi_TransformCoordinates(double* x, double* y, const char* from
         ClearError();
         return 0;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 
@@ -531,13 +538,14 @@ extern "C" {
 
 GIS_AI_API GisAiLargeImageSeg* GisAi_LargeImageSeg_Create(const char* model_path) {
     if (!model_path) { SetError(-2, "Null model_path"); return nullptr; }
+    auto* wrapper = new GisAiLargeImageSeg();
     try {
-        auto* wrapper = new GisAiLargeImageSeg();
         wrapper->seg = std::make_unique<gis_ai::LargeImageSeg>(model_path);
         ClearError();
         return wrapper;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
+        delete wrapper;
+        SetError(ClassifyException(e), e.what());
         return nullptr;
     }
 }
@@ -561,8 +569,8 @@ GIS_AI_API int GisAi_LargeImageSeg_Run(GisAiLargeImageSeg* seg, const char* inpu
         ClearError();
         return ret;
     } catch (const std::exception& e) {
-        SetError(-3, e.what());
-        return -3;
+        SetError(ClassifyException(e), e.what());
+        return ClassifyException(e);
     }
 }
 

@@ -4,6 +4,10 @@
 
 #include <cmath>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::unique_ptr<RasterData> RasterThreshold::Execute(const RasterData& input, double threshold, int band_index) {
@@ -34,13 +38,15 @@ std::unique_ptr<RasterData> RasterThreshold::Execute(const RasterData& input, do
                       input.band_infos[band_index].nodata_value.has_value();
     float nodata_val = has_nodata ? input.band_infos[band_index].nodata_value.value() : 0.0f;
 
-    for (size_t i = 0; i < total; ++i) {
-        if (std::isnan(src[i])) {
-            dst[i] = 0.0f;
-        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[i] - nodata_val) < 1e-6f) {
-            dst[i] = 0.0f;
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+        auto si = static_cast<size_t>(i);
+        if (std::isnan(src[si])) {
+            dst[si] = 0.0f;
+        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[si] - nodata_val) < 1e-6f) {
+            dst[si] = 0.0f;
         } else {
-            dst[i] = (src[i] >= static_cast<float>(threshold)) ? 1.0f : 0.0f;
+            dst[si] = (src[si] >= static_cast<float>(threshold)) ? 1.0f : 0.0f;
         }
     }
 
@@ -83,13 +89,15 @@ std::unique_ptr<RasterData> RasterThreshold::ExecuteRange(const RasterData& inpu
                       input.band_infos[band_index].nodata_value.has_value();
     float nodata_val = has_nodata ? input.band_infos[band_index].nodata_value.value() : 0.0f;
 
-    for (size_t i = 0; i < total; ++i) {
-        if (std::isnan(src[i])) {
-            dst[i] = 0.0f;
-        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[i] - nodata_val) < 1e-6f) {
-            dst[i] = 0.0f;
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+        auto si = static_cast<size_t>(i);
+        if (std::isnan(src[si])) {
+            dst[si] = 0.0f;
+        } else if (has_nodata && !std::isnan(nodata_val) && std::abs(src[si] - nodata_val) < 1e-6f) {
+            dst[si] = 0.0f;
         } else {
-            dst[i] = (src[i] >= fmin && src[i] <= fmax) ? 1.0f : 0.0f;
+            dst[si] = (src[si] >= fmin && src[si] <= fmax) ? 1.0f : 0.0f;
         }
     }
 

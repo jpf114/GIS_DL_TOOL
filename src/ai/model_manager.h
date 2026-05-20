@@ -17,7 +17,6 @@ struct ModelInfo {
     std::vector<std::string> output_names;
     std::vector<std::vector<int64_t>> input_shapes;
     std::vector<std::vector<int64_t>> output_shapes;
-    void* session_handle = nullptr;
 };
 
 class GIS_AI_API ModelManager {

@@ -3,11 +3,62 @@
 #include "core/logger.h"
 #include "core/exception.h"
 
+#include <unordered_set>
+
 namespace gis_ai {
+
+struct OverlapQueryData {
+    GEOSContextHandle_t ctx;
+    size_t source_index;
+    const std::vector<GEOSGeometry*>& geoms;
+    std::vector<TopologyIssue>& issues;
+    std::unordered_set<size_t>& reported_pairs;
+};
+
+static void GEOS_DLL STRtreeQueryCallback(void* item, void* userdata) {
+    auto* query_data = static_cast<OverlapQueryData*>(userdata);
+    size_t candidate_index = reinterpret_cast<size_t>(item);
+
+    if (candidate_index <= query_data->source_index) return;
+
+    size_t pair_key = (query_data->source_index << 32) | candidate_index;
+    if (query_data->reported_pairs.count(pair_key) > 0) return;
+
+    GEOSGeometry* geom_i = query_data->geoms[query_data->source_index];
+    GEOSGeometry* geom_j = query_data->geoms[candidate_index];
+    if (!geom_i || !geom_j) return;
+
+    char intersects = GEOSIntersects_r(query_data->ctx, geom_i, geom_j);
+    if (intersects != 1) return;
+
+    GEOSGeometry* intersection = GEOSIntersection_r(query_data->ctx, geom_i, geom_j);
+    if (!intersection) return;
+
+    if (GEOSisEmpty_r(query_data->ctx, intersection) == 0) {
+        int geom_type = GEOSGeomTypeId_r(query_data->ctx, intersection);
+        if (geom_type == GEOS_POLYGON || geom_type == GEOS_MULTIPOLYGON) {
+            double area = 0.0;
+            GEOSArea_r(query_data->ctx, intersection, &area);
+
+            TopologyIssue issue;
+            issue.feature_index = static_cast<int>(query_data->source_index);
+            issue.issue_type = "overlap";
+            issue.description = "Feature " + std::to_string(query_data->source_index) +
+                " overlaps with feature " + std::to_string(candidate_index) +
+                " (area=" + std::to_string(area) + ")";
+            query_data->issues.push_back(issue);
+            query_data->reported_pairs.insert(pair_key);
+        }
+    }
+    GEOSGeom_destroy_r(query_data->ctx, intersection);
+}
 
 std::vector<TopologyIssue> VectorTopology::CheckOverlaps(const VectorData& data) {
     std::vector<TopologyIssue> issues;
 
+    if (data.features.empty()) {
+        throw GisAiAlgorithmException("Input features are empty", "VectorTopology::CheckOverlaps");
+    }
     if (data.features.size() < 2) return issues;
     if (data.feature_type != FeatureType::Polygon) {
         LOG_WARN("Overlap check is meaningful only for polygon data");
@@ -24,35 +75,28 @@ std::vector<TopologyIssue> VectorTopology::CheckOverlaps(const VectorData& data)
         geoms.push_back(g);
     }
 
+    GEOSSTRtree* tree = GEOSSTRtree_create_r(ctx, 10);
+    if (!tree) {
+        for (auto* g : geoms) { if (g) GEOSGeom_destroy_r(ctx, g); }
+        return issues;
+    }
+
     for (size_t i = 0; i < geoms.size(); ++i) {
-        if (!geoms[i]) continue;
-        for (size_t j = i + 1; j < geoms.size(); ++j) {
-            if (!geoms[j]) continue;
-
-            char intersects = GEOSIntersects_r(ctx, geoms[i], geoms[j]);
-            if (intersects != 1) continue;
-
-            GEOSGeometry* intersection = GEOSIntersection_r(ctx, geoms[i], geoms[j]);
-            if (!intersection) continue;
-
-            if (GEOSisEmpty_r(ctx, intersection) == 0) {
-                int geom_type = GEOSGeomTypeId_r(ctx, intersection);
-                if (geom_type == GEOS_POLYGON || geom_type == GEOS_MULTIPOLYGON) {
-                    double area = 0.0;
-                    GEOSArea_r(ctx, intersection, &area);
-
-                    TopologyIssue issue;
-                    issue.feature_index = static_cast<int>(i);
-                    issue.issue_type = "overlap";
-                    issue.description = "Feature " + std::to_string(i) +
-                        " overlaps with feature " + std::to_string(j) +
-                        " (area=" + std::to_string(area) + ")";
-                    issues.push_back(issue);
-                }
-            }
-            GEOSGeom_destroy_r(ctx, intersection);
+        if (geoms[i]) {
+            GEOSSTRtree_insert_r(ctx, tree, geoms[i], reinterpret_cast<void*>(i));
         }
     }
+
+    std::unordered_set<size_t> reported_pairs;
+
+    for (size_t i = 0; i < geoms.size(); ++i) {
+        if (!geoms[i]) continue;
+
+        OverlapQueryData query_data{ctx, i, geoms, issues, reported_pairs};
+        GEOSSTRtree_query_r(ctx, tree, geoms[i], STRtreeQueryCallback, &query_data);
+    }
+
+    GEOSSTRtree_destroy_r(ctx, tree);
 
     for (auto* g : geoms) {
         if (g) GEOSGeom_destroy_r(ctx, g);

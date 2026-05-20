@@ -5,6 +5,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::unique_ptr<RasterData> RasterResample::Execute(const RasterData& input, int new_width, int new_height,
@@ -38,6 +42,7 @@ std::unique_ptr<RasterData> RasterResample::Execute(const RasterData& input, int
     for (int b = 0; b < input.band_count; ++b) {
         result->bands[b].resize(static_cast<size_t>(new_width) * new_height);
 
+        #pragma omp parallel for schedule(static)
         for (int y = 0; y < new_height; ++y) {
             for (int x = 0; x < new_width; ++x) {
                 double src_x = (x + 0.5) * x_scale - 0.5;

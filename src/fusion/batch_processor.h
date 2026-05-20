@@ -48,6 +48,8 @@ private:
     LargeImageSegConfig seg_config_;
     std::function<void(int, int, const std::string&)> progress_callback_;
     std::mutex callback_mutex_;
+    std::shared_ptr<LargeImageSeg> shared_segmenter_;
+    std::mutex segmenter_mutex_;
 };
 
 } // namespace gis_ai

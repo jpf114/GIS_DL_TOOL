@@ -63,6 +63,8 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
     std::atomic<size_t> next_index{0};
     std::atomic<int> completed{0};
 
+    shared_segmenter_ = std::make_shared<LargeImageSeg>(model_path_);
+
     auto process_one = [&](LargeImageSeg& segmenter, size_t index) {
         const auto& input_path = input_files[index];
         BatchResult result;
@@ -100,9 +102,8 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 
     const int worker_count = std::min(num_threads_, total);
     if (worker_count == 1) {
-        LargeImageSeg segmenter(model_path_);
         for (size_t i = 0; i < input_files.size(); ++i) {
-            process_one(segmenter, i);
+            process_one(*shared_segmenter_, i);
         }
     } else {
         std::vector<std::thread> workers;
@@ -110,13 +111,13 @@ std::vector<BatchResult> BatchProcessor::ProcessFiles(const std::vector<std::str
 
         for (int worker = 0; worker < worker_count; ++worker) {
             workers.emplace_back([&, worker]() {
-                LargeImageSeg segmenter(model_path_);
                 while (true) {
                     size_t index = next_index.fetch_add(1);
                     if (index >= input_files.size()) {
                         break;
                     }
-                    process_one(segmenter, index);
+                    std::lock_guard<std::mutex> lock(segmenter_mutex_);
+                    process_one(*shared_segmenter_, index);
                 }
             });
         }

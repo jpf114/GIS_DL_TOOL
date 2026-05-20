@@ -99,7 +99,6 @@ int ModelManager::LoadModel(const std::string& model_path, const std::string& mo
     public_info->output_names = internal->output_names;
     public_info->input_shapes = internal->input_shapes;
     public_info->output_shapes = internal->output_shapes;
-    public_info->session_handle = internal->session.get();
 
     LOG_INFO("Model loaded: '" + name + "' from " + model_path +
         " (" + std::to_string(internal->input_names.size()) + " inputs, " +

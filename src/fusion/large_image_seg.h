@@ -42,6 +42,7 @@ struct GIS_AI_API LargeImageSegConfig {
     double min_polygon_area = 100.0;
     double simplify_tolerance = 1.0;
     bool fix_topology = true;
+    int inference_batch_size = 1;
 };
 
 struct GIS_AI_API SegmentationStats {

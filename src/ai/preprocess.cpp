@@ -5,6 +5,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const PreprocessConfig& config) {
@@ -35,18 +39,39 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
             band_max = std::numeric_limits<float>::lowest();
             float sum = 0.0f;
             size_t valid_count = 0;
-            for (float v : band) {
-                if (!std::isnan(v)) {
-                    band_min = std::min(band_min, v);
-                    band_max = std::max(band_max, v);
-                    sum += v;
-                    valid_count++;
+            auto band_size = static_cast<ptrdiff_t>(band.size());
+            #pragma omp parallel
+            {
+                float local_min = std::numeric_limits<float>::max();
+                float local_max = std::numeric_limits<float>::lowest();
+                float local_sum = 0.0f;
+                size_t local_valid_count = 0;
+
+                #pragma omp for schedule(static) nowait
+                for (ptrdiff_t i = 0; i < band_size; ++i) {
+                    float v = band[static_cast<size_t>(i)];
+                    if (!std::isnan(v)) {
+                        local_min = std::min(local_min, v);
+                        local_max = std::max(local_max, v);
+                        local_sum += v;
+                        local_valid_count++;
+                    }
+                }
+
+                #pragma omp critical(reduce_band_stats)
+                {
+                    band_min = std::min(band_min, local_min);
+                    band_max = std::max(band_max, local_max);
+                    sum += local_sum;
+                    valid_count += local_valid_count;
                 }
             }
             if (config.normalize_mode == NormalizeMode::ZScore) {
                 float mean = (valid_count > 0) ? sum / static_cast<float>(valid_count) : 0.0f;
                 float sq_sum = 0.0f;
-                for (float v : band) {
+                #pragma omp parallel for schedule(static) reduction(+:sq_sum)
+                for (ptrdiff_t i = 0; i < band_size; ++i) {
+                    float v = band[static_cast<size_t>(i)];
                     if (!std::isnan(v)) sq_sum += (v - mean) * (v - mean);
                 }
                 float stddev = std::sqrt(sq_sum / static_cast<float>(valid_count > 0 ? valid_count : 1));
@@ -55,6 +80,7 @@ std::vector<float> Preprocess::RasterToTensor(const RasterData& raster, const Pr
             }
         }
 
+        #pragma omp parallel for schedule(static)
         for (int y = 0; y < target_h; ++y) {
             for (int x = 0; x < target_w; ++x) {
                 int src_x = std::min(raster.width - 1, static_cast<int>(x * x_scale));
@@ -121,6 +147,7 @@ std::vector<float> Preprocess::RasterBandToTensor(const RasterData& raster, int 
     float x_scale = static_cast<float>(raster.width) / target_size;
     float y_scale = static_cast<float>(raster.height) / target_size;
 
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < target_size; ++y) {
         for (int x = 0; x < target_size; ++x) {
             int src_x = std::min(raster.width - 1, static_cast<int>(x * x_scale));

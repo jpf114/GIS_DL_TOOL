@@ -7,10 +7,7 @@ namespace gis_ai {
 
 std::unique_ptr<VectorData> VectorSimplify::Execute(const VectorData& input, double tolerance) {
     if (input.features.empty()) {
-        auto result = std::make_unique<VectorData>();
-        result->feature_type = input.feature_type;
-        result->projection = input.projection;
-        return result;
+        throw GisAiAlgorithmException("Input features are empty", "VectorSimplify::Execute");
     }
     if (tolerance < 0.0) {
         throw GisAiAlgorithmException("Tolerance must be non-negative", "VectorSimplify::Execute");

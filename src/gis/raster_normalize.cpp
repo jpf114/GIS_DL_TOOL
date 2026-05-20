@@ -6,6 +6,10 @@
 #include <cmath>
 #include <limits>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
@@ -31,11 +35,27 @@ std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
         float max_val = std::numeric_limits<float>::lowest();
         bool has_valid = false;
 
-        for (size_t i = 0; i < total; ++i) {
-            if (!std::isnan(src_band[i])) {
-                min_val = std::min(min_val, src_band[i]);
-                max_val = std::max(max_val, src_band[i]);
-                has_valid = true;
+        #pragma omp parallel
+        {
+            float local_min = std::numeric_limits<float>::max();
+            float local_max = std::numeric_limits<float>::lowest();
+            bool local_has_valid = false;
+
+            #pragma omp for schedule(static) nowait
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+                auto si = static_cast<size_t>(i);
+                if (!std::isnan(src_band[si])) {
+                    local_min = std::min(local_min, src_band[si]);
+                    local_max = std::max(local_max, src_band[si]);
+                    local_has_valid = true;
+                }
+            }
+
+            #pragma omp critical(reduce_minmax)
+            {
+                min_val = std::min(min_val, local_min);
+                max_val = std::max(max_val, local_max);
+                has_valid = has_valid || local_has_valid;
             }
         }
 
@@ -51,22 +71,26 @@ std::unique_ptr<RasterData> RasterNormalize::Execute(const RasterData& input) {
 
         float range = max_val - min_val;
         if (range < 1e-10f) {
-            for (size_t i = 0; i < total; ++i) {
-                if (std::isnan(src_band[i])) {
-                    result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+            #pragma omp parallel for schedule(static)
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+                auto si = static_cast<size_t>(i);
+                if (std::isnan(src_band[si])) {
+                    result->bands[b][si] = std::numeric_limits<float>::quiet_NaN();
                 } else {
-                    result->bands[b][i] = 0.0f;
+                    result->bands[b][si] = 0.0f;
                 }
             }
             LOG_WARN("Band " + std::to_string(b) + " has zero range, normalized to 0");
             continue;
         }
 
-        for (size_t i = 0; i < total; ++i) {
-            if (std::isnan(src_band[i])) {
-                result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+        #pragma omp parallel for schedule(static)
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+            auto si = static_cast<size_t>(i);
+            if (std::isnan(src_band[si])) {
+                result->bands[b][si] = std::numeric_limits<float>::quiet_NaN();
             } else {
-                result->bands[b][i] = (src_band[i] - min_val) / range;
+                result->bands[b][si] = (src_band[si] - min_val) / range;
             }
         }
     }
@@ -103,12 +127,14 @@ std::unique_ptr<RasterData> RasterNormalize::ExecuteMinMax(const RasterData& inp
         result->bands[b].resize(total);
 
         float range = max_val - min_val;
-        for (size_t i = 0; i < total; ++i) {
-            if (std::isnan(src_band[i])) {
-                result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+        #pragma omp parallel for schedule(static)
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+            auto si = static_cast<size_t>(i);
+            if (std::isnan(src_band[si])) {
+                result->bands[b][si] = std::numeric_limits<float>::quiet_NaN();
             } else {
-                float clamped = std::max(min_val, std::min(max_val, src_band[i]));
-                result->bands[b][i] = (clamped - min_val) / range;
+                float clamped = std::max(min_val, std::min(max_val, src_band[si]));
+                result->bands[b][si] = (clamped - min_val) / range;
             }
         }
     }

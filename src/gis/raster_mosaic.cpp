@@ -6,6 +6,10 @@
 #include <cmath>
 #include <limits>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::reference_wrapper<const RasterData>>& rasters,
@@ -30,6 +34,17 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
     for (size_t i = 1; i < rasters.size(); ++i) {
         if (rasters[i].get().band_count != band_count) {
             throw GisAiAlgorithmException("All rasters must have the same number of bands",
+                "RasterMosaic::Execute");
+        }
+    }
+
+    const std::string& ref_projection = rasters[0].get().projection;
+    for (size_t i = 1; i < rasters.size(); ++i) {
+        if (rasters[i].get().projection != ref_projection) {
+            throw GisAiAlgorithmException(
+                "All rasters must have the same projection. Raster 0 has '" +
+                ref_projection + "' but raster " + std::to_string(i) + " has '" +
+                rasters[i].get().projection + "'",
                 "RasterMosaic::Execute");
         }
     }
@@ -158,11 +173,13 @@ std::unique_ptr<RasterData> RasterMosaic::Execute(const std::vector<std::referen
 
     if (config.strategy == MosaicStrategy::Mean) {
         for (int b = 0; b < band_count; ++b) {
-            for (size_t i = 0; i < total; ++i) {
-                if (count_acc[b][i] > 0) {
-                    result->bands[b][i] = sum_acc[b][i] / static_cast<float>(count_acc[b][i]);
+            #pragma omp parallel for schedule(static)
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total); ++i) {
+                auto si = static_cast<size_t>(i);
+                if (count_acc[b][si] > 0) {
+                    result->bands[b][si] = sum_acc[b][si] / static_cast<float>(count_acc[b][si]);
                 } else {
-                    result->bands[b][i] = std::numeric_limits<float>::quiet_NaN();
+                    result->bands[b][si] = std::numeric_limits<float>::quiet_NaN();
                 }
             }
         }

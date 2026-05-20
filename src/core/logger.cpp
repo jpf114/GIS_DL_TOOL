@@ -24,6 +24,7 @@ void Logger::Initialize(const std::string& log_file,
 }
 
 void Logger::EnsureInitialized() {
+    std::lock_guard<std::mutex> lock(init_mutex_);
     if (!logger_) {
         Initialize("gis_ai.log", spdlog::level::info);
     }

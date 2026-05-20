@@ -166,9 +166,17 @@ void RasterIO::Save(const RasterData& data, const std::string& path, RasterOutpu
             overview_levels++;
         }
         if (overview_levels > 0) {
-            for (int i = 0; i < data.band_count; ++i) {
-                GDALRasterBand* band = dataset->GetRasterBand(i + 1);
-                band->GetOverviewCount();
+            std::vector<int> overview_factors;
+            int factor = 2;
+            for (int i = 0; i < overview_levels; ++i) {
+                overview_factors.push_back(factor);
+                factor *= 2;
+            }
+            CPLErr err = dataset->BuildOverviews("NEAREST",
+                overview_levels, overview_factors.data(),
+                0, nullptr, nullptr, nullptr);
+            if (err != CE_None) {
+                LOG_WARN("Failed to build COG overviews for: " + path);
             }
         }
     }

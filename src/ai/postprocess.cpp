@@ -5,6 +5,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 std::vector<uint8_t> Postprocess::SigmoidArgmax(const std::vector<float>& output_data,
@@ -12,12 +16,13 @@ std::vector<uint8_t> Postprocess::SigmoidArgmax(const std::vector<float>& output
     size_t total_pixels = static_cast<size_t>(height) * width;
     std::vector<uint8_t> result(total_pixels, 0);
 
-    for (size_t i = 0; i < total_pixels; ++i) {
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(total_pixels); ++i) {
         float max_val = -1e30f;
         uint8_t max_class = 0;
 
         for (int64_t c = 0; c < num_classes; ++c) {
-            float logit = output_data[c * total_pixels + i];
+            float logit = output_data[static_cast<size_t>(c) * total_pixels + static_cast<size_t>(i)];
             float prob = 1.0f / (1.0f + std::exp(-logit));
 
             if (prob > max_val) {
@@ -25,7 +30,7 @@ std::vector<uint8_t> Postprocess::SigmoidArgmax(const std::vector<float>& output
                 max_class = static_cast<uint8_t>(c);
             }
         }
-        result[i] = max_class;
+        result[static_cast<size_t>(i)] = max_class;
     }
 
     LOG_INFO("SigmoidArgmax: " + std::to_string(num_classes) + " classes, " +
@@ -35,16 +40,18 @@ std::vector<uint8_t> Postprocess::SigmoidArgmax(const std::vector<float>& output
 
 std::vector<float> Postprocess::Sigmoid(const std::vector<float>& logits) {
     std::vector<float> result(logits.size());
-    for (size_t i = 0; i < logits.size(); ++i) {
-        result[i] = 1.0f / (1.0f + std::exp(-logits[i]));
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(logits.size()); ++i) {
+        result[static_cast<size_t>(i)] = 1.0f / (1.0f + std::exp(-logits[static_cast<size_t>(i)]));
     }
     return result;
 }
 
 std::vector<uint8_t> Postprocess::ThresholdMask(const std::vector<float>& mask, float threshold) {
     std::vector<uint8_t> result(mask.size());
-    for (size_t i = 0; i < mask.size(); ++i) {
-        result[i] = (mask[i] >= threshold) ? 1 : 0;
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(mask.size()); ++i) {
+        result[static_cast<size_t>(i)] = (mask[static_cast<size_t>(i)] >= threshold) ? 1 : 0;
     }
     return result;
 }
@@ -60,8 +67,9 @@ RasterData Postprocess::MaskToRaster(const std::vector<uint8_t>& mask, int width
 
     raster.bands.resize(1);
     raster.bands[0].resize(mask.size());
-    for (size_t i = 0; i < mask.size(); ++i) {
-        raster.bands[0][i] = static_cast<float>(mask[i]);
+    #pragma omp parallel for schedule(static)
+    for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(mask.size()); ++i) {
+        raster.bands[0][static_cast<size_t>(i)] = static_cast<float>(mask[static_cast<size_t>(i)]);
     }
 
     raster.band_infos.resize(1);

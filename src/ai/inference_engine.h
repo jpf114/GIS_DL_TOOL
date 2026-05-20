@@ -16,6 +16,11 @@ struct GIS_AI_API InferenceResult {
     double inference_time_ms = 0.0;
 };
 
+struct GIS_AI_API BatchInferenceResult {
+    std::vector<InferenceResult> results;
+    double total_inference_time_ms = 0.0;
+};
+
 class GIS_AI_API InferenceEngine {
 public:
     explicit InferenceEngine(ModelManager& model_manager);
@@ -27,6 +32,10 @@ public:
     InferenceResult RunMultiInput(const std::string& model_name,
                                    const std::vector<std::vector<float>>& inputs_data,
                                    const std::vector<std::vector<int64_t>>& inputs_shape);
+
+    BatchInferenceResult RunBatch(const std::string& model_name,
+                                   const std::vector<std::vector<float>>& inputs_data,
+                                   const std::vector<int64_t>& single_input_shape);
 
 private:
     ModelManager& model_manager_;

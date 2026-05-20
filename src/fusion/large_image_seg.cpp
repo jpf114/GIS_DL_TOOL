@@ -14,6 +14,10 @@
 #include <algorithm>
 #include <numeric>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace gis_ai {
 
 LargeImageSeg::LargeImageSeg(const std::string& model_path) {
@@ -169,6 +173,7 @@ void LargeImageSeg::BlendTileIntoResult(const std::vector<float>& tile_output,
                                           std::vector<float>& accumulated,
                                           std::vector<float>& weight_sum,
                                           int mosaic_w, int mosaic_h) const {
+    #pragma omp parallel for schedule(static)
     for (int64_t c = 0; c < num_classes; ++c) {
         for (int64_t py = 0; py < out_h; ++py) {
             int dst_y = tile.src_y + static_cast<int>(py);
@@ -184,7 +189,8 @@ void LargeImageSeg::BlendTileIntoResult(const std::vector<float>& tile_output,
                 float w = wy * wx;
 
                 size_t src_idx = static_cast<size_t>(c * out_h * out_w + py * out_w + px);
-                size_t dst_idx = static_cast<size_t>(c * mosaic_h * mosaic_w + dst_y * mosaic_w + dst_x);
+                size_t dst_idx = static_cast<size_t>(c) * static_cast<size_t>(mosaic_h) * static_cast<size_t>(mosaic_w)
+                               + static_cast<size_t>(dst_y) * static_cast<size_t>(mosaic_w) + static_cast<size_t>(dst_x);
 
                 accumulated[dst_idx] += tile_output[src_idx] * w;
                 weight_sum[dst_idx] += w;
@@ -239,30 +245,44 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
 
         size_t out_pixels = static_cast<size_t>(out_h) * out_w;
         std::vector<uint8_t> mask(out_pixels, 0);
-        for (size_t i = 0; i < out_pixels; ++i) {
-            float best_prob = -1.0f;
-            uint8_t best_class = 0;
-            for (int64_t c = 0; c < num_classes; ++c) {
-                float prob = sigmoid_output[static_cast<size_t>(c) * out_pixels + i];
-                if (prob > best_prob) {
-                    best_prob = prob;
-                    best_class = static_cast<uint8_t>(c);
+        #pragma omp parallel
+        {
+            int thread_class_counts[256] = {};
+            #pragma omp for schedule(static) nowait
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(out_pixels); ++i) {
+                auto si = static_cast<size_t>(i);
+                float best_prob = -1.0f;
+                uint8_t best_class = 0;
+                for (int64_t c = 0; c < num_classes; ++c) {
+                    float prob = sigmoid_output[static_cast<size_t>(c) * out_pixels + si];
+                    if (prob > best_prob) {
+                        best_prob = prob;
+                        best_class = static_cast<uint8_t>(c);
+                    }
+                }
+                if (best_prob < config.mask_threshold) {
+                    best_class = 0;
+                }
+                mask[si] = best_class;
+                thread_class_counts[best_class]++;
+            }
+            #pragma omp critical(merge_small_class_counts)
+            {
+                for (int c = 0; c < 256; ++c) {
+                    last_stats_.class_counts[c] += thread_class_counts[c];
                 }
             }
-            if (best_prob < config.mask_threshold) {
-                best_class = 0;
-            }
-            mask[i] = best_class;
-            if (best_class < 256) last_stats_.class_counts[best_class]++;
         }
 
         bool has_input_nodata = !input.band_infos.empty() && input.band_infos[0].nodata_value.has_value();
         if (has_input_nodata && out_w == input.width && out_h == input.height) {
             float input_nodata = input.band_infos[0].nodata_value.value();
-            for (size_t i = 0; i < out_pixels; ++i) {
+            #pragma omp parallel for schedule(static)
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(out_pixels); ++i) {
+                auto si = static_cast<size_t>(i);
                 bool is_nodata = false;
                 for (int b = 0; b < input.band_count; ++b) {
-                    float val = input.bands[b][i];
+                    float val = input.bands[b][si];
                     if (!std::isnan(input_nodata) && std::abs(val - input_nodata) < 1e-6f) {
                         is_nodata = true; break;
                     }
@@ -270,7 +290,7 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
                         is_nodata = true; break;
                     }
                 }
-                if (is_nodata) mask[i] = 255;
+                if (is_nodata) mask[si] = 255;
             }
         }
 
@@ -300,6 +320,20 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
         num_classes = model_info->output_shapes[0][1];
     }
 
+    {
+        size_t estimated_bytes = static_cast<size_t>(num_classes) * static_cast<size_t>(input.width) * input.height * sizeof(float) * 2;
+        constexpr size_t kMaxMemoryBytes = static_cast<size_t>(4) * 1024 * 1024 * 1024;
+        if (estimated_bytes > kMaxMemoryBytes) {
+            throw GisAiAlgorithmException(
+                "Image too large for in-memory segmentation: " + std::to_string(input.width) + "x" +
+                std::to_string(input.height) + " with " + std::to_string(num_classes) +
+                " classes requires ~" + std::to_string(estimated_bytes / (1024 * 1024)) +
+                " MB (limit: " + std::to_string(kMaxMemoryBytes / (1024 * 1024)) + " MB). "
+                "Consider using a smaller tile size or processing in chunks.",
+                "LargeImageSeg::Segment");
+        }
+    }
+
     size_t mosaic_pixels = static_cast<size_t>(input.width) * input.height;
     std::vector<float> accumulated(static_cast<size_t>(num_classes) * mosaic_pixels, 0.0f);
     std::vector<float> weight_sum(static_cast<size_t>(num_classes) * mosaic_pixels, 0.0f);
@@ -324,7 +358,14 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
     pp_config.std_b = config.std_b;
 
     int tile_idx = 0;
-    for (const auto& tile : tiles) {
+    int batch_size = std::max(1, config.inference_batch_size);
+
+    std::vector<size_t> batch_indices;
+    std::vector<std::vector<float>> batch_tensors;
+    auto shape = Preprocess::GetInputShape(pp_config);
+
+    for (size_t ti = 0; ti < tiles.size(); ++ti) {
+        const auto& tile = tiles[ti];
         tile_idx++;
 
         if (config.skip_nodata && IsTileAllNodata(input, tile.src_x, tile.src_y, tile.src_w, tile.src_h, config.nodata_value)) {
@@ -336,76 +377,102 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
         }
 
         auto tile_raster = ExtractTile(input, tile.src_x, tile.src_y, tile.src_w, tile.src_h);
-
         auto tensor = preprocess.RasterToTensor(*tile_raster, pp_config);
-        auto shape = Preprocess::GetInputShape(pp_config);
 
-        auto result = engine_->Run(model_name_, tensor, shape);
-        last_stats_.total_inference_time_ms += result.inference_time_ms;
-        last_stats_.inferred_tiles++;
+        batch_indices.push_back(ti);
+        batch_tensors.push_back(std::move(tensor));
 
-        auto& output = result.outputs[0];
-        auto& out_shape = result.shapes[0];
-        int64_t out_nc = out_shape[1];
-        int64_t out_h = out_shape[2];
-        int64_t out_w = out_shape[3];
+        if (static_cast<int>(batch_tensors.size()) >= batch_size || ti == tiles.size() - 1) {
+            auto batch_result = engine_->RunBatch(model_name_, batch_tensors, shape);
+            last_stats_.total_inference_time_ms += batch_result.total_inference_time_ms;
 
-        auto sigmoid_output = postprocess.Sigmoid(output);
+            for (size_t bi = 0; bi < batch_result.results.size(); ++bi) {
+                last_stats_.inferred_tiles++;
+                const auto& tile = tiles[batch_indices[bi]];
+                auto& single_result = batch_result.results[bi];
 
-        if (config.blend_mode == BlendMode::None) {
-            for (int64_t py = 0; py < out_h; ++py) {
-                int dst_y = tile.src_y + static_cast<int>(py);
-                if (dst_y < 0 || dst_y >= input.height) continue;
-                for (int64_t px = 0; px < out_w; ++px) {
-                    int dst_x = tile.src_x + static_cast<int>(px);
-                    if (dst_x < 0 || dst_x >= input.width) continue;
-                    size_t src_idx = static_cast<size_t>(py * out_w + px);
-                    for (int64_t c = 0; c < out_nc; ++c) {
-                        size_t sig_idx = static_cast<size_t>(c) * out_h * out_w + src_idx;
-                        size_t dst_idx = static_cast<size_t>(c) * mosaic_pixels + dst_y * input.width + dst_x;
-                        accumulated[dst_idx] = sigmoid_output[sig_idx];
-                        weight_sum[dst_idx] = 1.0f;
+                auto& output = single_result.outputs[0];
+                auto& out_shape = single_result.shapes[0];
+                int64_t out_nc = out_shape[1];
+                int64_t out_h = out_shape[2];
+                int64_t out_w = out_shape[3];
+
+                auto sigmoid_output = postprocess.Sigmoid(output);
+
+                if (config.blend_mode == BlendMode::None) {
+                    #pragma omp parallel for schedule(static)
+                    for (int64_t py = 0; py < out_h; ++py) {
+                        int dst_y = tile.src_y + static_cast<int>(py);
+                        if (dst_y < 0 || dst_y >= input.height) continue;
+                        for (int64_t px = 0; px < out_w; ++px) {
+                            int dst_x = tile.src_x + static_cast<int>(px);
+                            if (dst_x < 0 || dst_x >= input.width) continue;
+                            size_t src_idx = static_cast<size_t>(py * out_w + px);
+                            for (int64_t c = 0; c < out_nc; ++c) {
+                                size_t sig_idx = static_cast<size_t>(c) * out_h * out_w + src_idx;
+                                size_t dst_idx = static_cast<size_t>(c) * mosaic_pixels + dst_y * input.width + dst_x;
+                                accumulated[dst_idx] = sigmoid_output[sig_idx];
+                                weight_sum[dst_idx] = 1.0f;
+                            }
+                        }
                     }
+                } else {
+                    BlendTileIntoResult(sigmoid_output, out_h, out_w, out_nc, tile,
+                        weights_h, weights_w, accumulated, weight_sum,
+                        input.width, input.height);
+                }
+
+                if (progress_callback_) {
+                    progress_callback_(tile_idx, last_stats_.total_tiles,
+                        "tile (" + std::to_string(tile.src_x) + "," + std::to_string(tile.src_y) + ")");
                 }
             }
-        } else {
-            BlendTileIntoResult(sigmoid_output, out_h, out_w, out_nc, tile,
-                weights_h, weights_w, accumulated, weight_sum,
-                input.width, input.height);
-        }
 
-        if (progress_callback_) {
-            progress_callback_(tile_idx, last_stats_.total_tiles,
-                "tile (" + std::to_string(tile.src_x) + "," + std::to_string(tile.src_y) + ")");
+            batch_indices.clear();
+            batch_tensors.clear();
         }
     }
 
     std::vector<uint8_t> final_mask(mosaic_pixels, 0);
-    for (size_t i = 0; i < mosaic_pixels; ++i) {
-        float best_score = -1.0f;
-        uint8_t best_class = 0;
-        for (int64_t c = 0; c < num_classes; ++c) {
-            size_t idx = static_cast<size_t>(c) * mosaic_pixels + i;
-            float score = (weight_sum[idx] > 0.0f) ? accumulated[idx] / weight_sum[idx] : 0.0f;
-            if (score > best_score) {
-                best_score = score;
-                best_class = static_cast<uint8_t>(c);
+    #pragma omp parallel
+    {
+        int thread_class_counts[256] = {};
+        #pragma omp for schedule(static) nowait
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(mosaic_pixels); ++i) {
+            auto si = static_cast<size_t>(i);
+            float best_score = -1.0f;
+            uint8_t best_class = 0;
+            for (int64_t c = 0; c < num_classes; ++c) {
+                size_t idx = static_cast<size_t>(c) * mosaic_pixels + si;
+                float score = (weight_sum[idx] > 0.0f) ? accumulated[idx] / weight_sum[idx] : 0.0f;
+                if (score > best_score) {
+                    best_score = score;
+                    best_class = static_cast<uint8_t>(c);
+                }
+            }
+            if (best_score < config.mask_threshold) {
+                best_class = 0;
+            }
+            final_mask[si] = best_class;
+            thread_class_counts[best_class]++;
+        }
+        #pragma omp critical(merge_final_class_counts)
+        {
+            for (int c = 0; c < 256; ++c) {
+                last_stats_.class_counts[c] += thread_class_counts[c];
             }
         }
-        if (best_score < config.mask_threshold) {
-            best_class = 0;
-        }
-        final_mask[i] = best_class;
-        if (best_class < 256) last_stats_.class_counts[best_class]++;
     }
 
     bool has_input_nodata = !input.band_infos.empty() && input.band_infos[0].nodata_value.has_value();
     if (has_input_nodata) {
         float input_nodata = input.band_infos[0].nodata_value.value();
-        for (size_t i = 0; i < mosaic_pixels; ++i) {
+        #pragma omp parallel for schedule(static)
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(mosaic_pixels); ++i) {
+            auto si = static_cast<size_t>(i);
             bool is_nodata = false;
             for (int b = 0; b < input.band_count; ++b) {
-                float val = input.bands[b][i];
+                float val = input.bands[b][si];
                 if (!std::isnan(input_nodata) && std::abs(val - input_nodata) < 1e-6f) {
                     is_nodata = true; break;
                 }
@@ -413,7 +480,7 @@ std::unique_ptr<RasterData> LargeImageSeg::Segment(const RasterData& input, cons
                     is_nodata = true; break;
                 }
             }
-            if (is_nodata) final_mask[i] = 255;
+            if (is_nodata) final_mask[si] = 255;
         }
     }
 

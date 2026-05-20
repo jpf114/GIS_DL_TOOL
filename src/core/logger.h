@@ -3,6 +3,7 @@
 
 #include <string>
 #include <memory>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -33,6 +34,7 @@ private:
     Logger& operator=(const Logger&) = delete;
 
     std::shared_ptr<spdlog::logger> logger_;
+    std::mutex init_mutex_;
 };
 
 #define LOG_DEBUG(msg) gis_ai::Logger::Instance().Debug(msg)

@@ -16,6 +16,11 @@ models/
 
 output/
 
+# Test output and artifacts
+test_output/
+artifacts/
+--verbose
+
 # Python caches
 __pycache__/
 *.py[cod]

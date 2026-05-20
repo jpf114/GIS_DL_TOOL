@@ -198,6 +198,38 @@ if(GIS_AI_BUILD_GUI)
     add_test(NAME test_gui_data_support COMMAND test_gui_data_support WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(test_gui_data_support PROPERTIES TIMEOUT 60)
 
+    add_executable(test_action_dispatcher
+        test_action_dispatcher.cpp
+        ../src/gui/action_dispatcher.cpp
+        ../src/gui/qt_progress_reporter.cpp
+        ../src/gui/style_constants.cpp
+    )
+
+    target_link_libraries(test_action_dispatcher
+        PRIVATE
+            gis_ai_static
+            GTest::gtest
+            GTest::gtest_main
+            Qt6::Core
+            Qt6::Widgets
+    )
+
+    target_include_directories(test_action_dispatcher
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/src
+            ${CMAKE_SOURCE_DIR}/src/gui
+    )
+
+    set_target_properties(test_action_dispatcher PROPERTIES AUTOMOC ON)
+
+    add_test(NAME test_action_dispatcher COMMAND test_action_dispatcher WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    set_tests_properties(test_action_dispatcher PROPERTIES
+        TIMEOUT 60
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+    gis_ai_configure_test_environment(test_action_dispatcher)
+
     add_executable(test_gui_queue
         test_gui_queue.cpp
         test_gui_output_path.cpp

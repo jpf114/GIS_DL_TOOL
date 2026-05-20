@@ -3,6 +3,8 @@
 #include "nav_panel.h"
 #include "icon_manager.h"
 #include "param_widget.h"
+#include "gui_log_sink.h"
+#include "core/logger.h"
 #include "param_card_widget.h"
 #include "task_center_page.h"
 #include "task_manager.h"
@@ -35,6 +37,11 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QShortcut>
+#include <QAction>
+#include <QMenuBar>
+#include <QDesktopServices>
+#include <QUrl>
 #include <algorithm>
 
 namespace gis_ai::gui {
@@ -451,6 +458,51 @@ void MainWindow::setupUi() {
     statusBar()->addPermanentWidget(statusAlgorithmLabel_);
     statusBar()->addPermanentWidget(statusProgressBar_);
     statusBar()->showMessage(QStringLiteral("就绪"));
+
+    auto guiSink = std::make_shared<gis_ai::gui::GuiLogSinkMt>();
+    guiSink->setCallback([this](const std::string& message, spdlog::level::level_enum level) {
+        if (level < spdlog::level::warn) return;
+        QString qmsg = QString::fromStdString(message);
+        int logLevel = level >= spdlog::level::err ? 2 : 1;
+        QMetaObject::invokeMethod(this, [this, qmsg, logLevel]() {
+            if (currentPluginName_.empty()) return;
+            const QString group = QString::fromStdString(execController_->displayGroupKey());
+            const QString taskId = execController_->currentTaskId();
+            if (taskId.isEmpty()) return;
+            TaskManager::instance().appendLog(group, taskId, qmsg, logLevel);
+        }, Qt::QueuedConnection);
+    });
+    auto logger = gis_ai::Logger::Instance().GetLogger();
+    if (logger) {
+        logger->sinks().push_back(guiSink);
+    }
+
+    auto* helpMenu = menuBar()->addMenu(QStringLiteral("帮助"));
+    auto* aboutAction = helpMenu->addAction(QStringLiteral("关于 GIS AI 工具台"));
+    connect(aboutAction, &QAction::triggered, this, [this]() {
+        QMessageBox::about(this,
+            QStringLiteral("关于 GIS AI 工具台"),
+            QStringLiteral(
+                "<h3>GIS AI 工具台</h3>"
+                "<p>版本 %1</p>"
+                "<p>基于深度学习的 GIS 影像分割与处理工具。</p>"
+                "<p>核心功能：影像分割、模型推理、栅格/矢量处理、批量处理。</p>"
+                "<hr>"
+                "<p>技术栈：C++17 / Qt6 / ONNX Runtime / GDAL / GEOS / PROJ</p>"
+                "<p>许可证：MIT License</p>")
+            .arg(QCoreApplication::applicationVersion().isEmpty()
+                ? QStringLiteral("开发版") : QCoreApplication::applicationVersion()));
+    });
+
+    auto* aboutQtAction = helpMenu->addAction(QStringLiteral("关于 Qt"));
+    connect(aboutQtAction, &QAction::triggered, this, [this]() {
+        QMessageBox::aboutQt(this);
+    });
+
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this, SLOT(onExecuteClicked()));
+    new QShortcut(QKeySequence(Qt::Key_F5), this, SLOT(onExecuteClicked()));
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_1), this, [this]() { tabWidget_->setCurrentIndex(0); });
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_2), this, [this]() { tabWidget_->setCurrentIndex(1); });
 }
 
 void MainWindow::connectControllerSignals() {
@@ -880,9 +932,30 @@ void MainWindow::showFinishedTaskSummary(const QString& message,
             resultSummaryLabel_->setStyleSheet(
                 QStringLiteral("QLabel#execSummary { color: #8A5A00; }"));
         } else if (success) {
-            resultSummaryLabel_->setText(QStringLiteral("✓ 执行成功\n%1").arg(message));
+            QString summary = QStringLiteral("✓ 执行成功\n%1").arg(message);
+            auto params = paramWidget_->getParamValues();
+            for (const auto& [key, value] : params) {
+                if (key.find("output") == std::string::npos) continue;
+                if (auto* path = std::get_if<std::string>(&value)) {
+                    if (path->empty()) continue;
+                    const QFileInfo fi(QString::fromStdString(*path));
+                    const QString dir = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+                    if (!dir.isEmpty()) {
+                        summary += QStringLiteral("\n<a href=\"file:///%1\" style=\"color:#2E7EC9;\">打开输出目录</a>").arg(dir);
+                        break;
+                    }
+                }
+            }
+            resultSummaryLabel_->setText(summary);
             resultSummaryLabel_->setStyleSheet(
                 QStringLiteral("QLabel#execSummary { color: #1F7A45; }"));
+            connect(resultSummaryLabel_, &QLabel::linkActivated, this, [](const QString& link) {
+                QUrl url(link);
+                QString localPath = url.toLocalFile();
+                if (!localPath.isEmpty()) {
+                    QDesktopServices::openUrl(QUrl::fromLocalFile(localPath));
+                }
+            }, Qt::UniqueConnection);
         } else {
             resultSummaryLabel_->setText(QStringLiteral("✖ 执行失败\n%1").arg(message));
             resultSummaryLabel_->setStyleSheet(

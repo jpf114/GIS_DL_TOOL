@@ -91,15 +91,6 @@ int main(int argc, char* argv[])
 
     const QString applicationDirPath = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
 
-#ifdef Q_OS_WIN
-    if (!qEnvironmentVariableIsSet("QT_QPA_FONTDIR")) {
-        const QString sysFontsDir = QStringLiteral("C:/Windows/Fonts");
-        if (QDir(sysFontsDir).exists()) {
-            qputenv("QT_QPA_FONTDIR", sysFontsDir.toUtf8());
-        }
-    }
-#endif
-
     initGdalRuntime(applicationDirPath);
 
     QApplication::setHighDpiScaleFactorRoundingPolicy(
@@ -110,17 +101,42 @@ int main(int argc, char* argv[])
     app.setOrganizationName(QStringLiteral("GIS_AI"));
 
     {
-        const QStringList candidateFontFiles = {
-            QStringLiteral("C:/Windows/Fonts/msyh.ttc"),
-            QStringLiteral("C:/Windows/Fonts/msyhbd.ttc"),
-            QStringLiteral("C:/Windows/Fonts/msyh.ttf"),
-            QStringLiteral("C:/Windows/Fonts/Deng.ttf"),
-            QStringLiteral("C:/Windows/Fonts/simhei.ttf"),
-            QStringLiteral("C:/Windows/Fonts/simsun.ttc")
+        QStringList fontSearchDirs;
+#ifdef Q_OS_WIN
+        const QString winDir = qEnvironmentVariable("SystemRoot");
+        if (!winDir.isEmpty()) {
+            fontSearchDirs.append(QDir(winDir).filePath(QStringLiteral("Fonts")));
+        } else {
+            fontSearchDirs.append(QStringLiteral("C:/Windows/Fonts"));
+        }
+#elif defined(Q_OS_MAC)
+        fontSearchDirs.append(QStringLiteral("/System/Library/Fonts"));
+        fontSearchDirs.append(QStringLiteral("/Library/Fonts"));
+        fontSearchDirs.append(QDir::homePath() + QStringLiteral("/Library/Fonts"));
+#else
+        fontSearchDirs.append(QStringLiteral("/usr/share/fonts"));
+        fontSearchDirs.append(QStringLiteral("/usr/local/share/fonts"));
+        fontSearchDirs.append(QDir::homePath() + QStringLiteral("/.local/share/fonts"));
+        fontSearchDirs.append(QDir::homePath() + QStringLiteral("/.fonts"));
+#endif
+
+        const QStringList cjkFontFileNames = {
+            QStringLiteral("msyh.ttc"), QStringLiteral("msyhbd.ttc"),
+            QStringLiteral("msyh.ttf"),
+            QStringLiteral("Deng.ttf"),
+            QStringLiteral("simhei.ttf"), QStringLiteral("simsun.ttc"),
+            QStringLiteral("NotoSansSC-Regular.otf"),
+            QStringLiteral("NotoSansCJKsc-Regular.otf"),
+            QStringLiteral("SourceHanSansSC-Regular.otf"),
+            QStringLiteral("WenQuanYiMicroHei.ttf"),
         };
-        for (const QString& fontFile : candidateFontFiles) {
-            if (QFile::exists(fontFile)) {
-                QFontDatabase::addApplicationFont(fontFile);
+
+        for (const QString& dir : fontSearchDirs) {
+            for (const QString& name : cjkFontFileNames) {
+                const QString path = QDir(dir).filePath(name);
+                if (QFile::exists(path)) {
+                    QFontDatabase::addApplicationFont(path);
+                }
             }
         }
 
@@ -130,6 +146,7 @@ int main(int argc, char* argv[])
             QStringLiteral("Noto Sans SC"),
             QStringLiteral("Noto Sans CJK SC"),
             QStringLiteral("Source Han Sans SC"),
+            QStringLiteral("WenQuanYi Micro Hei"),
             QStringLiteral("DengXian"),
             QStringLiteral("SimHei"),
             QStringLiteral("SimSun")

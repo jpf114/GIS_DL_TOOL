@@ -1,5 +1,6 @@
 #include "batch_mode_controller.h"
 
+#include <QCoreApplication>
 #include <QCheckBox>
 #include <QDir>
 #include <QFileDialog>
@@ -20,12 +21,12 @@ QWidget* BatchModeController::createWidget(QWidget* parent) {
     batchLayout->setSpacing(8);
     batchLayout->setContentsMargins(0, 0, 0, 0);
 
-    batchCheckBox_ = new QCheckBox(QStringLiteral("批量处理"), parent);
-    batchCheckBox_->setToolTip(QStringLiteral("启用后可对目录下匹配文件批量执行"));
+    batchCheckBox_ = new QCheckBox(QCoreApplication::translate("GuiDataSupport", "批量处理"), parent);
+    batchCheckBox_->setToolTip(QCoreApplication::translate("GuiDataSupport", "启用后可对目录下匹配文件批量执行"));
     batchLayout->addWidget(batchCheckBox_);
 
     batchDirEdit_ = new QLineEdit(parent);
-    batchDirEdit_->setPlaceholderText(QStringLiteral("批量输入目录"));
+    batchDirEdit_->setPlaceholderText(QCoreApplication::translate("GuiDataSupport", "批量输入目录"));
     batchDirEdit_->setEnabled(false);
     batchLayout->addWidget(batchDirEdit_, 1);
 
@@ -33,10 +34,10 @@ QWidget* BatchModeController::createWidget(QWidget* parent) {
     batchDirButton_->setObjectName(QStringLiteral("browseButton"));
     batchDirButton_->setFixedWidth(36);
     batchDirButton_->setEnabled(false);
-    batchDirButton_->setToolTip(QStringLiteral("浏览选择批量输入目录"));
+    batchDirButton_->setToolTip(QCoreApplication::translate("GuiDataSupport", "浏览选择批量输入目录"));
     connect(batchDirButton_, &QPushButton::clicked, this, [this]() {
         QString dir = QFileDialog::getExistingDirectory(
-            parentWidget_, QStringLiteral("选择批量输入目录"));
+            parentWidget_, QCoreApplication::translate("GuiDataSupport", "选择批量输入目录"));
         if (!dir.isEmpty()) {
             batchDirEdit_->setText(dir);
         }
@@ -132,14 +133,14 @@ void BatchModeController::updateCount() {
     QString dirPath = batchDir();
     if (dirPath.isEmpty()) {
         if (batchCountLabel_)
-            batchCountLabel_->setText(QStringLiteral("0 个文件"));
+            batchCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "0 个文件"));
         return;
     }
 
     QDir dir(dirPath);
     if (!dir.exists()) {
         if (batchCountLabel_)
-            batchCountLabel_->setText(QStringLiteral("目录不存在"));
+            batchCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "目录不存在"));
         return;
     }
 
@@ -150,7 +151,7 @@ void BatchModeController::updateCount() {
     nameFilters << pattern;
     QStringList files = dir.entryList(nameFilters, QDir::Files);
     if (batchCountLabel_)
-        batchCountLabel_->setText(QStringLiteral("%1 个文件").arg(files.size()));
+        batchCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "%1 个文件").arg(files.size()));
 }
 
 QString BatchModeController::batchDir() const {

@@ -175,7 +175,7 @@ QString MainWindow::lastExecutionRawMessage() const {
 }
 
 void MainWindow::setupUi() {
-    setWindowTitle(QStringLiteral("GIS AI 工具台"));
+    setWindowTitle(tr("GIS AI 工具台"));
     resize(Size::kWindowDefaultWidth, Size::kWindowDefaultHeight);
     setMinimumSize(Size::kWindowMinWidth, Size::kWindowMinHeight);
     setStyleSheet(globalStyleSheet());
@@ -240,7 +240,7 @@ void MainWindow::setupUi() {
     headerTopLayout->setContentsMargins(0, 0, 0, 0);
     headerTopLayout->setSpacing(10);
 
-    auto* heroBadgeLabel = new QLabel(QStringLiteral("AI 工作台"));
+    auto* heroBadgeLabel = new QLabel(tr("AI 工作台"));
     heroBadgeLabel->setObjectName(QStringLiteral("heroBadge"));
     headerTopLayout->addWidget(heroBadgeLabel, 0, Qt::AlignLeft);
     headerTopLayout->addStretch();
@@ -260,17 +260,17 @@ void MainWindow::setupUi() {
     heroTextLayout->setContentsMargins(0, 0, 0, 0);
     heroTextLayout->setSpacing(2);
 
-    functionTitleLabel_ = new QLabel(QStringLiteral("请选择功能"));
+    functionTitleLabel_ = new QLabel(tr("请选择功能"));
     functionTitleLabel_->setObjectName(QStringLiteral("heroTitle"));
     heroTextLayout->addWidget(functionTitleLabel_);
 
     functionDescLabel_ = new QLabel(
-        QStringLiteral("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"));
+        tr("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"));
     functionDescLabel_->setObjectName(QStringLiteral("heroDesc"));
     functionDescLabel_->setWordWrap(true);
     heroTextLayout->addWidget(functionDescLabel_);
 
-    functionMetaLabel_ = new QLabel(QStringLiteral("当前状态：等待选择主功能"));
+    functionMetaLabel_ = new QLabel(tr("当前状态：等待选择主功能"));
     functionMetaLabel_->setObjectName(QStringLiteral("mainHeroMeta"));
     heroTextLayout->addWidget(functionMetaLabel_);
 
@@ -302,17 +302,17 @@ void MainWindow::setupUi() {
     auto* execHeaderLayout = new QHBoxLayout;
     execHeaderLayout->setSpacing(12);
 
-    auto* execTitleLabel = new QLabel(QStringLiteral("执行控制"));
+    auto* execTitleLabel = new QLabel(tr("执行控制"));
     execTitleLabel->setObjectName(QStringLiteral("cardTitle"));
     execHeaderLayout->addWidget(execTitleLabel);
     execHeaderLayout->addStretch();
 
-    executeButton_ = new QPushButton(QStringLiteral("执行处理"));
+    executeButton_ = new QPushButton(tr("执行处理"));
     executeButton_->setObjectName(QStringLiteral("primaryButton"));
     executeButton_->setIcon(executeIcon());
     executeButton_->setIconSize(QSize(16, 16));
     executeButton_->setEnabled(false);
-    executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
+    executeButton_->setToolTip(tr("请先选择主功能和子功能"));
     connect(executeButton_, &QPushButton::clicked, this, &MainWindow::onExecuteClicked);
     execHeaderLayout->addWidget(executeButton_);
 
@@ -333,12 +333,12 @@ void MainWindow::setupUi() {
     tabWidget_ = new QTabWidget;
     tabWidget_->setObjectName(QStringLiteral("pagePanel"));
     tabWidget_->setTabPosition(QTabWidget::North);
-    tabWidget_->addTab(rightPanel, QStringLiteral("功能配置"));
+    tabWidget_->addTab(rightPanel, tr("功能配置"));
 
     taskCenterPage_ = new TaskCenterPage;
     taskCenterPage_->setCurrentGroup(
         QString::fromStdString(execController_->displayGroupKey()));
-    tabWidget_->addTab(taskCenterPage_, QStringLiteral("任务中心"));
+    tabWidget_->addTab(taskCenterPage_, tr("任务中心"));
 
     connect(taskCenterPage_, &TaskCenterPage::clearHistoryRequested, this, [this]() {
         const QString displayGroup = taskCenterPage_->currentGroup();
@@ -412,11 +412,11 @@ void MainWindow::setupUi() {
         applyFunctionPanelState(
             QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay),
             uiConfig.description,
-            QStringLiteral("当前状态：已加载历史参数，可修改后执行"),
+            tr("当前状态：已加载历史参数，可修改后执行"),
             QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay),
             currentPluginName_);
         resultSummaryLabel_->setText(
-            QStringLiteral("已载入任务 %1 的历史参数，可直接执行或修改后执行。").arg(taskId));
+            tr("已载入任务 %1 的历史参数，可直接执行或修改后执行。").arg(taskId));
         if (taskCenterPage_) {
             taskCenterPage_->setCurrentGroup(displayGroup);
         }
@@ -448,7 +448,7 @@ void MainWindow::setupUi() {
     mainLayout->addWidget(navPanel_);
     mainLayout->addWidget(tabWidget_, 1);
 
-    statusAlgorithmLabel_ = new QLabel(QStringLiteral("当前算法：未选择"));
+    statusAlgorithmLabel_ = new QLabel(tr("当前算法：未选择"));
     statusProgressBar_ = new QProgressBar;
     statusProgressBar_->setRange(0, 100);
     statusProgressBar_->setValue(0);
@@ -457,7 +457,7 @@ void MainWindow::setupUi() {
     statusAlgorithmLabel_->setObjectName(QStringLiteral("statusBarLabel"));
     statusBar()->addPermanentWidget(statusAlgorithmLabel_);
     statusBar()->addPermanentWidget(statusProgressBar_);
-    statusBar()->showMessage(QStringLiteral("就绪"));
+    statusBar()->showMessage(tr("就绪"));
 
     auto guiSink = std::make_shared<gis_ai::gui::GuiLogSinkMt>();
     guiSink->setCallback([this](const std::string& message, spdlog::level::level_enum level) {
@@ -477,11 +477,11 @@ void MainWindow::setupUi() {
         logger->sinks().push_back(guiSink);
     }
 
-    auto* helpMenu = menuBar()->addMenu(QStringLiteral("帮助"));
-    auto* aboutAction = helpMenu->addAction(QStringLiteral("关于 GIS AI 工具台"));
+    auto* helpMenu = menuBar()->addMenu(tr("帮助"));
+    auto* aboutAction = helpMenu->addAction(tr("关于 GIS AI 工具台"));
     connect(aboutAction, &QAction::triggered, this, [this]() {
         QMessageBox::about(this,
-            QStringLiteral("关于 GIS AI 工具台"),
+            tr("关于 GIS AI 工具台"),
             QStringLiteral(
                 "<h3>GIS AI 工具台</h3>"
                 "<p>版本 %1</p>"
@@ -491,10 +491,10 @@ void MainWindow::setupUi() {
                 "<p>技术栈：C++17 / Qt6 / ONNX Runtime / GDAL / GEOS / PROJ</p>"
                 "<p>许可证：MIT License</p>")
             .arg(QCoreApplication::applicationVersion().isEmpty()
-                ? QStringLiteral("开发版") : QCoreApplication::applicationVersion()));
+                ? tr("开发版") : QCoreApplication::applicationVersion()));
     });
 
-    auto* aboutQtAction = helpMenu->addAction(QStringLiteral("关于 Qt"));
+    auto* aboutQtAction = helpMenu->addAction(tr("关于 Qt"));
     connect(aboutQtAction, &QAction::triggered, this, [this]() {
         QMessageBox::aboutQt(this);
     });
@@ -572,7 +572,7 @@ void MainWindow::connectControllerSignals() {
     connect(execController_, &ExecutionController::activeTaskDiscarded,
             this, [this]() {
         resetExecutionSummary();
-        statusBar()->showMessage(QStringLiteral("就绪"));
+        statusBar()->showMessage(tr("就绪"));
     });
 
     connect(execController_, &ExecutionController::executionFinished,
@@ -592,13 +592,13 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
 
     if (pluginName.empty()) {
         applyFunctionPanelState(
-            QStringLiteral("请选择功能"),
-            QStringLiteral("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"),
-            QStringLiteral("当前状态：等待选择主功能"),
-            QStringLiteral("当前算法：未选择"),
+            tr("请选择功能"),
+            tr("从左侧选择主功能和子功能后，这里会显示功能说明和参数配置。"),
+            tr("当前状态：等待选择主功能"),
+            tr("当前算法：未选择"),
             {});
         executeButton_->setEnabled(false);
-        executeButton_->setToolTip(QStringLiteral("请先选择主功能和子功能"));
+        executeButton_->setToolTip(tr("请先选择主功能和子功能"));
         if (paramWidget_) {
             paramWidget_->clear();
         }
@@ -607,7 +607,7 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
                 QString::fromStdString(execController_->displayGroupKey()));
         }
         syncExecutionSummaryForCurrentGroup();
-        statusBar()->showMessage(QStringLiteral("就绪"));
+        statusBar()->showMessage(tr("就绪"));
         return;
     }
 
@@ -616,12 +616,12 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
     const QString displayName = QString::fromStdString(pluginDisplayName(pluginName));
     applyFunctionPanelState(
         displayName,
-        QStringLiteral("已选择 %1，请选择子功能进行操作。").arg(displayName),
-        QStringLiteral("当前状态：已选择主功能"),
+        tr("已选择 %1，请选择子功能进行操作。").arg(displayName),
+        tr("当前状态：已选择主功能"),
         QStringLiteral("当前算法：%1").arg(displayName),
         pluginName);
     executeButton_->setEnabled(false);
-    executeButton_->setToolTip(QStringLiteral("请先选择子功能"));
+    executeButton_->setToolTip(tr("请先选择子功能"));
 
     if (paramWidget_) {
         paramWidget_->clear();
@@ -633,7 +633,7 @@ void MainWindow::onPluginSelected(const std::string& pluginName) {
     syncExecutionSummaryForCurrentGroup();
     if (!execController_->hasPendingExecution() && resultSummaryLabel_) {
         resultSummaryLabel_->setStyleSheet(QString());
-        resultSummaryLabel_->setText(QStringLiteral("请选择该主功能下的子功能，然后补全参数。"));
+        resultSummaryLabel_->setText(tr("请选择该主功能下的子功能，然后补全参数。"));
     }
     statusBar()->showMessage(QStringLiteral("当前主功能：%1").arg(displayName));
 }
@@ -655,7 +655,7 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     applyFunctionPanelState(
         QStringLiteral("%1 / %2").arg(pluginDisplay, actionDisplay),
         uiConfig.description,
-        QStringLiteral("当前状态：已选择子功能，可配置参数"),
+        tr("当前状态：已选择子功能，可配置参数"),
         QStringLiteral("当前算法：%1 / %2").arg(pluginDisplay, actionDisplay),
         pluginName);
 
@@ -669,7 +669,7 @@ void MainWindow::onSubFunctionSelected(const std::string& pluginName,
     syncExecutionSummaryForCurrentGroup();
     if (!execController_->hasPendingExecution() && resultSummaryLabel_) {
         resultSummaryLabel_->setStyleSheet(QString());
-        resultSummaryLabel_->setText(QStringLiteral("参数面板已刷新，补全必填项后即可执行当前子功能。"));
+        resultSummaryLabel_->setText(tr("参数面板已刷新，补全必填项后即可执行当前子功能。"));
     }
     statusBar()->showMessage(QStringLiteral("当前子功能：%1").arg(actionDisplay));
 
@@ -772,7 +772,7 @@ QString MainWindow::buildSuggestedOutputPath(const QString& inputPath,
 void MainWindow::resetExecutionSummary() {
     if (resultSummaryLabel_) {
         resultSummaryLabel_->setText(
-            QStringLiteral("当前未执行任务。选择子功能并补全参数后，可以直接开始运行。"));
+            tr("当前未执行任务。选择子功能并补全参数后，可以直接开始运行。"));
     }
     if (statusProgressBar_) {
         statusProgressBar_->setValue(0);
@@ -788,16 +788,16 @@ void MainWindow::syncExecutionSummaryForCurrentGroup() {
     int queuedCount = execController_->pendingCountForCurrentGroup();
     if (queuedCount > 0) {
         resultSummaryLabel_->setText(
-            QStringLiteral("当前分组有 %1 个任务正在队列中等待执行。").arg(queuedCount));
+            tr("当前分组有 %1 个任务正在队列中等待执行。").arg(queuedCount));
         if (statusProgressBar_) {
             statusProgressBar_->setValue(0);
         }
-        statusBar()->showMessage(QStringLiteral("任务队列等待中"));
+        statusBar()->showMessage(tr("任务队列等待中"));
         return;
     }
 
     resetExecutionSummary();
-    statusBar()->showMessage(QStringLiteral("就绪"));
+    statusBar()->showMessage(tr("就绪"));
 }
 
 void MainWindow::updateExecuteButtonState() {
@@ -823,17 +823,17 @@ void MainWindow::updateExecuteButtonState() {
         const bool running = TaskRunner::instance().isRunning();
         if (running && queued > 0) {
             executeButton_->setToolTip(
-                QStringLiteral("参数就绪，点击后将加入队列（当前排队 %1 个）").arg(queued));
+                tr("参数就绪，点击后将加入队列（当前排队 %1 个）").arg(queued));
         } else if (running) {
-            executeButton_->setToolTip(QStringLiteral("参数就绪，点击后将自动加入队列"));
+            executeButton_->setToolTip(tr("参数就绪，点击后将自动加入队列"));
         } else {
-            executeButton_->setToolTip(QStringLiteral("参数就绪，点击执行"));
+            executeButton_->setToolTip(tr("参数就绪，点击执行"));
         }
     }
 }
 
 QString MainWindow::validateParams() const {
-    if (!paramWidget_) return QStringLiteral("参数面板未初始化");
+    if (!paramWidget_) return tr("参数面板未初始化");
 
     auto specs = buildEffectiveParamSpecs(currentPluginName_, currentActionKey_);
     auto values = paramWidget_->getParamValues();
@@ -843,26 +843,26 @@ QString MainWindow::validateParams() const {
 
         auto it = values.find(spec.key);
         if (it == values.end()) {
-            return QStringLiteral("缺少必填参数: %1").arg(QString::fromStdString(spec.displayName));
+            return tr("缺少必填参数: %1").arg(QString::fromStdString(spec.displayName));
         }
 
         if (spec.type == ParamType::FilePath || spec.type == ParamType::DirPath) {
             auto* str = std::get_if<std::string>(&it->second);
             if (!str || str->empty()) {
-                return QStringLiteral("必填参数不能为空: %1").arg(QString::fromStdString(spec.displayName));
+                return tr("必填参数不能为空: %1").arg(QString::fromStdString(spec.displayName));
             }
 
             bool isOutput = spec.key.find("output") != std::string::npos;
             if (!isOutput) {
                 QFileInfo fi(QString::fromStdString(*str));
                 if (!fi.exists()) {
-                    return QStringLiteral("文件不存在: %1").arg(QString::fromStdString(spec.displayName));
+                    return tr("文件不存在: %1").arg(QString::fromStdString(spec.displayName));
                 }
             } else {
                 QFileInfo fi(QString::fromStdString(*str));
                 QFileInfo parentDir(fi.absolutePath());
                 if (!parentDir.exists() || !parentDir.isDir()) {
-                    return QStringLiteral("输出目录不存在: %1").arg(QString::fromStdString(spec.displayName));
+                    return tr("输出目录不存在: %1").arg(QString::fromStdString(spec.displayName));
                 }
             }
         }

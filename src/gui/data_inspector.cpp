@@ -1,5 +1,7 @@
 #include "data_inspector.h"
 
+#include <QCoreApplication>
+
 #include <gdal_priv.h>
 #include <ogr_spatialref.h>
 #include <ogrsf_frmts.h>
@@ -93,11 +95,11 @@ bool isSupportedDataPath(const std::string& path) {
     return detectDataKind(path) != DataKind::Unknown;
 }
 
-std::string dataKindDisplayName(DataKind kind) {
+QString dataKindDisplayName(DataKind kind) {
     switch (kind) {
-        case DataKind::Raster: return "栅格";
-        case DataKind::Vector: return "矢量";
-        default: return "未知";
+        case DataKind::Raster: return QCoreApplication::translate("DataInspector", "栅格");
+        case DataKind::Vector: return QCoreApplication::translate("DataInspector", "矢量");
+        default: return QCoreApplication::translate("DataInspector", "未知");
     }
 }
 

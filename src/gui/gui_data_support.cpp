@@ -5,6 +5,7 @@
 #include <cctype>
 #include <filesystem>
 #include <QFileInfo>
+#include <QCoreApplication>
 
 namespace gis_ai::gui {
 
@@ -57,26 +58,26 @@ std::string findFirstInvalidParamKeyLocal(
 
 const std::map<std::string, ParamText>& commonParamTextStorage() {
     static const std::map<std::string, ParamText> kTexts = {
-        {"model_path", {QStringLiteral("模型路径"), QStringLiteral("用于推理或分割的 ONNX 模型文件路径。")}},
-        {"input_raster", {QStringLiteral("输入影像"), QStringLiteral("待处理的栅格影像文件路径。")}},
-        {"input_vector", {QStringLiteral("输入矢量"), QStringLiteral("待处理的矢量数据文件路径。")}},
-        {"output_tif", {QStringLiteral("输出栅格"), QStringLiteral("输出栅格结果文件路径。")}},
-        {"output_shp", {QStringLiteral("输出矢量"), QStringLiteral("输出矢量结果文件路径。")}},
-        {"output_path", {QStringLiteral("输出路径"), QStringLiteral("输出结果文件路径。")}},
-        {"output_dir", {QStringLiteral("输出目录"), QStringLiteral("批量结果的输出目录。")}},
-        {"input_dir", {QStringLiteral("输入目录"), QStringLiteral("批量处理的输入目录。")}},
-        {"tile_size", {QStringLiteral("分块大小"), QStringLiteral("大图分块推理时使用的切片大小。")}},
-        {"stride", {QStringLiteral("步长"), QStringLiteral("滑窗推理时相邻窗口的移动步长。")}},
-        {"blend_mode", {QStringLiteral("融合方式"), QStringLiteral("分块重叠区域的融合方式。")}},
-        {"target_class", {QStringLiteral("目标类别"), QStringLiteral("分割或推理时关注的目标类别编号。")}},
-        {"skip_nodata", {QStringLiteral("跳过无数据"), QStringLiteral("推理时是否跳过无数据区域。")}},
-        {"simplify_tolerance", {QStringLiteral("简化容差"), QStringLiteral("矢量简化时使用的容差值。")}},
-        {"buffer_distance", {QStringLiteral("缓冲距离"), QStringLiteral("矢量缓冲区分析的距离值。")}},
-        {"threshold_value", {QStringLiteral("阈值"), QStringLiteral("阈值分割时使用的阈值。")}},
-        {"resample_method", {QStringLiteral("重采样方式"), QStringLiteral("栅格重采样时使用的方法。")}},
-        {"mosaic_strategy", {QStringLiteral("镶嵌策略"), QStringLiteral("栅格镶嵌合并时使用的策略。")}},
-        {"normalize_mode", {QStringLiteral("归一化方式"), QStringLiteral("影像归一化处理时使用的方式。")}},
-        {"clip_extent", {QStringLiteral("裁剪范围"), QStringLiteral("裁剪范围，格式为 Xmin、Ymin、Xmax、Ymax。")}},
+        {"model_path", {QCoreApplication::translate("GuiDataSupport", "模型路径"), QCoreApplication::translate("GuiDataSupport", "用于推理或分割的 ONNX 模型文件路径。")}},
+        {"input_raster", {QCoreApplication::translate("GuiDataSupport", "输入影像"), QCoreApplication::translate("GuiDataSupport", "待处理的栅格影像文件路径。")}},
+        {"input_vector", {QCoreApplication::translate("GuiDataSupport", "输入矢量"), QCoreApplication::translate("GuiDataSupport", "待处理的矢量数据文件路径。")}},
+        {"output_tif", {QCoreApplication::translate("GuiDataSupport", "输出栅格"), QCoreApplication::translate("GuiDataSupport", "输出栅格结果文件路径。")}},
+        {"output_shp", {QCoreApplication::translate("GuiDataSupport", "输出矢量"), QCoreApplication::translate("GuiDataSupport", "输出矢量结果文件路径。")}},
+        {"output_path", {QCoreApplication::translate("GuiDataSupport", "输出路径"), QCoreApplication::translate("GuiDataSupport", "输出结果文件路径。")}},
+        {"output_dir", {QCoreApplication::translate("GuiDataSupport", "输出目录"), QCoreApplication::translate("GuiDataSupport", "批量结果的输出目录。")}},
+        {"input_dir", {QCoreApplication::translate("GuiDataSupport", "输入目录"), QCoreApplication::translate("GuiDataSupport", "批量处理的输入目录。")}},
+        {"tile_size", {QCoreApplication::translate("GuiDataSupport", "分块大小"), QCoreApplication::translate("GuiDataSupport", "大图分块推理时使用的切片大小。")}},
+        {"stride", {QCoreApplication::translate("GuiDataSupport", "步长"), QCoreApplication::translate("GuiDataSupport", "滑窗推理时相邻窗口的移动步长。")}},
+        {"blend_mode", {QCoreApplication::translate("GuiDataSupport", "融合方式"), QCoreApplication::translate("GuiDataSupport", "分块重叠区域的融合方式。")}},
+        {"target_class", {QCoreApplication::translate("GuiDataSupport", "目标类别"), QCoreApplication::translate("GuiDataSupport", "分割或推理时关注的目标类别编号。")}},
+        {"skip_nodata", {QCoreApplication::translate("GuiDataSupport", "跳过无数据"), QCoreApplication::translate("GuiDataSupport", "推理时是否跳过无数据区域。")}},
+        {"simplify_tolerance", {QCoreApplication::translate("GuiDataSupport", "简化容差"), QCoreApplication::translate("GuiDataSupport", "矢量简化时使用的容差值。")}},
+        {"buffer_distance", {QCoreApplication::translate("GuiDataSupport", "缓冲距离"), QCoreApplication::translate("GuiDataSupport", "矢量缓冲区分析的距离值。")}},
+        {"threshold_value", {QCoreApplication::translate("GuiDataSupport", "阈值"), QCoreApplication::translate("GuiDataSupport", "阈值分割时使用的阈值。")}},
+        {"resample_method", {QCoreApplication::translate("GuiDataSupport", "重采样方式"), QCoreApplication::translate("GuiDataSupport", "栅格重采样时使用的方法。")}},
+        {"mosaic_strategy", {QCoreApplication::translate("GuiDataSupport", "镶嵌策略"), QCoreApplication::translate("GuiDataSupport", "栅格镶嵌合并时使用的策略。")}},
+        {"normalize_mode", {QCoreApplication::translate("GuiDataSupport", "归一化方式"), QCoreApplication::translate("GuiDataSupport", "影像归一化处理时使用的方式。")}},
+        {"clip_extent", {QCoreApplication::translate("GuiDataSupport", "裁剪范围"), QCoreApplication::translate("GuiDataSupport", "裁剪范围，格式为 Xmin、Ymin、Xmax、Ymax。")}},
     };
     return kTexts;
 }
@@ -142,88 +143,88 @@ ActionUiConfig getActionUiConfig(const std::string& pluginName, const std::strin
 
     if (pluginName == "segment") {
         if (actionKey == "segment_full") {
-            cfg.displayName = QStringLiteral("完整分割");
-            cfg.description = QStringLiteral("对大图进行分割，同时输出栅格和矢量结果");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "完整分割");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对大图进行分割，同时输出栅格和矢量结果");
             cfg.visibleKeys = {"model_path", "input_raster", "output_tif", "output_shp", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
             cfg.requiredKeys = {"model_path", "input_raster", "output_tif"};
         } else if (actionKey == "segment_raster") {
-            cfg.displayName = QStringLiteral("仅输出栅格");
-            cfg.description = QStringLiteral("对大图进行分割，仅输出栅格结果");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "仅输出栅格");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对大图进行分割，仅输出栅格结果");
             cfg.visibleKeys = {"model_path", "input_raster", "output_tif", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
             cfg.requiredKeys = {"model_path", "input_raster", "output_tif"};
         } else if (actionKey == "segment_vector") {
-            cfg.displayName = QStringLiteral("仅输出矢量");
-            cfg.description = QStringLiteral("对大图进行分割，仅输出矢量结果");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "仅输出矢量");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对大图进行分割，仅输出矢量结果");
             cfg.visibleKeys = {"model_path", "input_raster", "output_shp", "tile_size", "stride", "blend_mode", "target_class", "skip_nodata"};
             cfg.requiredKeys = {"model_path", "input_raster", "output_shp"};
         }
     } else if (pluginName == "inference") {
         if (actionKey == "inference_single") {
-            cfg.displayName = QStringLiteral("单图推理");
-            cfg.description = QStringLiteral("对单张影像进行模型推理");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "单图推理");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对单张影像进行模型推理");
             cfg.visibleKeys = {"model_path", "input_raster", "output_path", "target_class"};
             cfg.requiredKeys = {"model_path", "input_raster", "output_path"};
         }
     } else if (pluginName == "preprocess") {
         if (actionKey == "preprocess_resample") {
-            cfg.displayName = QStringLiteral("重采样");
-            cfg.description = QStringLiteral("对栅格影像进行重采样处理");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "重采样");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对栅格影像进行重采样处理");
             cfg.visibleKeys = {"input_raster", "output_path", "resample_method", "resample_width", "resample_height"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "preprocess_normalize") {
-            cfg.displayName = QStringLiteral("归一化");
-            cfg.description = QStringLiteral("对栅格影像进行归一化处理");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "归一化");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对栅格影像进行归一化处理");
             cfg.visibleKeys = {"input_raster", "output_path", "normalize_mode"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "preprocess_clip") {
-            cfg.displayName = QStringLiteral("裁剪");
-            cfg.description = QStringLiteral("按范围裁剪栅格影像");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "裁剪");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "按范围裁剪栅格影像");
             cfg.visibleKeys = {"input_raster", "output_path", "clip_extent"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         }
     } else if (pluginName == "vector") {
         if (actionKey == "vector_simplify") {
-            cfg.displayName = QStringLiteral("简化");
-            cfg.description = QStringLiteral("简化矢量要素，减少顶点数量");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "简化");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "简化矢量要素，减少顶点数量");
             cfg.visibleKeys = {"input_vector", "output_path", "simplify_tolerance"};
             cfg.requiredKeys = {"input_vector", "output_path"};
         } else if (actionKey == "vector_buffer") {
-            cfg.displayName = QStringLiteral("缓冲区");
-            cfg.description = QStringLiteral("为矢量要素创建缓冲区");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "缓冲区");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "为矢量要素创建缓冲区");
             cfg.visibleKeys = {"input_vector", "output_path", "buffer_distance"};
             cfg.requiredKeys = {"input_vector", "output_path"};
         } else if (actionKey == "vector_clip") {
-            cfg.displayName = QStringLiteral("裁剪");
-            cfg.description = QStringLiteral("按范围裁剪矢量数据");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "裁剪");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "按范围裁剪矢量数据");
             cfg.visibleKeys = {"input_vector", "output_path", "clip_extent"};
             cfg.requiredKeys = {"input_vector", "output_path"};
         }
     } else if (pluginName == "raster") {
         if (actionKey == "raster_mosaic") {
-            cfg.displayName = QStringLiteral("镶嵌");
-            cfg.description = QStringLiteral("将多个栅格影像镶嵌合并");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "镶嵌");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "将多个栅格影像镶嵌合并");
             cfg.visibleKeys = {"input_raster", "output_path", "extra_rasters", "mosaic_strategy"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "raster_threshold") {
-            cfg.displayName = QStringLiteral("阈值分割");
-            cfg.description = QStringLiteral("对栅格影像进行阈值分割");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "阈值分割");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对栅格影像进行阈值分割");
             cfg.visibleKeys = {"input_raster", "output_path", "threshold_value"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         } else if (actionKey == "raster_resample") {
-            cfg.displayName = QStringLiteral("重采样");
-            cfg.description = QStringLiteral("对栅格影像进行重采样处理");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "重采样");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对栅格影像进行重采样处理");
             cfg.visibleKeys = {"input_raster", "output_path", "resample_method", "resample_width", "resample_height"};
             cfg.requiredKeys = {"input_raster", "output_path"};
         }
     } else if (pluginName == "batch") {
         if (actionKey == "batch_segment") {
-            cfg.displayName = QStringLiteral("批量分割");
-            cfg.description = QStringLiteral("对目录下所有影像进行批量分割");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "批量分割");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对目录下所有影像进行批量分割");
             cfg.visibleKeys = {"input_dir", "model_path", "output_dir", "tile_size", "stride", "blend_mode"};
             cfg.requiredKeys = {"input_dir", "model_path", "output_dir"};
         } else if (actionKey == "batch_inference") {
-            cfg.displayName = QStringLiteral("批量推理");
-            cfg.description = QStringLiteral("对目录下所有影像进行批量推理");
+            cfg.displayName = QCoreApplication::translate("GuiDataSupport", "批量推理");
+            cfg.description = QCoreApplication::translate("GuiDataSupport", "对目录下所有影像进行批量推理");
             cfg.visibleKeys = {"input_dir", "model_path", "output_dir", "target_class"};
             cfg.requiredKeys = {"input_dir", "model_path", "output_dir"};
         }
@@ -284,43 +285,43 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
     if (pluginName == "segment") {
         const auto tileSize = intParam("tile_size");
         if (tileSize.has_value() && *tileSize < 64) {
-            return ActionValidationIssue{"tile_size", QString::fromUtf8("参数「分块大小」不能小于 64")};
+            return ActionValidationIssue{"tile_size", QCoreApplication::translate("GuiDataSupport", "参数「分块大小」不能小于 64")};
         }
         const auto stride = intParam("stride");
         if (stride.has_value() && *stride < 32) {
-            return ActionValidationIssue{"stride", QString::fromUtf8("参数「步长」不能小于 32")};
+            return ActionValidationIssue{"stride", QCoreApplication::translate("GuiDataSupport", "参数「步长」不能小于 32")};
         }
         if (tileSize.has_value() && stride.has_value() && *stride > *tileSize) {
-            return ActionValidationIssue{"stride", QString::fromUtf8("参数「步长」不应大于「分块大小」")};
+            return ActionValidationIssue{"stride", QCoreApplication::translate("GuiDataSupport", "参数「步长」不应大于「分块大小」")};
         }
         const auto targetClass = intParam("target_class");
         if (targetClass.has_value() && (*targetClass < 0 || *targetClass > 255)) {
-            return ActionValidationIssue{"target_class", QString::fromUtf8("参数「目标类别」应落在 [0, 255] 范围内")};
+            return ActionValidationIssue{"target_class", QCoreApplication::translate("GuiDataSupport", "参数「目标类别」应落在 [0, 255] 范围内")};
         }
         const std::string outputTif = stringParam("output_tif");
         if (!outputTif.empty() && outputTif.find(".tif") == std::string::npos &&
             outputTif.find(".tiff") == std::string::npos) {
-            return ActionValidationIssue{"output_tif", QString::fromUtf8("参数「输出栅格」应使用 .tif 或 .tiff")};
+            return ActionValidationIssue{"output_tif", QCoreApplication::translate("GuiDataSupport", "参数「输出栅格」应使用 .tif 或 .tiff")};
         }
         const std::string outputShp = stringParam("output_shp");
         if (!outputShp.empty() && outputShp.find(".shp") == std::string::npos &&
             outputShp.find(".gpkg") == std::string::npos &&
             outputShp.find(".geojson") == std::string::npos) {
-            return ActionValidationIssue{"output_shp", QString::fromUtf8("参数「输出矢量」应使用 .shp、.gpkg 或 .geojson")};
+            return ActionValidationIssue{"output_shp", QCoreApplication::translate("GuiDataSupport", "参数「输出矢量」应使用 .shp、.gpkg 或 .geojson")};
         }
     }
 
     if (pluginName == "inference") {
         const auto targetClass = intParam("target_class");
         if (targetClass.has_value() && (*targetClass < 0 || *targetClass > 255)) {
-            return ActionValidationIssue{"target_class", QString::fromUtf8("参数「目标类别」应落在 [0, 255] 范围内")};
+            return ActionValidationIssue{"target_class", QCoreApplication::translate("GuiDataSupport", "参数「目标类别」应落在 [0, 255] 范围内")};
         }
     }
 
     if (pluginName == "batch" && actionKey == "batch_inference") {
         const auto targetClass = intParam("target_class");
         if (targetClass.has_value() && (*targetClass < 0 || *targetClass > 255)) {
-            return ActionValidationIssue{"target_class", QString::fromUtf8("参数「目标类别」应落在 [0, 255] 范围内")};
+            return ActionValidationIssue{"target_class", QCoreApplication::translate("GuiDataSupport", "参数「目标类别」应落在 [0, 255] 范围内")};
         }
     }
 
@@ -328,7 +329,7 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
         if (actionKey == "preprocess_clip") {
             const auto extent = getExtentParam(params, "clip_extent");
             if (extent[0] == 0 && extent[1] == 0 && extent[2] == 0 && extent[3] == 0) {
-                return ActionValidationIssue{"clip_extent", QString::fromUtf8("参数「裁剪范围」不能全为零")};
+                return ActionValidationIssue{"clip_extent", QCoreApplication::translate("GuiDataSupport", "参数「裁剪范围」不能全为零")};
             }
         }
     }
@@ -337,13 +338,13 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
         if (actionKey == "vector_simplify") {
             const auto tolerance = doubleParam("simplify_tolerance");
             if (tolerance.has_value() && *tolerance <= 0.0) {
-                return ActionValidationIssue{"simplify_tolerance", QString::fromUtf8("参数「简化容差」必须大于 0")};
+                return ActionValidationIssue{"simplify_tolerance", QCoreApplication::translate("GuiDataSupport", "参数「简化容差」必须大于 0")};
             }
         }
         if (actionKey == "vector_buffer") {
             const auto distance = doubleParam("buffer_distance");
             if (distance.has_value() && *distance <= 0.0) {
-                return ActionValidationIssue{"buffer_distance", QString::fromUtf8("参数「缓冲距离」必须大于 0")};
+                return ActionValidationIssue{"buffer_distance", QCoreApplication::translate("GuiDataSupport", "参数「缓冲距离」必须大于 0")};
             }
         }
     }
@@ -352,7 +353,7 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
         if (actionKey == "raster_threshold") {
             const auto threshold = doubleParam("threshold_value");
             if (threshold.has_value() && *threshold < 0.0) {
-                return ActionValidationIssue{"threshold_value", QString::fromUtf8("参数「阈值」不能小于 0")};
+                return ActionValidationIssue{"threshold_value", QCoreApplication::translate("GuiDataSupport", "参数「阈值」不能小于 0")};
             }
         }
     }
@@ -360,7 +361,7 @@ std::optional<ActionValidationIssue> validateActionSpecificParams(
     if (pluginName == "batch") {
         const std::string inputDir = stringParam("input_dir");
         if (!inputDir.empty() && !std::filesystem::exists(inputDir)) {
-            return ActionValidationIssue{"input_dir", QString::fromUtf8("参数「输入目录」路径不存在")};
+            return ActionValidationIssue{"input_dir", QCoreApplication::translate("GuiDataSupport", "参数「输入目录」路径不存在")};
         }
     }
 
@@ -372,8 +373,8 @@ ExecuteButtonState buildExecuteButtonState(bool hasSelection,
     if (!hasSelection) {
         return ExecuteButtonState{
             false,
-            QStringLiteral("请先选择主功能和子功能"),
-            QStringLiteral("就绪"),
+            QCoreApplication::translate("GuiDataSupport", "请先选择主功能和子功能"),
+            QCoreApplication::translate("GuiDataSupport", "就绪"),
             QStringLiteral("statusBadgeReady")
         };
     }
@@ -381,14 +382,14 @@ ExecuteButtonState buildExecuteButtonState(bool hasSelection,
         return ExecuteButtonState{
             false,
             validationMessage,
-            QStringLiteral("待修正"),
+            QCoreApplication::translate("GuiDataSupport", "待修正"),
             QStringLiteral("statusBadgeWarning")
         };
     }
     return ExecuteButtonState{
         true,
-        QStringLiteral("参数已就绪，可以执行当前功能"),
-        QStringLiteral("可执行"),
+        QCoreApplication::translate("GuiDataSupport", "参数已就绪，可以执行当前功能"),
+        QCoreApplication::translate("GuiDataSupport", "可执行"),
         QStringLiteral("statusBadgeReady")
     };
 }
@@ -419,41 +420,41 @@ FileParamUiConfig buildFileParamUiConfig(const std::string& pluginName,
     config.isOutput = paramKey.find("output") != std::string::npos;
 
     if (paramType == ParamType::CRS) {
-        config.placeholder = QString::fromUtf8("请输入 EPSG 代码，例如 EPSG:3857");
+        config.placeholder = QCoreApplication::translate("GuiDataSupport", "请输入 EPSG 代码，例如 EPSG:3857");
         return config;
     }
 
     if (config.isOutput) {
         if (paramKey == "output_shp") {
             config.suggestedSuffix = ".shp";
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .shp、.gpkg 或 .geojson");
-            config.saveFilter = QStringLiteral("Shapefile 文件 (*.shp);;GeoPackage 文件 (*.gpkg);;GeoJSON 文件 (*.geojson);;所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件，建议使用 .shp、.gpkg 或 .geojson");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "Shapefile 文件 (*.shp);;GeoPackage 文件 (*.gpkg);;GeoJSON 文件 (*.geojson);;所有文件 (*)");
             return config;
         }
 
         config.suggestedSuffix = defaultSuffixForOutput(pluginName, action, paramKey, ".tif");
 
         if (config.suggestedSuffix == ".tif" || config.suggestedSuffix == ".tiff") {
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .tif");
-            config.saveFilter = QStringLiteral("GeoTIFF 文件 (*.tif *.tiff);;所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件，建议使用 .tif");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "GeoTIFF 文件 (*.tif *.tiff);;所有文件 (*)");
         } else if (config.suggestedSuffix == ".shp") {
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .shp、.gpkg 或 .geojson");
-            config.saveFilter = QStringLiteral("Shapefile 文件 (*.shp);;GeoPackage 文件 (*.gpkg);;GeoJSON 文件 (*.geojson);;所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件，建议使用 .shp、.gpkg 或 .geojson");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "Shapefile 文件 (*.shp);;GeoPackage 文件 (*.gpkg);;GeoJSON 文件 (*.geojson);;所有文件 (*)");
         } else if (config.suggestedSuffix == ".gpkg") {
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .gpkg");
-            config.saveFilter = QStringLiteral("GeoPackage 文件 (*.gpkg);;所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件，建议使用 .gpkg");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "GeoPackage 文件 (*.gpkg);;所有文件 (*)");
         } else if (config.suggestedSuffix == ".json") {
-            config.placeholder = QString::fromUtf8("请选择输出文件，建议使用 .json");
-            config.saveFilter = QStringLiteral("JSON 文件 (*.json);;所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件，建议使用 .json");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "JSON 文件 (*.json);;所有文件 (*)");
         } else {
-            config.placeholder = QString::fromUtf8("请选择输出文件");
-            config.saveFilter = QStringLiteral("所有文件 (*)");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择输出文件");
+            config.saveFilter = QCoreApplication::translate("GuiDataSupport", "所有文件 (*)");
         }
 
         if (pluginName == "batch" && (paramKey == "output_dir" || paramKey == "input_dir")) {
             config.selectDirectory = true;
             config.isOutput = (paramKey == "output_dir");
-            config.placeholder = QString::fromUtf8("请选择目录");
+            config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择目录");
         }
 
         return config;
@@ -461,29 +462,29 @@ FileParamUiConfig buildFileParamUiConfig(const std::string& pluginName,
 
     if (paramType == ParamType::DirPath) {
         config.selectDirectory = true;
-        config.placeholder = QString::fromUtf8("请选择目录");
+        config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择目录");
         return config;
     }
 
     if (paramKey == "model_path") {
-        config.placeholder = QString::fromUtf8("请选择 ONNX 模型文件");
-        config.openFilter = QStringLiteral("ONNX 模型文件 (*.onnx);;所有文件 (*)");
+        config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择 ONNX 模型文件");
+        config.openFilter = QCoreApplication::translate("GuiDataSupport", "ONNX 模型文件 (*.onnx);;所有文件 (*)");
         return config;
     }
 
     if (paramKey.find("raster") != std::string::npos || paramKey == "input_raster") {
-        config.placeholder = QString::fromUtf8("请选择栅格文件，例如 .tif、.img、.vrt");
-        config.openFilter = QStringLiteral("栅格文件 (*.tif *.tiff *.img *.vrt *.png *.jpg *.jpeg *.bmp);;GeoTIFF 文件 (*.tif *.tiff);;所有文件 (*)");
+        config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择栅格文件，例如 .tif、.img、.vrt");
+        config.openFilter = QCoreApplication::translate("GuiDataSupport", "栅格文件 (*.tif *.tiff *.img *.vrt *.png *.jpg *.jpeg *.bmp);;GeoTIFF 文件 (*.tif *.tiff);;所有文件 (*)");
         return config;
     }
 
     if (paramKey.find("vector") != std::string::npos || paramKey == "input_vector") {
-        config.placeholder = QString::fromUtf8("请选择矢量文件，例如 .gpkg、.shp、.geojson");
-        config.openFilter = QStringLiteral("矢量文件 (*.gpkg *.shp *.geojson *.json *.kml *.csv);;GeoPackage 文件 (*.gpkg);;Shapefile 文件 (*.shp);;GeoJSON 文件 (*.geojson *.json);;所有文件 (*)");
+        config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择矢量文件，例如 .gpkg、.shp、.geojson");
+        config.openFilter = QCoreApplication::translate("GuiDataSupport", "矢量文件 (*.gpkg *.shp *.geojson *.json *.kml *.csv);;GeoPackage 文件 (*.gpkg);;Shapefile 文件 (*.shp);;GeoJSON 文件 (*.geojson *.json);;所有文件 (*)");
         return config;
     }
 
-    config.placeholder = QString::fromUtf8("请选择文件或输入路径");
+    config.placeholder = QCoreApplication::translate("GuiDataSupport", "请选择文件或输入路径");
     return config;
 }
 
@@ -497,36 +498,36 @@ const ParamText* findCommonParamText(const std::string& paramKey) {
 QString enumDisplayText(const std::string& paramKey, const std::string& rawValue) {
     static const std::map<std::string, std::map<std::string, QString>> translations = {
         {"method", {
-            {"basic", QStringLiteral("basic（基础）")},
-            {"otsu", QStringLiteral("otsu（大津法）")},
-            {"adaptive", QStringLiteral("adaptive（自适应）")},
+            {"basic", QCoreApplication::translate("GuiDataSupport", "basic（基础）")},
+            {"otsu", QCoreApplication::translate("GuiDataSupport", "otsu（大津法）")},
+            {"adaptive", QCoreApplication::translate("GuiDataSupport", "adaptive（自适应）")},
         }},
         {"match_method", {
-            {"exact", QStringLiteral("exact（精确匹配）")},
-            {"partial", QStringLiteral("partial（部分匹配）")},
-            {"fuzzy", QStringLiteral("fuzzy（模糊匹配）")},
+            {"exact", QCoreApplication::translate("GuiDataSupport", "exact（精确匹配）")},
+            {"partial", QCoreApplication::translate("GuiDataSupport", "partial（部分匹配）")},
+            {"fuzzy", QCoreApplication::translate("GuiDataSupport", "fuzzy（模糊匹配）")},
         }},
         {"transform", {
-            {"identity", QStringLiteral("identity（无变换）")},
-            {"normalize", QStringLiteral("normalize（归一化）")},
-            {"standardize", QStringLiteral("standardize（标准化）")},
+            {"identity", QCoreApplication::translate("GuiDataSupport", "identity（无变换）")},
+            {"normalize", QCoreApplication::translate("GuiDataSupport", "normalize（归一化）")},
+            {"standardize", QCoreApplication::translate("GuiDataSupport", "standardize（标准化）")},
         }},
         {"resample", {
-            {"nearest", QStringLiteral("nearest（最近邻）")},
-            {"bilinear", QStringLiteral("bilinear（双线性）")},
-            {"cubic", QStringLiteral("cubic（三次卷积）")},
-            {"lanczos", QStringLiteral("lanczos（兰佐斯）")},
-            {"average", QStringLiteral("average（平均值）")},
-            {"mode", QStringLiteral("mode（众数）")},
+            {"nearest", QCoreApplication::translate("GuiDataSupport", "nearest（最近邻）")},
+            {"bilinear", QCoreApplication::translate("GuiDataSupport", "bilinear（双线性）")},
+            {"cubic", QCoreApplication::translate("GuiDataSupport", "cubic（三次卷积）")},
+            {"lanczos", QCoreApplication::translate("GuiDataSupport", "lanczos（兰佐斯）")},
+            {"average", QCoreApplication::translate("GuiDataSupport", "average（平均值）")},
+            {"mode", QCoreApplication::translate("GuiDataSupport", "mode（众数）")},
         }},
         {"blend", {
-            {"none", QStringLiteral("none（无融合）")},
-            {"linear", QStringLiteral("linear（线性融合）")},
-            {"gaussian", QStringLiteral("gaussian（高斯融合）")},
+            {"none", QCoreApplication::translate("GuiDataSupport", "none（无融合）")},
+            {"linear", QCoreApplication::translate("GuiDataSupport", "linear（线性融合）")},
+            {"gaussian", QCoreApplication::translate("GuiDataSupport", "gaussian（高斯融合）")},
         }},
         {"simplify_method", {
-            {"douglas_peucker", QStringLiteral("douglas_peucker（道格拉斯-普克）")},
-            {"visvalingam", QStringLiteral("visvalingam（维斯瓦林甘）")},
+            {"douglas_peucker", QCoreApplication::translate("GuiDataSupport", "douglas_peucker（道格拉斯-普克）")},
+            {"visvalingam", QCoreApplication::translate("GuiDataSupport", "visvalingam（维斯瓦林甘）")},
         }},
         {"output_format", {
             {"shp", QStringLiteral("shp（Shapefile）")},

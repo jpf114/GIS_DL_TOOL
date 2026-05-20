@@ -2,6 +2,8 @@
 #include "task_manager.h"
 #include "style_constants.h"
 
+#include <QCoreApplication>
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFrame>
@@ -43,16 +45,16 @@ void TaskCenterPage::setupUi() {
     auto* taskHeaderLayout = new QHBoxLayout;
     taskHeaderLayout->setSpacing(12);
 
-    auto* taskTitleLabel = new QLabel(QStringLiteral("任务列表"));
+    auto* taskTitleLabel = new QLabel(QCoreApplication::translate("GuiDataSupport", "任务列表"));
     taskTitleLabel->setObjectName(QStringLiteral("cardTitle"));
     taskHeaderLayout->addWidget(taskTitleLabel);
 
-    taskCountLabel_ = new QLabel(QStringLiteral("共 0 个任务"));
+    taskCountLabel_ = new QLabel(QCoreApplication::translate("GuiDataSupport", "共 0 个任务"));
     taskCountLabel_->setObjectName(QStringLiteral("taskCountMeta"));
     taskHeaderLayout->addWidget(taskCountLabel_);
     taskHeaderLayout->addStretch();
 
-    clearHistoryButton_ = new QPushButton(QStringLiteral("清空历史"));
+    clearHistoryButton_ = new QPushButton(QCoreApplication::translate("GuiDataSupport", "清空历史"));
     clearHistoryButton_->setObjectName(QStringLiteral("secondaryButton"));
     connect(clearHistoryButton_, &QPushButton::clicked, this, [this]() {
         emit clearHistoryRequested();
@@ -67,11 +69,11 @@ void TaskCenterPage::setupUi() {
     taskTree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     taskTree_->setContextMenuPolicy(Qt::CustomContextMenu);
     taskTree_->setHeaderLabels(QStringList()
-        << QStringLiteral("状态")
-        << QStringLiteral("子功能")
-        << QStringLiteral("开始时间")
-        << QStringLiteral("进度")
-        << QStringLiteral("耗时"));
+        << QCoreApplication::translate("GuiDataSupport", "状态")
+        << QCoreApplication::translate("GuiDataSupport", "子功能")
+        << QCoreApplication::translate("GuiDataSupport", "开始时间")
+        << QCoreApplication::translate("GuiDataSupport", "进度")
+        << QCoreApplication::translate("GuiDataSupport", "耗时"));
     taskTree_->header()->setStretchLastSection(true);
     taskTree_->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     taskTree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -104,7 +106,7 @@ void TaskCenterPage::setupUi() {
     auto* logHeaderLayout = new QHBoxLayout;
     logHeaderLayout->setSpacing(12);
 
-    auto* logTitleLabel = new QLabel(QStringLiteral("执行日志"));
+    auto* logTitleLabel = new QLabel(QCoreApplication::translate("GuiDataSupport", "执行日志"));
     logTitleLabel->setObjectName(QStringLiteral("cardTitle"));
     logHeaderLayout->addWidget(logTitleLabel);
 
@@ -113,7 +115,7 @@ void TaskCenterPage::setupUi() {
     logHeaderLayout->addWidget(logTaskLabel_);
     logHeaderLayout->addStretch();
 
-    clearLogButton_ = new QPushButton(QStringLiteral("清空日志"));
+    clearLogButton_ = new QPushButton(QCoreApplication::translate("GuiDataSupport", "清空日志"));
     clearLogButton_->setObjectName(QStringLiteral("secondaryButton"));
     connect(clearLogButton_, &QPushButton::clicked, this, [this]() {
         if (currentLogTaskId_.isEmpty()) {
@@ -126,7 +128,7 @@ void TaskCenterPage::setupUi() {
 
     logLayout->addLayout(logHeaderLayout);
 
-    auto* resultTitleLabel = new QLabel(QStringLiteral("执行结果"));
+    auto* resultTitleLabel = new QLabel(QCoreApplication::translate("GuiDataSupport", "执行结果"));
     resultTitleLabel->setObjectName(QStringLiteral("cardTitle"));
     logLayout->addWidget(resultTitleLabel);
 
@@ -141,7 +143,7 @@ void TaskCenterPage::setupUi() {
     logDisplay_->setReadOnly(true);
     logLayout->addWidget(logDisplay_);
 
-    rerunButton_ = new QPushButton(QStringLiteral("重新执行"));
+    rerunButton_ = new QPushButton(QCoreApplication::translate("GuiDataSupport", "重新执行"));
     rerunButton_->setObjectName(QStringLiteral("primaryButton"));
     rerunButton_->setEnabled(false);
     connect(rerunButton_, &QPushButton::clicked, this, [this]() {
@@ -187,7 +189,7 @@ void TaskCenterPage::addTaskRow(const QString& taskId, const QString& actionDisp
     taskTree_->setCurrentItem(item);
 
     int count = taskTree_->topLevelItemCount();
-    taskCountLabel_->setText(QStringLiteral("共 %1 个任务").arg(count));
+    taskCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "共 %1 个任务").arg(count));
 }
 
 void TaskCenterPage::updateTaskRow(const QString& taskId, int status,
@@ -203,11 +205,11 @@ void TaskCenterPage::updateTaskRow(const QString& taskId, int status,
         qint64 secs = durationMs / 1000;
         if (secs < 60) {
             double seconds = durationMs / 1000.0;
-            item->setText(4, QStringLiteral("%1秒").arg(seconds, 0, 'f', 1));
+            item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1秒").arg(seconds, 0, 'f', 1));
         } else {
             int mins = static_cast<int>(secs) / 60;
             int remainSecs = static_cast<int>(secs) % 60;
-            item->setText(4, QStringLiteral("%1分%2秒").arg(mins).arg(remainSecs));
+            item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1分%2秒").arg(mins).arg(remainSecs));
         }
     }
     item->setText(3, status == TaskRecord::Completed ? QStringLiteral("100%") : QStringLiteral("-"));
@@ -243,7 +245,7 @@ void TaskCenterPage::removeTaskRows(const QStringList& taskIds) {
         }
     }
     int count = taskTree_->topLevelItemCount();
-    taskCountLabel_->setText(QStringLiteral("共 %1 个任务").arg(count));
+    taskCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "共 %1 个任务").arg(count));
     if (removedCurrentTask || count == 0) {
         currentLogTaskId_.clear();
         logTaskLabel_->clear();
@@ -262,7 +264,7 @@ void TaskCenterPage::refreshAll() {
     rerunButton_->setEnabled(false);
 
     if (currentGroup_.isEmpty()) {
-        taskCountLabel_->setText(QStringLiteral("共 0 个任务"));
+        taskCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "共 0 个任务"));
         return;
     }
 
@@ -275,7 +277,7 @@ void TaskCenterPage::refreshAll() {
         item->setText(2, rec.startTime.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
 
         if (rec.status == TaskRecord::Running) {
-            item->setText(3, QStringLiteral("运行中"));
+            item->setText(3, QCoreApplication::translate("GuiDataSupport", "运行中"));
         } else if (rec.status == TaskRecord::Completed) {
             item->setText(3, QStringLiteral("100%"));
         } else {
@@ -286,19 +288,19 @@ void TaskCenterPage::refreshAll() {
             qint64 secs = rec.durationMs / 1000;
             if (secs < 60) {
                 double seconds = rec.durationMs / 1000.0;
-                item->setText(4, QStringLiteral("%1秒").arg(seconds, 0, 'f', 1));
+                item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1秒").arg(seconds, 0, 'f', 1));
             } else {
                 int mins = static_cast<int>(secs) / 60;
                 int remainSecs = static_cast<int>(secs) % 60;
-                item->setText(4, QStringLiteral("%1分%2秒").arg(mins).arg(remainSecs));
+                item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1分%2秒").arg(mins).arg(remainSecs));
             }
         } else if (rec.endTime.isValid() && rec.startTime.isValid()) {
             qint64 secs = rec.startTime.secsTo(rec.endTime);
             if (secs < 0) secs = 0;
             if (secs < 60) {
-                item->setText(4, QStringLiteral("%1秒").arg(secs));
+                item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1秒").arg(secs));
             } else {
-                item->setText(4, QStringLiteral("%1分%2秒").arg(secs / 60).arg(secs % 60));
+                item->setText(4, QCoreApplication::translate("GuiDataSupport", "%1分%2秒").arg(secs / 60).arg(secs % 60));
             }
         } else {
             item->setText(4, QStringLiteral("-"));
@@ -313,18 +315,18 @@ void TaskCenterPage::refreshAll() {
     }
 
     int count = taskTree_->topLevelItemCount();
-    taskCountLabel_->setText(QStringLiteral("共 %1 个任务").arg(count));
+    taskCountLabel_->setText(QCoreApplication::translate("GuiDataSupport", "共 %1 个任务").arg(count));
 }
 
 void TaskCenterPage::appendLog(const QString& taskId, const QString& message) {
     if (taskId == currentLogTaskId_) {
         QString timestamp = QTime::currentTime().toString(QStringLiteral("HH:mm:ss"));
         QString html;
-        if (message.contains(QStringLiteral("失败")) || message.contains(QStringLiteral("错误")) || message.contains(QStringLiteral("error"))) {
+        if (message.contains(QCoreApplication::translate("GuiDataSupport", "失败")) || message.contains(QCoreApplication::translate("GuiDataSupport", "错误")) || message.contains(QStringLiteral("error"))) {
             html = QStringLiteral("<span style='color:#FF6B6B;'>[%1] %2</span>").arg(timestamp, message.toHtmlEscaped());
-        } else if (message.contains(QStringLiteral("警告")) || message.contains(QStringLiteral("warning"))) {
+        } else if (message.contains(QCoreApplication::translate("GuiDataSupport", "警告")) || message.contains(QStringLiteral("warning"))) {
             html = QStringLiteral("<span style='color:#FFD93D;'>[%1] %2</span>").arg(timestamp, message.toHtmlEscaped());
-        } else if (message.contains(QStringLiteral("成功")) || message.contains(QStringLiteral("完成"))) {
+        } else if (message.contains(QCoreApplication::translate("GuiDataSupport", "成功")) || message.contains(QCoreApplication::translate("GuiDataSupport", "完成"))) {
             html = QStringLiteral("<span style='color:#6BCB77;'>[%1] %2</span>").arg(timestamp, message.toHtmlEscaped());
         } else {
             html = QStringLiteral("<span style='color:#8B9BB4;'>[%1]</span> %2").arg(timestamp, message.toHtmlEscaped());
@@ -381,7 +383,7 @@ void TaskCenterPage::onCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetI
                      status == TaskRecord::Cancelled);
     rerunButton_->setEnabled(canRerun);
 
-    logTaskLabel_->setText(QStringLiteral("任务: %1").arg(taskId));
+    logTaskLabel_->setText(QCoreApplication::translate("GuiDataSupport", "任务: %1").arg(taskId));
 }
 
 void TaskCenterPage::onItemDoubleClicked(QTreeWidgetItem* item, int /*column*/) {
@@ -420,13 +422,13 @@ void TaskCenterPage::onCustomContextMenu(const QPoint& pos) {
         .arg(Color::kPrimaryLight)
         .arg(Color::kPrimary)
         .arg(Color::kDisabledText));
-    auto* rerunAction = menu.addAction(QStringLiteral("重新执行"));
+    auto* rerunAction = menu.addAction(QCoreApplication::translate("GuiDataSupport", "重新执行"));
     rerunAction->setEnabled(canRerun);
-    auto* editAction = menu.addAction(QStringLiteral("编辑参数"));
+    auto* editAction = menu.addAction(QCoreApplication::translate("GuiDataSupport", "编辑参数"));
     editAction->setEnabled(canRerun);
     menu.addSeparator();
-    auto* deleteAction = menu.addAction(QStringLiteral("删除任务"));
-    auto* clearLogAction = menu.addAction(QStringLiteral("清空日志"));
+    auto* deleteAction = menu.addAction(QCoreApplication::translate("GuiDataSupport", "删除任务"));
+    auto* clearLogAction = menu.addAction(QCoreApplication::translate("GuiDataSupport", "清空日志"));
 
     auto* selected = menu.exec(taskTree_->mapToGlobal(pos));
     if (!selected) return;
@@ -470,28 +472,28 @@ void TaskCenterPage::updateResultDisplay(const TaskRecord& record) {
     }
 
     QStringList lines;
-    lines << QStringLiteral("任务ID: %1").arg(record.id);
-    lines << QStringLiteral("状态: %1").arg(statusText(record.status));
+    lines << QCoreApplication::translate("GuiDataSupport", "任务ID: %1").arg(record.id);
+    lines << QCoreApplication::translate("GuiDataSupport", "状态: %1").arg(statusText(record.status));
 
     const QString resultMessage = record.resultMessage.isEmpty()
         ? statusText(record.status)
         : record.resultMessage;
-    lines << QStringLiteral("结果摘要: %1").arg(resultMessage);
+    lines << QCoreApplication::translate("GuiDataSupport", "结果摘要: %1").arg(resultMessage);
 
     if (!record.resultRawMessage.isEmpty() && record.resultRawMessage != resultMessage) {
-        lines << QStringLiteral("原始信息: %1").arg(record.resultRawMessage);
+        lines << QCoreApplication::translate("GuiDataSupport", "原始信息: %1").arg(record.resultRawMessage);
     }
 
     if (!record.outputPath.isEmpty()) {
-        lines << QStringLiteral("输出路径: %1").arg(record.outputPath);
+        lines << QCoreApplication::translate("GuiDataSupport", "输出路径: %1").arg(record.outputPath);
     }
 
     if (record.durationMs > 0) {
-        lines << QStringLiteral("耗时: %1").arg(formatDuration(record.durationMs));
+        lines << QCoreApplication::translate("GuiDataSupport", "耗时: %1").arg(formatDuration(record.durationMs));
     } else if (record.startTime.isValid() && record.endTime.isValid()) {
         const qint64 durationMs = record.startTime.msecsTo(record.endTime);
         if (durationMs > 0) {
-            lines << QStringLiteral("耗时: %1").arg(formatDuration(durationMs));
+            lines << QCoreApplication::translate("GuiDataSupport", "耗时: %1").arg(formatDuration(durationMs));
         }
     }
 
@@ -505,22 +507,22 @@ QString TaskCenterPage::formatDuration(qint64 durationMs) {
 
     const qint64 totalSeconds = durationMs / 1000;
     if (totalSeconds < 60) {
-        return QStringLiteral("%1 秒").arg(durationMs / 1000.0, 0, 'f', 1);
+        return QCoreApplication::translate("GuiDataSupport", "%1 秒").arg(durationMs / 1000.0, 0, 'f', 1);
     }
 
     const qint64 minutes = totalSeconds / 60;
     const qint64 seconds = totalSeconds % 60;
-    return QStringLiteral("%1 分 %2 秒").arg(minutes).arg(seconds);
+    return QCoreApplication::translate("GuiDataSupport", "%1 分 %2 秒").arg(minutes).arg(seconds);
 }
 
 QString TaskCenterPage::statusText(int status) {
     switch (status) {
-    case TaskRecord::Pending:   return QStringLiteral("等待中");
-    case TaskRecord::Running:   return QStringLiteral("运行中");
-    case TaskRecord::Completed: return QStringLiteral("已完成");
-    case TaskRecord::Cancelled: return QStringLiteral("已取消");
-    case TaskRecord::Failed:    return QStringLiteral("失败");
-    default: return QStringLiteral("未知");
+    case TaskRecord::Pending:   return QCoreApplication::translate("GuiDataSupport", "等待中");
+    case TaskRecord::Running:   return QCoreApplication::translate("GuiDataSupport", "运行中");
+    case TaskRecord::Completed: return QCoreApplication::translate("GuiDataSupport", "已完成");
+    case TaskRecord::Cancelled: return QCoreApplication::translate("GuiDataSupport", "已取消");
+    case TaskRecord::Failed:    return QCoreApplication::translate("GuiDataSupport", "失败");
+    default: return QCoreApplication::translate("GuiDataSupport", "未知");
     }
 }
 

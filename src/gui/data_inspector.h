@@ -28,7 +28,7 @@ DataKind detectDataKind(const std::string& path);
 
 bool isSupportedDataPath(const std::string& path);
 
-std::string dataKindDisplayName(DataKind kind);
+QString dataKindDisplayName(DataKind kind);
 
 DataAutoFillInfo inspectDataForAutoFill(const std::string& path);
 

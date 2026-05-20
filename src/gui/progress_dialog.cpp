@@ -1,6 +1,7 @@
 #include "progress_dialog.h"
 #include "style_constants.h"
 
+#include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QProgressBar>
@@ -13,7 +14,7 @@ namespace gis_ai::gui {
 
 ProgressDialog::ProgressDialog(QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle(QStringLiteral("执行中..."));
+    setWindowTitle(QCoreApplication::translate("GuiDataSupport", "执行中..."));
     setMinimumWidth(450);
     setWindowFlags(windowFlags() & ~Qt::WindowCloseButtonHint);
     setStyleSheet(globalStyleSheet());
@@ -22,7 +23,7 @@ ProgressDialog::ProgressDialog(QWidget* parent)
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(12);
 
-    statusLabel_ = new QLabel(QStringLiteral("正在执行，请稍候..."));
+    statusLabel_ = new QLabel(QCoreApplication::translate("GuiDataSupport", "正在执行，请稍候..."));
     statusLabel_->setObjectName(QStringLiteral("progressStatusMeta"));
     layout->addWidget(statusLabel_);
 
@@ -38,9 +39,9 @@ ProgressDialog::ProgressDialog(QWidget* parent)
     layout->addWidget(logEdit_);
 
     auto* btnBox = new QDialogButtonBox;
-    cancelButton_ = new QPushButton(QStringLiteral("取消"));
+    cancelButton_ = new QPushButton(QCoreApplication::translate("GuiDataSupport", "取消"));
     cancelButton_->setObjectName(QStringLiteral("secondaryButton"));
-    forceQuitButton_ = new QPushButton(QStringLiteral("强制终止"));
+    forceQuitButton_ = new QPushButton(QCoreApplication::translate("GuiDataSupport", "强制终止"));
     forceQuitButton_->setObjectName(QStringLiteral("secondaryButton"));
     forceQuitButton_->setVisible(false);
     btnBox->addButton(cancelButton_, QDialogButtonBox::ActionRole);
@@ -49,7 +50,7 @@ ProgressDialog::ProgressDialog(QWidget* parent)
 
     connect(cancelButton_, &QPushButton::clicked, this, [this]() {
         cancelButton_->setEnabled(false);
-        statusLabel_->setText(QStringLiteral("正在取消..."));
+        statusLabel_->setText(QCoreApplication::translate("GuiDataSupport", "正在取消..."));
     });
 
     connect(forceQuitButton_, &QPushButton::clicked, this, &QDialog::reject);
@@ -57,11 +58,11 @@ ProgressDialog::ProgressDialog(QWidget* parent)
 
 void ProgressDialog::setFinished(const QString& message, bool success, bool cancelled) {
     if (cancelled) {
-        statusLabel_->setText(QStringLiteral("已取消"));
+        statusLabel_->setText(QCoreApplication::translate("GuiDataSupport", "已取消"));
     } else if (success) {
-        statusLabel_->setText(QStringLiteral("执行完成"));
+        statusLabel_->setText(QCoreApplication::translate("GuiDataSupport", "执行完成"));
     } else {
-        statusLabel_->setText(QStringLiteral("执行失败"));
+        statusLabel_->setText(QCoreApplication::translate("GuiDataSupport", "执行失败"));
     }
 
     progressBar_->setRange(0, 100);
@@ -70,7 +71,7 @@ void ProgressDialog::setFinished(const QString& message, bool success, bool canc
     cancelButton_->setVisible(false);
     forceQuitButton_->setVisible(false);
 
-    auto* closeBtn = new QPushButton(QStringLiteral("关闭"));
+    auto* closeBtn = new QPushButton(QCoreApplication::translate("GuiDataSupport", "关闭"));
     closeBtn->setObjectName(QStringLiteral("primaryButton"));
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
 

@@ -15,7 +15,7 @@ namespace gis_ai::gui {
 struct SubFunctionItem {
     std::string pluginName;
     std::string actionKey;
-    std::string displayName;
+    QString displayName;
 };
 
 class NavPanel : public QWidget {

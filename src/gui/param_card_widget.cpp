@@ -1,6 +1,8 @@
 #include "param_card_widget.h"
 #include "crs_dialog.h"
 #include "style_constants.h"
+
+#include <QCoreApplication>
 #include "icon_manager.h"
 #include "gui_data_support.h"
 
@@ -134,9 +136,9 @@ void ParamCardWidget::setupUi() {
     headerLayout->addWidget(iconLabel_, 0, Qt::AlignTop);
 
     static const QMap<CardType, QString> kDefaultTitles = {
-        {CardType::Input,    QStringLiteral("输入参数")},
-        {CardType::Output,   QStringLiteral("输出参数")},
-        {CardType::Advanced, QStringLiteral("高级参数")},
+        {CardType::Input,    QCoreApplication::translate("GuiDataSupport", "输入参数")},
+        {CardType::Output,   QCoreApplication::translate("GuiDataSupport", "输出参数")},
+        {CardType::Advanced, QCoreApplication::translate("GuiDataSupport", "高级参数")},
     };
 
     titleLabel_ = new QLabel(kDefaultTitles.value(cardType_));
@@ -190,7 +192,7 @@ void ParamCardWidget::addParam(const ParamSpec& spec) {
     }
 
     if (spec.required) {
-        auto* reqLabel = new QLabel(QStringLiteral("必填"));
+        auto* reqLabel = new QLabel(QCoreApplication::translate("GuiDataSupport", "必填"));
         reqLabel->setObjectName(QStringLiteral("paramKey"));
         labelLayout->addWidget(reqLabel, 0, Qt::AlignLeft);
     }
@@ -200,7 +202,7 @@ void ParamCardWidget::addParam(const ParamSpec& spec) {
     QString tooltipText = QString::fromUtf8(spec.description);
     if (!tooltipText.isEmpty()) {
         if (spec.required) {
-            tooltipText += QStringLiteral("\n（必填参数）");
+            tooltipText += QCoreApplication::translate("GuiDataSupport", "\n（必填参数）");
         }
         const auto* minInt = std::get_if<int>(&spec.minValue);
         const auto* maxInt = std::get_if<int>(&spec.maxValue);
@@ -208,7 +210,7 @@ void ParamCardWidget::addParam(const ParamSpec& spec) {
         const auto* maxDbl = std::get_if<double>(&spec.maxValue);
         if ((minInt && *minInt != 0) || (maxInt && *maxInt != 0) ||
             (minDbl && *minDbl != 0.0) || (maxDbl && *maxDbl != 0.0)) {
-            tooltipText += QStringLiteral("\n范围：");
+            tooltipText += QCoreApplication::translate("GuiDataSupport", "\n范围：");
             if (minInt) tooltipText += QString::number(*minInt);
             else if (minDbl) tooltipText += QString::number(*minDbl);
             tooltipText += QStringLiteral(" ~ ");
@@ -273,8 +275,8 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
     } else {
         lineEdit->setPlaceholderText(
             spec.type == ParamType::DirPath
-                ? QStringLiteral("请选择目录或输入路径")
-                : QStringLiteral("请选择文件或输入路径"));
+                ? QCoreApplication::translate("GuiDataSupport", "请选择目录或输入路径")
+                : QCoreApplication::translate("GuiDataSupport", "请选择文件或输入路径"));
     }
 
     if (auto* defStr = std::get_if<std::string>(&spec.defaultValue); defStr && !defStr->empty()) {
@@ -286,7 +288,7 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
     });
     layout->addWidget(lineEdit, 1);
 
-    auto* browseBtn = new QPushButton(QStringLiteral("浏览"));
+    auto* browseBtn = new QPushButton(QCoreApplication::translate("GuiDataSupport", "浏览"));
     browseBtn->setObjectName(QStringLiteral("browseButton"));
     browseBtn->setIcon(browseIcon());
     browseBtn->setIconSize(QSize(14, 14));
@@ -309,10 +311,10 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
             [lineEdit, isDir, isOutput, filter, saveFilter, defaultSuffix]() {
         QString filePath;
         if (isDir) {
-            filePath = QFileDialog::getExistingDirectory(nullptr, QStringLiteral("选择目录"));
+            filePath = QFileDialog::getExistingDirectory(nullptr, QCoreApplication::translate("GuiDataSupport", "选择目录"));
         } else if (isOutput) {
             QString effectiveFilter = saveFilter.isEmpty() ? filter : saveFilter;
-            QFileDialog dlg(nullptr, QStringLiteral("保存文件"), QString(), effectiveFilter);
+            QFileDialog dlg(nullptr, QCoreApplication::translate("GuiDataSupport", "保存文件"), QString(), effectiveFilter);
             dlg.setAcceptMode(QFileDialog::AcceptSave);
             if (!defaultSuffix.isEmpty()) {
                 dlg.setDefaultSuffix(defaultSuffix);
@@ -321,7 +323,7 @@ QWidget* ParamCardWidget::createFileWidget(const ParamSpec& spec,
                 filePath = dlg.selectedFiles().constFirst();
             }
         } else {
-            filePath = QFileDialog::getOpenFileName(nullptr, QStringLiteral("选择文件"), QString(), filter);
+            filePath = QFileDialog::getOpenFileName(nullptr, QCoreApplication::translate("GuiDataSupport", "选择文件"), QString(), filter);
         }
         if (!filePath.isEmpty()) {
             lineEdit->setText(filePath);
@@ -340,7 +342,7 @@ QWidget* ParamCardWidget::createCrsWidget(const ParamSpec& spec,
     layout->setSpacing(4);
 
     auto* lineEdit = new QLineEdit;
-    lineEdit->setPlaceholderText(QStringLiteral("请输入 EPSG 代码，例如 EPSG:4326"));
+    lineEdit->setPlaceholderText(QCoreApplication::translate("GuiDataSupport", "请输入 EPSG 代码，例如 EPSG:4326"));
     if (auto* defStr = std::get_if<std::string>(&spec.defaultValue); defStr && !defStr->empty()) {
         lineEdit->setText(QString::fromUtf8(*defStr));
     }
@@ -350,7 +352,7 @@ QWidget* ParamCardWidget::createCrsWidget(const ParamSpec& spec,
     });
     layout->addWidget(lineEdit, 1);
 
-    auto* crsBtn = new QPushButton(QStringLiteral("选择"));
+    auto* crsBtn = new QPushButton(QCoreApplication::translate("GuiDataSupport", "选择"));
     crsBtn->setObjectName(QStringLiteral("browseButton"));
     crsBtn->setIcon(browseIcon());
     crsBtn->setIconSize(QSize(14, 14));
@@ -467,7 +469,7 @@ QWidget* ParamCardWidget::createNumberWidget(const ParamSpec& spec,
 
 QWidget* ParamCardWidget::createBoolWidget(const ParamSpec& spec,
                                             ParamWidgetEntry& entry) {
-    auto* checkBox = new QCheckBox(QStringLiteral("启用"));
+    auto* checkBox = new QCheckBox(QCoreApplication::translate("GuiDataSupport", "启用"));
     if (auto* defBool = std::get_if<bool>(&spec.defaultValue)) {
         checkBox->setChecked(*defBool);
     }
@@ -481,7 +483,7 @@ QWidget* ParamCardWidget::createBoolWidget(const ParamSpec& spec,
 QWidget* ParamCardWidget::createTextWidget(const ParamSpec& spec,
                                             ParamWidgetEntry& entry) {
     auto* lineEdit = new QLineEdit;
-    lineEdit->setPlaceholderText(QStringLiteral("请输入参数值"));
+    lineEdit->setPlaceholderText(QCoreApplication::translate("GuiDataSupport", "请输入参数值"));
     if (auto* defStr = std::get_if<std::string>(&spec.defaultValue); defStr && !defStr->empty()) {
         lineEdit->setText(QString::fromUtf8(*defStr));
     }

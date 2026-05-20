@@ -81,32 +81,32 @@ struct NavEntry {
 
 std::vector<NavEntry> buildEntries() {
     return {
-        {"segment", QStringLiteral("大图分割"), {
-            {"segment", "segment_full",   "完整分割"},
-            {"segment", "segment_raster", "仅输出栅格"},
-            {"segment", "segment_vector", "仅输出矢量"},
+        {"segment", NavPanel::tr("大图分割"), {
+            {"segment", "segment_full",   NavPanel::tr("完整分割")},
+            {"segment", "segment_raster", NavPanel::tr("仅输出栅格")},
+            {"segment", "segment_vector", NavPanel::tr("仅输出矢量")},
         }},
-        {"inference", QStringLiteral("模型推理"), {
-            {"inference", "inference_single", "单图推理"},
+        {"inference", NavPanel::tr("模型推理"), {
+            {"inference", "inference_single", NavPanel::tr("单图推理")},
         }},
-        {"preprocess", QStringLiteral("数据预处理"), {
-            {"preprocess", "preprocess_resample",  "重采样"},
-            {"preprocess", "preprocess_normalize", "归一化"},
-            {"preprocess", "preprocess_clip",      "裁剪"},
+        {"preprocess", NavPanel::tr("数据预处理"), {
+            {"preprocess", "preprocess_resample",  NavPanel::tr("重采样")},
+            {"preprocess", "preprocess_normalize", NavPanel::tr("归一化")},
+            {"preprocess", "preprocess_clip",      NavPanel::tr("裁剪")},
         }},
-        {"vector", QStringLiteral("矢量处理"), {
-            {"vector", "vector_simplify", "简化"},
-            {"vector", "vector_buffer",   "缓冲区"},
-            {"vector", "vector_clip",     "裁剪"},
+        {"vector", NavPanel::tr("矢量处理"), {
+            {"vector", "vector_simplify", NavPanel::tr("简化")},
+            {"vector", "vector_buffer",   NavPanel::tr("缓冲区")},
+            {"vector", "vector_clip",     NavPanel::tr("裁剪")},
         }},
-        {"raster", QStringLiteral("栅格处理"), {
-            {"raster", "raster_mosaic",    "镶嵌"},
-            {"raster", "raster_threshold", "阈值分割"},
-            {"raster", "raster_resample",  "重采样"},
+        {"raster", NavPanel::tr("栅格处理"), {
+            {"raster", "raster_mosaic",    NavPanel::tr("镶嵌")},
+            {"raster", "raster_threshold", NavPanel::tr("阈值分割")},
+            {"raster", "raster_resample",  NavPanel::tr("重采样")},
         }},
-        {"batch", QStringLiteral("批量处理"), {
-            {"batch", "batch_segment",   "批量分割"},
-            {"batch", "batch_inference", "批量推理"},
+        {"batch", NavPanel::tr("批量处理"), {
+            {"batch", "batch_segment",   NavPanel::tr("批量分割")},
+            {"batch", "batch_inference", NavPanel::tr("批量推理")},
         }},
     };
 }
@@ -145,11 +145,11 @@ void NavPanel::setupUi() {
     eyebrowLabel->setObjectName(QStringLiteral("sidebarEyebrow"));
     topLayout->addWidget(eyebrowLabel);
 
-    titleLabel_ = new QLabel(QStringLiteral("GIS AI 工具台"));
+    titleLabel_ = new QLabel(NavPanel::tr("GIS AI 工具台"));
     titleLabel_->setObjectName(QStringLiteral("sidebarTitle"));
     topLayout->addWidget(titleLabel_);
 
-    auto* descLabel = new QLabel(QStringLiteral("点击主功能后在原位展开子功能，参数配置与执行反馈集中在同一界面。"));
+    auto* descLabel = new QLabel(NavPanel::tr("点击主功能后在原位展开子功能，参数配置与执行反馈集中在同一界面。"));
     descLabel->setObjectName(QStringLiteral("sidebarDesc"));
     descLabel->setWordWrap(true);
     descLabel->setMinimumHeight(QFontMetrics(descLabel->font()).lineSpacing() * 3);
@@ -167,7 +167,7 @@ void NavPanel::setupUi() {
     middleLayout->setContentsMargins(0, 0, 4, 0);
     middleLayout->setSpacing(10);
 
-    auto* sectionLabel = new QLabel(QStringLiteral("功能分类"));
+    auto* sectionLabel = new QLabel(NavPanel::tr("功能分类"));
     sectionLabel->setObjectName(QStringLiteral("sidebarSection"));
     middleLayout->addWidget(sectionLabel);
 
@@ -192,11 +192,11 @@ void NavPanel::setupUi() {
     footerLayout->setContentsMargins(4, 6, 4, 4);
     footerLayout->setSpacing(3);
 
-    auto* footerTitle = new QLabel(QStringLiteral("更多工具"));
+    auto* footerTitle = new QLabel(NavPanel::tr("更多工具"));
     footerTitle->setObjectName(QStringLiteral("sidebarFooterTitle"));
     footerLayout->addWidget(footerTitle);
 
-    auto* footerDesc = new QLabel(QStringLiteral("当前聚焦算法执行，后续补充结果预览与检查能力。"));
+    auto* footerDesc = new QLabel(NavPanel::tr("当前聚焦算法执行，后续补充结果预览与检查能力。"));
     footerDesc->setObjectName(QStringLiteral("sidebarFooterDesc"));
     footerDesc->setWordWrap(true);
     footerDesc->setMinimumHeight(QFontMetrics(footerDesc->font()).lineSpacing() * 3);
@@ -237,7 +237,7 @@ void NavPanel::buildNavItems() {
         groupLayout->addWidget(subContainer);
 
         for (const auto& subItem : entry.subFunctions) {
-            const QString displayText = QString::fromUtf8(subItem.displayName);
+            const QString displayText = subItem.displayName;
             auto* subBtn = new QPushButton;
             subBtn->setObjectName(QStringLiteral("subNavItem"));
             subBtn->setCheckable(true);
@@ -298,8 +298,8 @@ void NavPanel::setSubFunctions(const std::vector<SubFunctionItem>& items) {
     clearSubFunctions();
 
     for (const auto& item : items) {
-        const QString displayText = QString::fromUtf8(
-            item.displayName.empty() ? item.actionKey : item.displayName);
+        const QString displayText =
+            item.displayName.isEmpty() ? QString::fromStdString(item.actionKey) : item.displayName;
 
         auto* btn = new QPushButton;
         btn->setObjectName(QStringLiteral("subNavItem"));

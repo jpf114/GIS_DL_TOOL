@@ -1,7 +1,20 @@
 cmake_minimum_required(VERSION 3.21)
 
-if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    elseif(DEFINED ENV{VCPKG_ROOT})
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    endif()
+endif()
+
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    message(FATAL_ERROR
+        "未找到 vcpkg toolchain 文件。请执行以下任一操作：\n"
+        "  1. 运行 setup_vcpkg.ps1 初始化项目内嵌 vcpkg\n"
+        "  2. 设置 VCPKG_ROOT 环境变量指向你的 vcpkg 安装目录\n"
+        "  3. 手动指定 -DCMAKE_TOOLCHAIN_FILE=<path>/vcpkg.cmake"
+    )
 endif()
 
 option(GIS_AI_BUILD_GUI "Build Qt GUI" OFF)

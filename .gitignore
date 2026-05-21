@@ -1,5 +1,9 @@
 build/
 .worktrees/
+vcpkg/
+!vcpkg.json
+!vcpkg-configuration.json
+!vcpkg-overlay/
 test_data/*
 !test_data/README.md
 !test_data/real/

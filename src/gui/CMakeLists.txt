@@ -68,7 +68,7 @@ set_target_properties(gis_ai_gui_lib PROPERTIES
 
 add_executable(gis-ai-gui
     main.cpp
-    "${CMAKE_SOURCE_DIR}/resources/app.rc"
+    "${CMAKE_BINARY_DIR}/generated/app.rc"
 )
 
 target_link_libraries(gis-ai-gui PRIVATE gis_ai_gui_lib)

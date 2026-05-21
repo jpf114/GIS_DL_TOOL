@@ -67,5 +67,12 @@
             "configurePreset": "release",
             "configuration": "Release"
         }
+    ],
+    "packagePresets": [
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "configurations": ["Release"]
+        }
     ]
 }

@@ -34,6 +34,12 @@ configure_file(
     @ONLY
 )
 
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/app.rc.in"
+    "${CMAKE_BINARY_DIR}/generated/app.rc"
+    @ONLY
+)
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "默认安装路径" FORCE)
 endif()

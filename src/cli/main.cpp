@@ -8,9 +8,56 @@
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
+#include <gdal_priv.h>
+#include <cpl_conv.h>
+
 #include <windows.h>
-#endif
+#include <filesystem>
+
+static void InitGdalRuntime() {
+    GDALAllRegister();
+
+    std::string gdalDataDir;
+    const char* gdalDataEnv = std::getenv("GDAL_DATA");
+    if (gdalDataEnv && gdalDataEnv[0] != '\0') {
+        gdalDataDir = gdalDataEnv;
+    }
+    if (gdalDataDir.empty()) {
+        std::filesystem::path exePath = std::filesystem::current_path();
+        auto gdalDir = exePath / ".." / "share" / "gdal";
+        if (std::filesystem::exists(gdalDir)) {
+            gdalDataDir = gdalDir.string();
+        }
+    }
+    if (!gdalDataDir.empty()) {
+        CPLSetConfigOption("GDAL_DATA", gdalDataDir.c_str());
+    }
+
+    std::string projDataDir;
+    const char* projDataEnv = std::getenv("PROJ_DATA");
+    if (projDataEnv && projDataEnv[0] != '\0') {
+        projDataDir = projDataEnv;
+    }
+    if (projDataDir.empty()) {
+        const char* projLibEnv = std::getenv("PROJ_LIB");
+        if (projLibEnv && projLibEnv[0] != '\0') {
+            projDataDir = projLibEnv;
+        }
+    }
+    if (projDataDir.empty()) {
+        std::filesystem::path exePath = std::filesystem::current_path();
+        auto projDir = exePath / ".." / "share" / "proj";
+        if (std::filesystem::exists(projDir)) {
+            projDataDir = projDir.string();
+        }
+    }
+    if (!projDataDir.empty()) {
+        CPLSetConfigOption("PROJ_DATA", projDataDir.c_str());
+        CPLSetConfigOption("PROJ_LIB", projDataDir.c_str());
+    }
+
+    CPLSetConfigOption("CPL_DEBUG", "OFF");
+}
 
 static void PrintUsage() {
     std::cout << "GIS AI 算法库 - 命令行工具 v" GIS_AI_VERSION_STRING "\n\n"
@@ -282,10 +329,10 @@ static int GenerateConfig(const std::string& outputPath) {
 }
 
 int main(int argc, char* argv[]) {
-#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-#endif
+
+    InitGdalRuntime();
 
     if (argc < 2) {
         PrintUsage();
@@ -293,6 +340,11 @@ int main(int argc, char* argv[]) {
     }
 
     std::string command = argv[1];
+
+    if (command == "--version" || command == "-V") {
+        PrintVersion();
+        return 0;
+    }
 
     if (command == "run") {
         if (argc < 3) {

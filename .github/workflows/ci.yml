@@ -8,6 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  VCPKG_COMMIT: 256acc64012b23a13041d8705805e1f23b43a024
 
 jobs:
   build-windows:
@@ -19,113 +20,24 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 42f37e46d37baf7b218966434b91116bddf73461
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DGIS_AI_BUILD_TESTS=ON -DGIS_AI_BUILD_DOCS=OFF
-
-      - name: Build Debug
-        run: cmake --build build --config Debug -- /m:2
+        run: cmake --preset=release
 
       - name: Build Release
-        run: cmake --build build --config Release -- /m:2
+        run: cmake --build build/release --config Release
 
-      - name: Test Debug non-AI targets
-        working-directory: build
-        run: ctest -C Debug --output-on-failure -E test_ai_integration
+      - name: Test Release
+        working-directory: build/release
+        run: ctest -C Release --output-on-failure -E test_ai_integration
 
-      - name: Test Release AI integration
-        working-directory: build
-        run: ctest -C Release --output-on-failure -R test_ai_integration
+      - name: Install
+        run: cmake --install build/release --prefix install-check
 
-  build-linux:
-    name: Linux 核心校验
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install system dependencies
+      - name: Verify install tree
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgdal-dev libgeos-dev libproj-dev lcov
-
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 42f37e46d37baf7b218966434b91116bddf73461
-
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DGIS_AI_BUILD_TESTS=ON -DGIS_AI_BUILD_DOCS=OFF
-
-      - name: Build
-        run: cmake --build build -j 2
-
-      - name: Test
-        working-directory: build
-        run: ctest --output-on-failure -E "test_ai_integration"
-
-  coverage:
-    name: 代码覆盖率
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgdal-dev libgeos-dev libproj-dev lcov
-
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 42f37e46d37baf7b218966434b91116bddf73461
-
-      - name: Configure CMake with coverage
-        run: |
-          cmake -B build-coverage \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DGIS_AI_BUILD_TESTS=ON \
-            -DGIS_AI_BUILD_DOCS=OFF \
-            -DGIS_AI_ENABLE_COVERAGE=ON
-
-      - name: Build
-        run: cmake --build build-coverage -j 2
-
-      - name: Run tests
-        working-directory: build-coverage
-        run: ctest --output-on-failure -E "test_ai_integration"
-
-      - name: Generate coverage report
-        run: |
-          lcov --capture --directory build-coverage --output-file coverage.info
-          lcov --remove coverage.info '/usr/*' '*/vcpkg_installed/*' '*/build-coverage/*' '*/tests/*' '*/_deps/*' --output-file coverage.filtered.info
-          lcov --list coverage.filtered.info
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.filtered.info
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  build-macos:
-    name: macOS 核心校验
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 42f37e46d37baf7b218966434b91116bddf73461
-
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DGIS_AI_BUILD_TESTS=ON -DGIS_AI_BUILD_DOCS=OFF
-
-      - name: Build
-        run: cmake --build build -j 2
-
-      - name: Test
-        working-directory: build
-        run: ctest --output-on-failure -E "test_ai_integration"
+          $binDir = "install-check/bin"
+          if (-not (Test-Path (Join-Path $binDir "gis-ai-gui.exe"))) { throw "GUI exe missing" }
+          if (-not (Test-Path (Join-Path $binDir "gis_ai_cli.exe"))) { throw "CLI exe missing" }

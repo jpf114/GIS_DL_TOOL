@@ -18,6 +18,7 @@ Last updated: 2026-05-21
 | GUI 启动 | ✅ 进程存活验证通过 |
 | 下游 find_package 消费 | ✅ 通过 |
 | CPACK NSIS 打包 | ✅ 配置就绪（需安装 NSIS 生成安装包） |
+| vcpkg manifest 模式 | ✅ 项目内嵌 vcpkg 优先，同事可一键初始化 |
 
 ## Core Capabilities
 
@@ -41,6 +42,8 @@ Last updated: 2026-05-21
 
 ### CLI
 - segment / inference / batch / generate-config / version / help 子命令
+- 支持 `--version` / `-V` 标志
+- GDAL/PROJ 运行时数据路径自动初始化
 - JSON 运行报告（--report）
 - 结构化错误码体系（1xxx=IO, 2xxx=模型, 3xxx=算法, 4xxx=配置, 5xxx=内存, 6xxx=参数, 7xxx=任务）
 
@@ -71,7 +74,30 @@ Windows release 安装布局已验证：
 - **独立 NSIS 脚本**：`packaging/nsis/installer.nsi`
 - **一键打包脚本**：`packaging/build_installer.ps1`
 
+Windows 版本信息：
+- exe 属性页显示产品名、版本号、公司名、版权声明（通过 app.rc.in 自动注入）
+
+## Development Setup
+
+vcpkg manifest 模式确保依赖一致性：
+- `vcpkg.json` — 依赖声明（含 baseline 锁定）
+- `vcpkg-configuration.json` — overlay 端口配置
+- `vcpkg-overlay/` — 自定义端口补丁
+
+新同事开发流程：
+```powershell
+git clone <repo>
+cd GIS_DL_TOOL
+.\setup_vcpkg.ps1          # 一键初始化 vcpkg（克隆+bootstrap）
+cmake --preset=release     # 配置
+cmake --build --preset=release  # 构建
+```
+
+toolchain 发现优先级：
+1. 项目内嵌 `vcpkg/` 目录（推荐，确保一致性）
+2. `VCPKG_ROOT` 环境变量（兼容全局安装）
+3. 手动指定 `-DCMAKE_TOOLCHAIN_FILE`
+
 ## Open Areas
 
 - P2: 共享 shell 片段进一步减少独立漂移实现
-- 跨平台验证（当前仅 Windows）

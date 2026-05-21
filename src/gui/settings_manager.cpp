@@ -1,4 +1,5 @@
 #include "settings_manager.h"
+#include "core/config.h"
 
 namespace gis_ai::gui {
 
@@ -88,6 +89,28 @@ QString SettingsManager::lastActionKey() const {
 
 void SettingsManager::setLastActionKey(const QString& key) {
     settings_.setValue(QStringLiteral("session/lastActionKey"), key);
+}
+
+void SettingsManager::syncFromCoreConfig() {
+    auto& cfg = gis_ai::Config::Instance();
+
+    if (auto v = cfg.GetString("default_output_srs"); !v.empty()) {
+        if (defaultOutputSrs().isEmpty()) {
+            setDefaultOutputSrs(QString::fromStdString(v));
+        }
+    }
+
+    if (auto v = cfg.GetString("last_input_directory"); !v.empty()) {
+        if (lastInputDirectory().isEmpty()) {
+            setLastInputDirectory(QString::fromStdString(v));
+        }
+    }
+
+    if (auto v = cfg.GetString("last_output_directory"); !v.empty()) {
+        if (lastOutputDirectory().isEmpty()) {
+            setLastOutputDirectory(QString::fromStdString(v));
+        }
+    }
 }
 
 }

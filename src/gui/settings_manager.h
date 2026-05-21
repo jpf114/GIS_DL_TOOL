@@ -40,6 +40,8 @@ public:
     QString lastActionKey() const;
     void setLastActionKey(const QString& key);
 
+    void syncFromCoreConfig();
+
 signals:
     void recentFilesChanged();
 

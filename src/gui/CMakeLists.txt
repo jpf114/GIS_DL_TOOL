@@ -18,6 +18,7 @@ target_link_libraries(gis_gui_common PUBLIC
     Qt6::Widgets
     Qt6::Svg
     PROJ::proj
+    gis_ai_static
 )
 
 target_include_directories(gis_gui_common PUBLIC

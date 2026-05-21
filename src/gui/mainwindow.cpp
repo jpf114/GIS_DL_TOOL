@@ -108,6 +108,7 @@ MainWindow::MainWindow(QWidget* parent)
     setupUi();
     connectControllerSignals();
     restoreWindowState();
+    SettingsManager::instance().syncFromCoreConfig();
 }
 
 MainWindow::~MainWindow() {

@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: 2026-05-15
+Last updated: 2026-05-21
 
 ## Summary
 
@@ -17,6 +17,7 @@ Last updated: 2026-05-15
 | GUI self-test | ✅ `gis-ai-gui.exe --self-test` 正常 |
 | GUI 启动 | ✅ 进程存活验证通过 |
 | 下游 find_package 消费 | ✅ 通过 |
+| CPACK NSIS 打包 | ✅ 配置就绪（需安装 NSIS 生成安装包） |
 
 ## Core Capabilities
 
@@ -34,6 +35,9 @@ Last updated: 2026-05-15
 - gui_data_support 全平台级能力：数据检测、自动填充、输出路径推导、文件对话框、参数文本、结果本地化、参数校验、无效参数高亮
 - gis_gui_common 共享 UI 组件库
 - GeoPackage 输出支持
+- i18n 国际化基础设施（tr()/translate() 全量覆盖）
+- Config 与 SettingsManager 双轨配置统一（syncFromCoreConfig 桥接）
+- 关于对话框显示正确版本号
 
 ### CLI
 - segment / inference / batch / generate-config / version / help 子命令
@@ -60,6 +64,12 @@ Windows release 安装布局已验证：
 - `install/share/proj` — PROJ 数据
 - `install/share/gdal` — GDAL 数据
 - `install/share/icons` — 应用图标
+
+打包方式：
+- **CPACK NSIS**：`cpack -G NSIS -C Release`（需安装 NSIS）
+- **CPACK ZIP**：`cpack -G ZIP -C Release`
+- **独立 NSIS 脚本**：`packaging/nsis/installer.nsi`
+- **一键打包脚本**：`packaging/build_installer.ps1`
 
 ## Open Areas
 

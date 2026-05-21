@@ -59,6 +59,74 @@ static void InitGdalRuntime() {
     CPLSetConfigOption("CPL_DEBUG", "OFF");
 }
 
+static void PrintUsage();
+
+static void PrintCommandHelp(const std::string& command) {
+    if (command == "run") {
+        std::cout << "用法: gis_ai_cli run <config.json> [--verbose] [--report <path>]\n\n"
+                  << "使用 JSON 配置文件执行任务。配置文件需包含 task_type 及对应参数。\n"
+                  << std::endl;
+    } else if (command == "segment") {
+        std::cout << "用法: gis_ai_cli segment <model> <input> [output_tif] [output_shp] [选项]\n\n"
+                  << "对大图进行分割，同时输出栅格和矢量结果。\n\n"
+                  << "选项:\n"
+                  << "  --tile-size <int>            切片大小 (默认: 512)\n"
+                  << "  --stride <int>               滑窗步长 (默认: 384)\n"
+                  << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
+                  << "  --target-class <int>         目标类别 (默认: 1)\n"
+                  << "  --no-shp                     不输出矢量文件\n"
+                  << "  --verbose                    详细日志\n"
+                  << "  --report <path>              输出 JSON 运行报告\n"
+                  << std::endl;
+    } else if (command == "inference") {
+        std::cout << "用法: gis_ai_cli inference <model> <input> [output] [选项]\n\n"
+                  << "对单张影像进行模型推理。\n\n"
+                  << "选项:\n"
+                  << "  --tile-size <int>            切片大小 (默认: 512)\n"
+                  << "  --stride <int>               滑窗步长 (默认: 384)\n"
+                  << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
+                  << "  --target-class <int>         目标类别 (默认: 1)\n"
+                  << "  --verbose                    详细日志\n"
+                  << "  --report <path>              输出 JSON 运行报告\n"
+                  << std::endl;
+    } else if (command == "batch") {
+        std::cout << "用法: gis_ai_cli batch <model> <input_dir> <output_dir> [选项]\n\n"
+                  << "对目录下所有影像进行批量分割。\n\n"
+                  << "选项:\n"
+                  << "  --tile-size <int>            切片大小 (默认: 512)\n"
+                  << "  --stride <int>               滑窗步长 (默认: 384)\n"
+                  << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
+                  << "  --target-class <int>         目标类别 (默认: 1)\n"
+                  << "  --threads <int>              线程数 (默认: 1)\n"
+                  << "  --verbose                    详细日志\n"
+                  << "  --report <path>              输出 JSON 运行报告\n"
+                  << std::endl;
+    } else if (command == "batch-inference") {
+        std::cout << "用法: gis_ai_cli batch-inference <model> <input_dir> <output_dir> [选项]\n\n"
+                  << "对目录下所有影像进行批量推理。\n\n"
+                  << "选项:\n"
+                  << "  --tile-size <int>            切片大小 (默认: 512)\n"
+                  << "  --stride <int>               滑窗步长 (默认: 384)\n"
+                  << "  --blend <none|linear|gaussian> 融合模式 (默认: gaussian)\n"
+                  << "  --target-class <int>         目标类别 (默认: 1)\n"
+                  << "  --threads <int>              线程数 (默认: 1)\n"
+                  << "  --verbose                    详细日志\n"
+                  << "  --report <path>              输出 JSON 运行报告\n"
+                  << std::endl;
+    } else if (command == "generate-config") {
+        std::cout << "用法: gis_ai_cli generate-config <output.json>\n\n"
+                  << "生成默认配置文件模板。\n"
+                  << std::endl;
+    } else if (command == "version") {
+        std::cout << "用法: gis_ai_cli version\n\n"
+                  << "显示版本信息。\n"
+                  << std::endl;
+    } else {
+        std::cerr << "未知命令: " << command << std::endl;
+        PrintUsage();
+    }
+}
+
 static void PrintUsage() {
     std::cout << "GIS AI 算法库 - 命令行工具 v" GIS_AI_VERSION_STRING "\n\n"
               << "用法:\n"
@@ -344,6 +412,19 @@ int main(int argc, char* argv[]) {
     if (command == "--version" || command == "-V") {
         PrintVersion();
         return 0;
+    }
+
+    if (command == "--help" || command == "-h") {
+        PrintUsage();
+        return 0;
+    }
+
+    for (int i = 2; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--help" || arg == "-h") {
+            PrintCommandHelp(command);
+            return 0;
+        }
     }
 
     if (command == "run") {

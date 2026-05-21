@@ -1,14 +1,12 @@
 !define PRODUCT_NAME "GIS AI TOOLKIT"
 !define PRODUCT_VERSION "0.1.0"
 !define PRODUCT_PUBLISHER "GIS_AI"
-!define PRODUCT_WEB_SITE "https://github.com/gis-ai/toolkit"
 !define PRODUCT_DIR_REGKEY "Software\GIS_AI\GIS AI TOOLKIT"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define PRODUCT_INSTALL_DIR "$PROGRAMFILES64\${PRODUCT_NAME}"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
-!include "LogicLib.nsh"
 
 Var StartMenuFolder
 
@@ -20,9 +18,6 @@ RequestExecutionLevel admin
 
 !define MUI_ICON "..\..\resources\app.ico"
 !define MUI_UNICON "..\..\resources\app.ico"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\resources\installer-welcome.bmp"
-!define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "..\..\resources\installer-header.bmp"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
@@ -51,6 +46,8 @@ LangString LaunchApp ${LANG_SIMPCHINESE} "运行 GIS AI TOOLKIT"
 LangString LaunchApp ${LANG_ENGLISH} "Launch GIS AI TOOLKIT"
 LangString AppDesc ${LANG_SIMPCHINESE} "GIS AI 遥感智能处理工具箱"
 LangString AppDesc ${LANG_ENGLISH} "GIS AI Remote Sensing Intelligent Processing Toolkit"
+LangString UninstallLink ${LANG_SIMPCHINESE} "卸载"
+LangString UninstallLink ${LANG_ENGLISH} "Uninstall"
 
 Section "!$(AppDesc)" SEC_MAIN
     SetOutPath "$INSTDIR"
@@ -104,9 +101,6 @@ Section "Uninstall"
 
     SetAutoClose true
 SectionEnd
-
-LangString UninstallLink ${LANG_SIMPCHINESE} "卸载"
-LangString UninstallLink ${LANG_ENGLISH} "Uninstall"
 
 Function .onInit
     !insertmacro MUI_LANGDLL_DISPLAY

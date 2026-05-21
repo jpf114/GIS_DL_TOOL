@@ -147,6 +147,27 @@ if(TARGET gis_ai_cli)
     )
 endif()
 
+add_executable(test_c_api
+    test_c_api.cpp
+)
+
+target_link_libraries(test_c_api
+    PRIVATE
+        gis_ai_static
+        GTest::gtest
+        GTest::gtest_main
+)
+
+target_include_directories(test_c_api
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+add_test(NAME test_c_api COMMAND test_c_api WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(test_c_api PROPERTIES TIMEOUT 60)
+gis_ai_configure_test_environment(test_c_api)
+
 if(GIS_AI_BUILD_GUI)
     find_package(Qt6 COMPONENTS Core Gui Widgets Svg Sql REQUIRED)
     find_package(SQLite3 REQUIRED)

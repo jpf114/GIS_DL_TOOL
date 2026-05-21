@@ -3,6 +3,7 @@
 #include <gis_ai/version.h>
 
 #include <QApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -38,6 +39,8 @@ void initGdalRuntime(const QString& applicationDirPath) {
     }
     if (QDir(gdalDataDir).exists()) {
         CPLSetConfigOption("GDAL_DATA", gdalDataDir.toUtf8().constData());
+    } else {
+        qWarning() << "GDAL data directory not found:" << gdalDataDir;
     }
 
     QString projDataDir;
@@ -53,6 +56,9 @@ void initGdalRuntime(const QString& applicationDirPath) {
     }
     if (QDir(projDataDir).exists()) {
         CPLSetConfigOption("PROJ_DATA", projDataDir.toUtf8().constData());
+        CPLSetConfigOption("PROJ_LIB", projDataDir.toUtf8().constData());
+    } else {
+        qWarning() << "PROJ data directory not found:" << projDataDir;
     }
 
     CPLSetConfigOption("CPL_DEBUG", "OFF");

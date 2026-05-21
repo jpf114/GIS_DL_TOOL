@@ -19,7 +19,9 @@ output/
 # Test output and artifacts
 test_output/
 artifacts/
---verbose
+
+# CPack output
+_CPack_Packages/
 
 # Python caches
 __pycache__/

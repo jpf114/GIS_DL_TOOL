@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 
+#include <gis_ai/version.h>
+
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -99,6 +101,7 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("GIS AI TOOLKIT"));
     app.setOrganizationName(QStringLiteral("GIS_AI"));
+    app.setApplicationVersion(QString::fromLatin1(GIS_AI_VERSION_STRING));
 
     {
         QStringList fontSearchDirs;
